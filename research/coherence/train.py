@@ -32,6 +32,7 @@ def main():
     ap.add_argument('--lr', type=float, default=2e-3)
     ap.add_argument('--d', type=int, default=64)
     ap.add_argument('--L', type=int, default=3)
+    ap.add_argument('--tag', default='', help='suffix for the run name, e.g. -screen')
     a = ap.parse_args()
 
     cfg = M.default_cfg(a.variant, d=a.d, L=a.L, dff=4 * a.d)
@@ -62,7 +63,7 @@ def main():
                 m['g'] = [round(float(jnp.tanh(rp['g'])), 3) for rp in L['read']]
             log.append(m)
             print(json.dumps(m), flush=True)
-    name = f'{a.variant}-s{a.seed}'
+    name = f'{a.variant}-s{a.seed}{a.tag}'
     OUT.mkdir(exist_ok=True)
     with open(OUT / f'{name}.pkl', 'wb') as f:
         pickle.dump({'cfg': cfg, 'params': jax.device_get(params), 'log': log, 'n_params': int(M.n_params(params))}, f)

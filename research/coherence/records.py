@@ -35,15 +35,15 @@ def macs_per_token(keys: float, variant: str) -> dict:
     return {'fixed': fixed, 'attention': attn, 'ledger': led, 'total': fixed + attn + led}
 
 
-def load():
-    prompts = E.prompts()
+def load(res=RES, per_k=E.PER_K):
+    prompts = E.prompts(per_k=per_k)
     n0 = [len(p[0]) for p in prompts]
     req = [p[0].index(REQ) for p in prompts]
     runs = defaultdict(list)
-    for f in sorted(RES.glob('*-s*.json')):
+    for f in sorted(Path(res).glob('*-s*.json')):
         d = json.load(open(f))
         v = d['summary']['variant']
-        seed = int(f.stem.rsplit('-s', 1)[1])
+        seed = int(f.stem.rsplit('-s', 1)[1].split('-')[0])
         recs = d['records']
         evict = v.endswith('evict')
         for i, r in enumerate(recs):

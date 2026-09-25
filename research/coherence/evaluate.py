@@ -28,11 +28,11 @@ TB = 320
 OUT = Path(__file__).parent / 'results'
 
 
-def prompts(seed=7):
+def prompts(seed=7, per_k=PER_K):
     r = np.random.default_rng(seed)
     items = []
     for k in KS:
-        for _ in range(PER_K):
+        for _ in range(per_k):
             seq, st, k2 = prompt(r, k, n_ex=2)
             items.append((seq, st, k2))
     return items
@@ -141,9 +141,11 @@ def summarise(recs):
     return out
 
 
-def main(paths):
-    OUT.mkdir(exist_ok=True)
-    items = prompts()
+def main(paths, per_k=PER_K, out=OUT):
+    """Screening runs use fewer prompts (the first per_k of each length) and their own folder."""
+    OUT_DIR = Path(out)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    items = prompts(per_k=per_k)
     for path in paths:
         run = pickle.load(open(path, 'rb'))
         cfg, params = run['cfg'], jax.tree_util.tree_map(jnp.asarray, run['params'])
@@ -158,10 +160,21 @@ def main(paths):
         summ['n_params'] = run['n_params']
         summ['final_lm'] = run['log'][-1]['lm']
         name = Path(path).stem
-        json.dump({'summary': summ, 'records': recs}, open(OUT / f'{name}.json', 'w'))
+        json.dump({'summary': summ, 'records': recs}, open(OUT_DIR / f'{name}.json', 'w'))
         a = summ['all']
         print(name, json.dumps({k: round(v, 3) for k, v in a.items()}), 'conflict coherent', round(summ['conflict']['coherent'], 3), flush=True)
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    args = sys.argv[1:]
+    per_k = PER_K
+    out = OUT
+    if '--per-k' in args:
+        i = args.index('--per-k')
+        per_k = int(args[i + 1])
+        del args[i : i + 2]
+    if '--out' in args:
+        i = args.index('--out')
+        out = args[i + 1]
+        del args[i : i + 2]
+    main(args, per_k, out)
