@@ -1,0 +1,7 @@
+SCREEN DONE ledger ledger-s0-screen {"font": 0.83, "heading": 0.93, "math": 0.81, "why": 0.65, "sources": 0.83, "order": 1.0, "form": 0.88, "length": 0.62, "coherent": 0.37, "ended": 1.0} conflict coherent 0.359
+SCREEN DONE base base-s0-screen {"font": 0.82, "heading": 0.94, "math": 0.54, "why": 0.69, "sources": 0.62, "order": 1.0, "form": 0.84, "length": 0.05, "coherent": 0.17, "ended": 1.0} conflict coherent 0.141
+SCREEN DONE ledger_top ledger_top-s0-screen {"font": 0.8, "heading": 0.92, "math": 0.77, "why": 0.65, "sources": 0.82, "order": 1.0, "form": 0.89, "length": 0.67, "coherent": 0.3, "ended": 1.0} conflict coherent 0.308
+SCREEN DONE ledger_logit ledger_logit-s0-screen {"font": 0.85, "heading": 0.94, "math": 0.89, "why": 0.68, "sources": 0.86, "order": 1.0, "form": 0.98, "length": 0.17, "coherent": 0.44, "ended": 1.0} conflict coherent 0.41
+SCREEN DONE ledger_pre ledger_pre-s0-screen {"font": 0.87, "heading": 0.92, "math": 0.75, "why": 0.68, "sources": 0.83, "order": 1.0, "form": 0.88, "length": 0.76, "coherent": 0.35, "ended": 1.0} conflict coherent 0.346
+SCREEN DONE ledger_film ledger_film-s0-screen {"font": 0.9, "heading": 0.94, "math": 0.8, "why": 0.58, "sources": 0.83, "order": 1.0, "form": 0.92, "length": 0.41, "coherent": 0.31, "ended": 1.0} conflict coherent 0.308
+SCREEN DONE ledger_joint ledger_joint-s0-screen {"font": 0.79, "heading": 0.92, "math": 0.68, "why": 0.72, "sources": 0.66, "order": 1.0, "form": 0.89, "length": 0.18, "coherent": 0.2, "ended": 0.99} conflict coherent 0.179
