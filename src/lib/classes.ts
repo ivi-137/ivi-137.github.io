@@ -75,6 +75,14 @@ export const INSTRUMENTS: Array<{ id: string; title: string; url: string; class:
     why: 'Fux’s rules only compare neighbouring notes, so the best counterpoint is a shortest path: O(n·k³) by dynamic programming. Everything else is a finite-state machine.',
   },
   {
+    id: 'melencolia',
+    title: 'Melencolia I: a vocoder for sad songs',
+    url: '/vocoder/',
+    class: 'P',
+    glyph: '34',
+    why: 'A channel vocoder costs a fixed amount of work per band per sample, and the saddest four-chord phrase is a longest path in a layered chord graph, found by dynamic programming.',
+  },
+  {
     id: 'network',
     title: 'Network of transmissions and ideas',
     url: '/network/',

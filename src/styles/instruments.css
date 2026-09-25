@@ -2121,6 +2121,16 @@ main,
   background: var(--ink);
   color: var(--acid);
 }
+.tamburo .chip--rec[aria-pressed='true'] {
+  color: var(--verm);
+}
+.tamburo__takes {
+  margin-top: 18px;
+}
+.tamburo__takes:empty,
+.tamburo__takes .takes__empty {
+  display: none;
+}
 @media (max-width: 760px) {
   .drums__head > .stamp {
     position: static;

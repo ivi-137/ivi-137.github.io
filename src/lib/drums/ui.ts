@@ -1,6 +1,7 @@
 import { DEFAULT, STEPS, Tamburo, decode, encode, type State, type Tick } from './engine';
 import { firstRow } from '../sigil';
 import { toast } from '../ui/nav';
+import { fmtTime, makeTake, takesList } from '../audio/recorder';
 
 const clone = (s: State): State => JSON.parse(JSON.stringify(s));
 
@@ -239,6 +240,38 @@ export function mountDrums() {
     if (feed) toast('Every kick now drops a glider into the colony behind the page.');
   });
 
+  // ── recording: the master bus, to WAV takes ─────────────────────────────────
+  const takesHost = document.querySelector<HTMLElement>('[data-drum-takes]');
+  const takes = takesHost
+    ? takesList(takesHost, {
+        file: 'tamburo-8',
+        info: { title: 'Tamburo 8', artist: 'gpojani.me', software: 'Tamburo 8, gpojani.me/drums', date: new Date().toISOString().slice(0, 10) },
+        empty: 'no takes yet: press ● registra',
+      })
+    : null;
+  const recBtn = $<HTMLButtonElement>('[data-drum-rec]');
+  const recTime = $('[data-drum-rec-time]');
+  let takeN = 0;
+  let recTimer = 0;
+  recBtn.addEventListener('click', async () => {
+    const tap = await machine.recorder();
+    if (tap.recording) {
+      clearInterval(recTimer);
+      const channels = await tap.stop();
+      recBtn.setAttribute('aria-pressed', 'false');
+      recTime.textContent = '';
+      if (channels[0]?.length) {
+        takes?.add(makeTake(channels, machine.ctx!.sampleRate, `ripresa ${++takeN}`, 'tamburo'));
+        toast('Take kept under the machine: play it, or download it as WAV.');
+      }
+      return;
+    }
+    if (!machine.playing) await toggle();
+    tap.start();
+    recBtn.setAttribute('aria-pressed', 'true');
+    recTimer = window.setInterval(() => (recTime.textContent = fmtTime(tap.seconds)), 100);
+  });
+
   // ── keyboard: space = play, 1–6 = audition ─────────────────────────────────
   const onKey = (e: KeyboardEvent) => {
     const t = e.target as HTMLElement;
@@ -258,6 +291,8 @@ export function mountDrums() {
     () => {
       removeEventListener('keydown', onKey, { capture: true });
       cancelAnimationFrame(raf);
+      clearInterval(recTimer);
+      takes?.dispose();
       machine.dispose();
     },
     { once: true },

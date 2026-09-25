@@ -17,6 +17,7 @@
  */
 import { VOICES, type VoiceParams } from './voices';
 import { nextRow } from '../sigil';
+import { loadTap, Tap } from '../audio/recorder';
 
 export const STEPS = 8;
 
@@ -76,6 +77,7 @@ export class Tamburo {
   private bar = 0;
   private listeners = new Set<(t: Tick) => void>();
   private barListeners = new Set<() => void>();
+  private tap: Tap | null = null;
 
   constructor(state: State) {
     this.state = state;
@@ -216,7 +218,20 @@ export class Tamburo {
     this.barListeners.add(fn);
   }
 
+  /** A recording tap on the master bus (after the limiter), created on first use. */
+  async recorder(): Promise<Tap> {
+    if (!this.ctx) this.build();
+    await this.ctx!.resume();
+    if (!this.tap) {
+      await loadTap(this.ctx!);
+      this.tap = new Tap(this.ctx!, 2);
+      this.analyser.connect(this.tap.node);
+    }
+    return this.tap;
+  }
+
   dispose() {
+    this.tap?.dispose();
     this.stop();
     this.ctx?.close();
   }

@@ -1,0 +1,318 @@
+---
+import Base from '../layouts/Base.astro';
+import Stamp from '../components/Stamp.astro';
+import Sigil from '../components/Sigil.astro';
+import VK from '../components/synth/VK.astro';
+import { vspec } from '../lib/vocoder/params';
+import { DURER, NAMES, SAD_METHODS } from '../lib/vocoder/melancholy';
+import '../styles/vocoder.css';
+import '../styles/takes.css';
+
+const seg = (id: string) => ({ id, pos: vspec(id).pos!, def: vspec(id).def });
+const segs = {
+  mode: seg('in.mode'),
+  type: seg('car.type'),
+  follow: seg('car.follow'),
+  bars: seg('g.bars'),
+};
+---
+
+<Base
+  title="Melencolia I"
+  description="A vocoder for the microphone, in the browser, whose harmony is chosen by what the research says sounds sad: minor thirds, small steps, falling basses, appoggiaturas, Dürer's magic square. Sing through it, record, render and download."
+>
+  <section class="mel-page" data-mel-page>
+    <header class="section-head section-head--page mel-page__head">
+      <p class="kicker mono" data-decode>instrument · vocoder</p>
+      <h1 class="section-head__title">Melencolia <em>I</em></h1>
+      <p class="section-head__lede">
+        A vocoder measures your voice in bands and lends its shape to another sound. Here the other sound is a choir that only
+        knows sad chords, chosen by what the research says sad music is made of: the minor third of sad speech, small steps, a
+        bass that falls, an appoggiatura that leans before it resolves. Dürer put a magic square in his engraving of melancholy;
+        it is in here too.
+      </p>
+      <Sigil class="mel-page__sigil" seed="Melencolia I" cols={64} rows={16} animate="always" ink="paper" />
+      <Stamp id="P" />
+    </header>
+
+    <div class="mel" data-melencolia>
+      <div class="mel__cheek" aria-hidden="true"></div>
+      <div class="mel__face">
+        <div class="mel__top">
+          <div class="mel__brand">
+            <span class="mel__logo">Melencolia<span>·</span>I</span>
+            <span class="mono">vocoder · gpojani</span>
+            <span class="mel__status mono" data-status aria-live="polite">open the microphone, or play the chords without a voice</span>
+          </div>
+          <button type="button" class="mel__mic" data-mic aria-pressed="false">
+            <span class="mel__mic-dot" aria-hidden="true"></span>
+            <span class="mono" data-mic-label>apri il microfono</span>
+          </button>
+          <div class="mel__listen mono">
+            <span class="lbl">ascolto</span>
+            <div class="seg" role="group" aria-label="Listening through">
+              {segs.mode.pos.map((n, v) => (
+                <button type="button" data-seg="in.mode" data-v={v} aria-pressed={v === segs.mode.def ? 'true' : 'false'}>
+                  {n}
+                </button>
+              ))}
+            </div>
+            <button type="button" class="btn btn--sm" data-calibrate title="Play a soft hiss and measure how much of it the microphone hears">misura la stanza</button>
+            <span class="mel__couple" data-couple>stanza non misurata</span>
+            <button type="button" class="sw" data-monitor aria-pressed="true" title="Hear the output. Off: nothing reaches the speakers, but the vocoder still records">monitor</button>
+          </div>
+          <div class="mel__meters mono" aria-hidden="true">
+            <span>in</span><i class="meter"><b data-meter-in></b></i>
+            <span>out</span><i class="meter"><b data-meter-out></b></i>
+            <span class="mel__lamp" data-lamp title="Feedback guard">guardia</span>
+          </div>
+          <VK id="g.vol" size="md" />
+          <VK id="g.bpm" size="md" />
+          <div class="mel__sad">
+            <div class="knob knob--lg" role="slider" tabindex="0" aria-label="tristezza" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0.7" data-sad-macro>
+              <svg viewBox="-50 -50 100 100" aria-hidden="true">
+                {[...Array(11).keys()].map((i) => <line class="knob__tick" x1="0" y1="-44" x2="0" y2="-38" transform={`rotate(${-135 + i * 27})`} />)}
+                <circle class="knob__skirt" r="34" />
+                <circle class="knob__cap" r="26" />
+                <line class="knob__pointer" x1="0" y1="-8" x2="0" y2="-30" />
+              </svg>
+              <span class="knob__label mono">tristezza</span>
+              <span class="knob__value mono" data-sad-macro-value>70</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ the voice ═══ -->
+        <section class="mod" aria-labelledby="v-voce">
+          <header class="mod__head">
+            <h2 id="v-voce" class="mod__title">La voce</h2>
+            <span class="mod__sub mono">the modulator: how loud, how bright, which pitch, and how sad it sounds</span>
+          </header>
+          <div class="voce">
+            <div class="bay">
+              <VK id="in.gain" />
+              <VK id="in.gate" />
+              <VK id="in.sib" />
+              <VK id="in.dry" />
+            </div>
+            <canvas class="voce__bands" data-bands aria-label="The vocoder's bands: how open each one is"></canvas>
+            <div class="voce__read mono">
+              <p><span>altezza</span> <b data-f0>—</b></p>
+              <p><span>intervallo</span> <b data-interval>—</b></p>
+              <div class="cues" data-voice-cues></div>
+              <p class="voce__score"><span>la tua voce</span> <b data-voice-score>—</b></p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ bank + carrier ═══ -->
+        <div class="mel__pair">
+          <section class="mod" aria-labelledby="v-banco">
+            <header class="mod__head">
+              <h2 id="v-banco" class="mod__title">Il banco</h2>
+              <span class="mod__sub mono">8 to 32 bandpass filters, an envelope follower on each</span>
+            </header>
+            <div class="bay">
+              <VK id="vc.bands" size="md" />
+              <VK id="vc.q" />
+              <VK id="vc.atk" />
+              <VK id="vc.rel" />
+              <VK id="vc.formant" size="md" />
+              <VK id="vc.blur" />
+              <VK id="vc.dark" />
+              <div class="bay__switches"><button type="button" class="sw" data-switch="vc.freeze">congela</button></div>
+            </div>
+          </section>
+          <section class="mod" aria-labelledby="v-portante">
+            <header class="mod__head">
+              <h2 id="v-portante" class="mod__title">La portante</h2>
+              <span class="mod__sub mono">what your voice shapes: a sad choir, or your own pitch</span>
+            </header>
+            <div class="bay">
+              <div class="seg" role="group" aria-label="Carrier">
+                {segs.type.pos.map((n, v) => (
+                  <button type="button" data-seg="car.type" data-v={v} aria-pressed={v === segs.type.def ? 'true' : 'false'}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <VK id="car.oct" />
+              <VK id="car.detune" />
+              <VK id="car.bend" />
+              <VK id="car.glide" />
+              <VK id="car.noise" />
+              <div class="bay__switches">
+                <span class="lbl">segue</span>
+                <div class="seg" role="group" aria-label="Carrier follows">
+                  {segs.follow.pos.map((n, v) => (
+                    <button type="button" data-seg="car.follow" data-v={v} aria-pressed={v === segs.follow.def ? 'true' : 'false'}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" class="sw" data-switch="car.harm" title="Add a voice a minor third below yours">terza sotto</button>
+                <button type="button" class="sw" data-switch="car.solo" title="Open every band: hear the chords as a pad, no voice needed">senza voce</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- ═══ sad harmony ═══ -->
+        <section class="mod" aria-labelledby="v-arm">
+          <header class="mod__head">
+            <h2 id="v-arm" class="mod__title">L'armonia triste</h2>
+            <span class="mod__sub mono">chords chosen by the findings on sad music, and why each one is sad</span>
+          </header>
+          <div class="sad">
+            <div class="sad__methods" role="radiogroup" aria-label="How the chords are chosen">
+              {SAD_METHODS.map((m, i) => (
+                <button type="button" role="radio" class="method" data-method={i} aria-checked={i === 0 ? 'true' : 'false'} title={m.cite}>
+                  <b>{m.n}</b>
+                  <span class="mono">{m.en}</span>
+                </button>
+              ))}
+            </div>
+            <div class="sad__read">
+              <p class="sad__roman mono" data-roman>—</p>
+              <p class="sad__chord" data-chord>silenzio</p>
+              <ul class="sad__why mono" data-why></ul>
+              <p class="sad__cite mono" data-cite>{SAD_METHODS[0].cite}</p>
+            </div>
+            <div class="durer" data-durer aria-label="Dürer's magic square: every row, column and diagonal sums to 34">
+              {DURER.map((n, c) => (
+                <span class="durer__cell" data-cell={c}>
+                  {n}
+                </span>
+              ))}
+              <p class="durer__cap mono">34 · Melencolia I, 1514</p>
+            </div>
+            <div class="sad__ctl mono">
+              <label class="field"><span>tonica</span>
+                <select data-tonic aria-label="Tonic">{NAMES.map((n, i) => <option value={i} selected={i === 9}>{n}</option>)}</select>
+              </label>
+              <span class="lbl">battute</span>
+              <div class="seg" role="group" aria-label="Bars per chord">
+                {segs.bars.pos.map((n, v) => (
+                  <button type="button" data-seg="g.bars" data-v={v} aria-pressed={v === segs.bars.def ? 'true' : 'false'}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <VK id="h.tears" />
+              <VK id="h.spice" />
+              <button type="button" class="sw" data-switch="h.hold">tieni</button>
+              <button type="button" class="btn btn--sm" data-next>prossimo accordo</button>
+            </div>
+            <div class="index">
+              <p class="index__head mono"><span>indice di malinconia</span> <b data-index>—</b></p>
+              <div class="cues" data-cues></div>
+              <p class="index__note mono">weights are ours; their order follows Eerola, Friberg &amp; Bresin (2013): mode and tempo count most</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ after ═══ -->
+        <section class="mod" aria-labelledby="v-dopo">
+          <header class="mod__head">
+            <h2 id="v-dopo" class="mod__title">Dopo</h2>
+            <span class="mod__sub mono">worn tape, an echo that darkens, a room</span>
+          </header>
+          <div class="bay">
+            <VK id="fx.tape" />
+            <VK id="fx.echo" />
+            <VK id="fx.time" />
+            <VK id="fx.fb" />
+            <VK id="fx.verb" />
+            <VK id="fx.size" />
+            <VK id="fx.dark" />
+          </div>
+        </section>
+
+        <!-- ═══ recorder ═══ -->
+        <section class="mod" aria-labelledby="v-rec">
+          <header class="mod__head">
+            <h2 id="v-rec" class="mod__title">Il registratore</h2>
+            <span class="mod__sub mono">record the dry voice, the vocoder, or both; put any take (or a file) through the vocoder afterwards</span>
+          </header>
+          <div class="rec mono">
+            <button type="button" class="rec__btn" data-rec aria-pressed="false"><span aria-hidden="true"></span><b data-rec-label>registra</b></button>
+            <label class="rec__opt"><input type="checkbox" data-rec-dry checked /> voce</label>
+            <label class="rec__opt"><input type="checkbox" data-rec-wet checked /> vocoder</label>
+            <b class="rec__time" data-rec-time>0:00.0</b>
+            <label class="btn btn--sm">carica un file audio<input type="file" accept="audio/*" data-upload hidden /></label>
+          </div>
+          <ol class="takes" data-takes></ol>
+        </section>
+      </div>
+      <div class="mel__cheek" aria-hidden="true"></div>
+    </div>
+
+    <article class="unveiled__chapter mel-page__notes">
+      <p class="unveiled__num mono">how to use it</p>
+      <div class="unveiled__text">
+        <p>
+          Press <b>apri il microfono</b> and allow the browser to use it. Say whether you are on <b>cuffie</b> (headphones) or
+          <b>casse</b> (speakers). Then sing, speak or hum: your voice's shape moves through the choir. With no microphone, switch on
+          <b>senza voce</b> to hear the chords on their own.
+        </p>
+        <p>
+          <b>Feedback.</b> With speakers, the room carries the output back into the microphone, and a vocoder will happily sing
+          along with itself. Five things stop it. The browser's echo canceller is switched on in speaker mode. When the
+          microphone opens, a soft hiss measures how much of each band the room returns, and if you said headphones but the mic
+          can hear the speakers, the page switches to speaker mode itself. In speaker mode a band only opens when your voice is
+          louder there than the share of our own output the room gives back. A singer has to breathe: if the input never goes
+          quiet for ten seconds, the output drops out for a third of a second, and if the microphone falls silent with it, it
+          was listening to the speakers. A howl on a single frequency ducks the output and notches that band. Headphones are
+          still the best way.
+        </p>
+        <p>
+          <b>Recording.</b> <b>registra</b> keeps the dry voice, the vocoder, or both, in step. Every take can be heard, saved as
+          a WAV file (16 or 24 bit), and a dry take (or any audio file you load) can go through the vocoder again: <b>applica il
+          vocoder</b> renders it offline with the current settings, <b>suona nel vocoder</b> plays it through live while you turn
+          the knobs.
+        </p>
+        <p>
+          <b>Why these chords.</b> Listeners hear music as sad when it is slow, minor, low, soft, legato and dark in timbre, the
+          same cues sad speech carries. Sad melodies move by small intervals, and the minor third turns up in the pitch contour of
+          sad speech; the minor second dominates infants' cries. Passages with appoggiaturas are the ones people report crying
+          to. A bass that falls by step from the tonic to the dominant was the seventeenth century's emblem of lament. The
+          <b>saddest path</b> weighs every move between chords by these findings and finds the best four-chord phrase by dynamic
+          programming, the reason for the stamp: <a href="/archive/#P">P</a>. <b>Dürer</b> ranks sixteen chords from least to most
+          sad and walks the lines of the magic square from the engraving <i>Melencolia I</i>: every line sums to 34, so every
+          phrase carries the same total sadness.
+        </p>
+      </div>
+    </article>
+
+    <article class="unveiled__chapter mel-page__notes">
+      <p class="unveiled__num mono">sources</p>
+      <div class="unveiled__text">
+        <ol class="mel-page__refs">
+          <li>H. Dudley, “Remaking Speech”, Journal of the Acoustical Society of America 11(2), 1939, 169–177.</li>
+          <li>A. de Cheveigné &amp; H. Kawahara, “YIN, a fundamental frequency estimator for speech and music”, JASA 111(4), 2002, 1917–1930.</li>
+          <li>P. N. Juslin &amp; P. Laukka, “Communication of emotions in vocal expression and music performance: Different channels, same code?”, Psychological Bulletin 129(5), 2003, 770–814.</li>
+          <li>T. Eerola, A. Friberg &amp; R. Bresin, “Emotional expression in music: contribution, linearity, and additivity of primary musical cues”, Frontiers in Psychology 4:487, 2013.</li>
+          <li>K. Hevner, “The affective character of the major and minor modes in music”, American Journal of Psychology 47(1), 1935.</li>
+          <li>R. Parncutt, “The emotional connotations of major versus minor tonality: One or more origins?”, Musicae Scientiae 18(3), 2014.</li>
+          <li>D. Huron, “A comparison of average pitch height and interval size in major- and minor-key themes”, Empirical Musicology Review 3(2), 2008, 59–63.</li>
+          <li>D. Huron &amp; M. Davis, “The harmonic minor scale provides an optimum way of reducing average melodic interval size, consistent with sad affect cues”, Empirical Musicology Review 7(3–4), 2012, 103–117.</li>
+          <li>M. E. Curtis &amp; J. J. Bharucha, “The minor third communicates sadness in speech, mirroring its use in music”, Emotion 10(3), 2010, 335–348.</li>
+          <li>G. Zeloni &amp; F. Pavani, “Minor second intervals: A shared signature for infant cries and sadness in music”, i-Perception 13(2), 2022.</li>
+          <li>O. Post &amp; D. Huron, “Western classical music in the minor mode is slower (except in the Romantic period)”, Empirical Musicology Review 4(1), 2009.</li>
+          <li>B. Turner &amp; D. Huron, “A comparison of dynamics in major- and minor-key works”, Empirical Musicology Review 3(2), 2008.</li>
+          <li>D. Huron, C. Anderson &amp; D. Shanahan, “‘You can't play a sad song on the banjo’: acoustic factors in the judgment of instrument capacity to convey sadness”, Empirical Musicology Review 9(1), 2014, 29–41.</li>
+          <li>J. A. Sloboda, “Music structure and emotional response: Some empirical findings”, Psychology of Music 19, 1991, 110–120.</li>
+          <li>E. Rosand, “The Descending Tetrachord: An Emblem of Lament”, The Musical Quarterly 65(3), 1979, 346–359.</li>
+          <li>G. Capuzzo, “Neo-Riemannian Theory and the Analysis of Pop-Rock Music”, Music Theory Spectrum 26(2), 2004, 177–200.</li>
+          <li>B. Osborn, Everything in Its Right Place: Analyzing Radiohead (Oxford University Press, 2017).</li>
+          <li>N. Collins, “OK Computer Analysis: An Audio Corpus Study of Radiohead”, arXiv:2211.15834, 2022.</li>
+          <li>A. Dürer, Melencolia I (engraving, 1514).</li>
+        </ol>
+      </div>
+    </article>
+  </section>
+  <script>
+    import { mountMelencolia } from '../lib/vocoder/ui';
+    document.addEventListener('astro:page-load', mountMelencolia);
+  </script>
+</Base>

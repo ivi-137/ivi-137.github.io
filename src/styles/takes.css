@@ -1,0 +1,61 @@
+/* Recorded takes: a waveform, a player, downloads. Shared by the instruments. */
+.takes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.take {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  color: var(--ink);
+  background: var(--paper-2);
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.take.is-playing {
+  background: var(--acid);
+}
+.take__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+  align-items: baseline;
+}
+.take__head b {
+  font: italic 400 1.2rem var(--f-display);
+}
+.take__head span {
+  font-size: 9.5px;
+  color: var(--ink-2);
+}
+.take__wave {
+  width: 100%;
+  height: 44px;
+  background: var(--paper);
+  border: 1px solid rgba(22, 20, 15, 0.3);
+}
+.take audio {
+  width: 100%;
+  height: 32px;
+}
+.take__acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.take__acts .chip {
+  color: var(--ink);
+  font-size: 10px;
+  padding: 5px 8px;
+}
+.takes__empty {
+  font-size: 11px;
+  color: var(--ink-2);
+}
+

@@ -5,6 +5,7 @@ import Knob from '../components/Knob.astro';
 import { VOICES } from '../lib/drums/voices';
 import { DEFAULT, STEPS } from '../lib/drums/engine';
 import { fnv1a } from '../lib/sigil';
+import '../styles/takes.css';
 
 /** A touch plate: an irregular closed blob, different for every pad, smoothed with quadratic curves. */
 function plate(seed: string) {
@@ -127,11 +128,13 @@ const RULES = [30, 45, 54, 60, 90, 105, 110, 137, 150, 184];
             <button type="button" class="chip" data-drum-clear>clear</button>
             <button type="button" class="chip" data-drum-share>copy share link</button>
             <button type="button" class="chip" data-drum-feed aria-pressed="false" title="Every kick drops a glider into the background colony">feed the colony</button>
+            <button type="button" class="chip chip--rec" data-drum-rec aria-pressed="false" title="Record the machine's output; stop to keep the take">● registra <span data-drum-rec-time></span></button>
           </div>
         </div>
       </div>
       <div class="tamburo__cheek" aria-hidden="true"></div>
     </div>
+    <ol class="takes tamburo__takes" data-drum-takes aria-label="Recorded takes"></ol>
 
     <article class="unveiled__chapter">
       <p class="unveiled__num mono">how to play</p>
@@ -146,6 +149,8 @@ const RULES = [30, 45, 54, 60, 90, 105, 110, 137, 150, 184];
         <p>
           The studio strip is a small tape machine: <b>drive</b> saturates, <b>tone</b> closes a lowpass, and <b>echo</b> feeds a
           delay whose speed wobbles under two slow oscillators (<b>wow</b> and flutter), darkening with every repeat.
+          <b>registra</b> records what comes out, sample for sample: stop, and the take appears under the machine, ready to play
+          back or to download as a WAV file.
         </p>
         <p class="mono logic__provenance">
           In homage to Peter Blasser's Ciat-Lonbarde instruments (touch plates, paper circuits, rhythms that drift rather than

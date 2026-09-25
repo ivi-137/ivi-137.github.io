@@ -1,0 +1,16 @@
+---
+/** A Melencolia knob: label, range, default and detents come from the vocoder's parameter table. */
+import Knob from '../Knob.astro';
+import { vspec } from '../../lib/vocoder/params';
+
+interface Props {
+  id: string;
+  size?: 'sm' | 'md' | 'lg';
+  label?: string;
+}
+const { id, size = 'sm', label } = Astro.props;
+const s = vspec(id);
+if (!s) throw new Error(`unknown vocoder parameter ${id}`);
+---
+
+<Knob bind={id} label={label ?? s.label} min={s.min} max={s.max} step={s.step} value={s.def} size={size} format={s.fmt ?? (s.pos ? 'pos' : 'pct')} positions={s.pos} />
