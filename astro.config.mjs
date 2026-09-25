@@ -9,7 +9,7 @@ import rehypeKatex from 'rehype-katex';
 export default defineConfig({
   site: 'https://gpojani.me',
   trailingSlash: 'always',
-  integrations: [mdx(), sitemap()],
+  integrations: [mdx(), sitemap({ filter: (page) => !page.includes('/paper/update/') })],
   prefetch: { prefetchAll: true, defaultStrategy: 'hover' },
   markdown: {
     // `$$…$$` for math (inline or block). Single `$` stays a dollar sign,

@@ -3,8 +3,9 @@
  *
  *   PAPER_PASSWORD=… node scripts/encrypt-paper.mjs paper.pdf public/paper/you-need-coherence.pdf.enc
  *
- * The password comes from the environment and is never written anywhere. Output layout, read by
- * src/lib/paper-lock.ts: "GPE1" · PBKDF2 iterations (u32, big-endian) · salt (16) · iv (12) · AES-256-GCM ciphertext.
+ * The password comes from the environment and is never written anywhere. Same format as src/lib/paper-crypto.ts,
+ * which /paper/ decrypts and /paper/update/ can also produce in the browser:
+ * "GPE1" · PBKDF2 iterations (u32, big-endian) · salt (16) · iv (12) · AES-256-GCM ciphertext.
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';

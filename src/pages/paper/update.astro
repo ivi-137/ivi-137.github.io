@@ -1,0 +1,66 @@
+---
+import Base from '../../layouts/Base.astro';
+import '../../styles/paper.css';
+
+const upload = 'https://github.com/ivi-137/ivi-137.github.io/upload/main/public/paper';
+---
+
+<Base title="Replace the paper" description="Encrypt a new version of the paper for the password-protected download." noindex>
+  <article class="sheet-wrap">
+    <div class="sheet torn">
+      <header class="sheet__head">
+        <p class="kicker mono" data-decode>paper · for the author</p>
+        <h1 class="sheet__title">Replace the paper</h1>
+      </header>
+      <div class="prose">
+        <p>
+          This page puts a new PDF behind the password of <a href="/paper/">/paper/</a>. It encrypts the file here, in your
+          browser; neither the PDF nor the password is sent anywhere. You then upload the encrypted file to GitHub.
+        </p>
+        <div class="lock" data-paper-update data-name="you-need-coherence.pdf.enc">
+          <form>
+            <div class="lock__field">
+              <label class="mono" for="update-file">1 · the new PDF</label>
+              <input id="update-file" type="file" accept="application/pdf,.pdf" required />
+            </div>
+            <div class="lock__field">
+              <label class="mono" for="update-pass">2 · password readers will type</label>
+              <input id="update-pass" type="password" autocomplete="new-password" required />
+            </div>
+            <div class="lock__field">
+              <label class="mono" for="update-again">password again</label>
+              <input id="update-again" type="password" autocomplete="new-password" required />
+            </div>
+            <button class="button lock__submit" type="submit">3 · Encrypt and save</button>
+          </form>
+          <p class="lock__status mono" data-update-status aria-live="polite"></p>
+          <div data-update-next hidden>
+            <p class="lock__links mono">
+              <a data-update-save href="#">save the encrypted file again</a>
+            </p>
+            <ol class="lock__steps">
+              <li>
+                Open <a href={upload} target="_blank" rel="noopener">public/paper on GitHub</a> (signed in as the site's owner).
+              </li>
+              <li>
+                Drag <code>you-need-coherence.pdf.enc</code> into the page. It has the same name as the file there, so it replaces
+                it.
+              </li>
+              <li>Click <strong>Commit changes</strong>, straight to <code>main</code>.</li>
+              <li>The site rebuilds in about a minute. Then open <a href="/paper/">/paper/</a> and unlock it to check.</li>
+            </ol>
+          </div>
+        </div>
+        <p class="lock__note">
+          Type the current password to keep it, or a new one to change it; the new file is the only one the page reads, so the
+          old password stops working as soon as it is live. To edit the paper itself, open its LaTeX source in Overleaf (New
+          Project → Upload Project, then choose the zip), edit, recompile and download the PDF.
+        </p>
+      </div>
+    </div>
+  </article>
+  <script>
+    import { mountPaperUpdate } from '../../lib/paper-update';
+    document.addEventListener('astro:page-load', mountPaperUpdate);
+  </script>
+</Base>

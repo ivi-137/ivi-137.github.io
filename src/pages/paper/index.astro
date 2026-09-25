@@ -1,5 +1,6 @@
 ---
-import Base from '../layouts/Base.astro';
+import Base from '../../layouts/Base.astro';
+import '../../styles/paper.css';
 ---
 
 <Base title="You Need Coherence · paper" description="The paper version of “You need coherence”, available with a password.">
@@ -14,7 +15,7 @@ import Base from '../layouts/Base.astro';
           The argument of <a href="/posts/you-need-coherence/">the post</a>, written as a scientific paper: <em
             >You Need Coherence: Stateless Attention, Obligation Ledgers, and Gauge Fixing for Transformers That Keep Their
             Promises</em
-          >, by Gianni Pojani. Seventeen pages, with full proofs, tables and the experimental details.
+          >, by Gianni Pojani, with full proofs, tables and the experimental details.
         </p>
         <div class="lock" data-paper-lock data-src="/paper/you-need-coherence.pdf.enc" data-name="Pojani - You Need Coherence.pdf">
           <form>
@@ -36,58 +37,7 @@ import Base from '../layouts/Base.astro';
     </div>
   </article>
   <script>
-    import { mountPaperLock } from '../lib/paper-lock';
+    import { mountPaperLock } from '../../lib/paper-lock';
     document.addEventListener('astro:page-load', mountPaperLock);
   </script>
 </Base>
-
-<style>
-  .lock {
-    margin: 2rem 0 1.5rem;
-    padding: 1.25rem;
-    border: 1px solid var(--ink);
-    background: var(--paper-2);
-  }
-  .lock label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink-2);
-  }
-  .lock__row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .lock input {
-    flex: 1 1 220px;
-    min-width: 0;
-    padding: 12px;
-    font: 16px var(--f-mono);
-    color: var(--ink);
-    background: var(--paper);
-    border: 1px solid var(--ink);
-  }
-  .lock button {
-    border: 0;
-    cursor: pointer;
-  }
-  .lock button:disabled {
-    opacity: 0.6;
-    cursor: progress;
-  }
-  .lock__status,
-  .lock__links {
-    margin: 0.75rem 0 0;
-    font-size: 13px;
-  }
-  .lock__status:empty {
-    display: none;
-  }
-  .lock__note {
-    font-size: 0.9em;
-    color: var(--ink-2);
-  }
-</style>

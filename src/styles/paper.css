@@ -1,0 +1,67 @@
+/* /paper/ and /paper/update/: password box and file tools */
+.lock {
+  margin: 2rem 0 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--ink);
+  background: var(--paper-2);
+}
+.lock label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.lock__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.lock input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 12px;
+  font: 16px var(--f-mono);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--ink);
+}
+.lock button {
+  border: 0;
+  cursor: pointer;
+}
+.lock button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.lock__status,
+.lock__links {
+  margin: 0.75rem 0 0;
+  font-size: 13px;
+}
+.lock__status:empty {
+  display: none;
+}
+.lock__note {
+  font-size: 0.9em;
+  color: var(--ink-2);
+}
+.lock__field + .lock__field {
+  margin-top: 1rem;
+}
+.lock__field input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+}
+.lock input[type='file'] {
+  padding: 10px;
+  font-size: 14px;
+}
+.lock__submit {
+  margin-top: 1.25rem;
+}
+.lock__steps li + li {
+  margin-top: 0.5rem;
+}

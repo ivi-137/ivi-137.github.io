@@ -1,26 +1,8 @@
 /**
- * Password-protected download: fetch the encrypted file, derive the key from the password with
- * PBKDF2, decrypt with AES-GCM in the browser, and hand the result to the reader. The password
- * never leaves the page; a wrong one fails GCM's authentication check.
- * File layout (scripts/encrypt-paper.mjs): "GPE1" · iterations u32 BE · salt 16 · iv 12 · ciphertext.
+ * Password-protected download: fetch the encrypted file, decrypt it in the browser (format and
+ * crypto in ./paper-crypto) and hand the result to the reader. The password never leaves the page.
  */
-async function decrypt(blob: ArrayBuffer, password: string): Promise<ArrayBuffer> {
-  const bytes = new Uint8Array(blob);
-  if (new TextDecoder().decode(bytes.subarray(0, 4)) !== 'GPE1') throw new Error('format');
-  const iterations = new DataView(blob).getUint32(4);
-  const salt = bytes.slice(8, 24);
-  const iv = bytes.slice(24, 36);
-  const { subtle } = crypto;
-  const base = await subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
-  const key = await subtle.deriveKey(
-    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations },
-    base,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['decrypt'],
-  );
-  return subtle.decrypt({ name: 'AES-GCM', iv }, key, bytes.subarray(36));
-}
+import { decrypt } from './paper-crypto';
 
 export function mountPaperLock() {
   const root = document.querySelector<HTMLElement>('[data-paper-lock]');
