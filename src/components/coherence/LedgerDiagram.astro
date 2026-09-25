@@ -15,7 +15,7 @@ const slots = [
 ---
 
 <figure class="cx-diagram" aria-label="The Ledger inserted into a decoder-only transformer">
-  <svg viewBox="0 0 680 470" role="img">
+  <svg viewBox="0 0 680 472" role="img">
     <title>The Ledger: clerk, slots, status, read, gate</title>
     <defs>
       <marker id="lg-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
@@ -41,10 +41,10 @@ const slots = [
     <text x="40" y="440" class="note">prompt (the blog, the request) … then the post, token by token</text>
 
     <!-- clerk -->
-    <path d="M240 335H300" class="flow flow--a" marker-end="url(#lg-arrow-a)"></path>
-    <text x="248" y="327" class="note">prompt</text>
-    <g class="blk blk--led"><rect x="302" y="318" width="126" height="34" rx="3"></rect><text x="365" y="333">clerk</text><text x="365" y="346" class="small">K queries, read once</text></g>
-    <path d="M428 335H450V300" class="flow flow--a" marker-end="url(#lg-arrow-a)"></path>
+    <path d="M240 335H288" class="flow flow--a" marker-end="url(#lg-arrow-a)"></path>
+    <text x="244" y="327" class="note">prompt</text>
+    <g class="blk blk--led"><rect x="290" y="318" width="154" height="34" rx="3"></rect><text x="367" y="333">clerk</text><text x="367" y="346" class="small">K queries, read once</text></g>
+    <path d="M444 335H450V300" class="flow flow--a" marker-end="url(#lg-arrow-a)"></path>
 
     <!-- slots -->
     <text x="452" y="24" class="h">ledger: K slots</text>
@@ -68,8 +68,8 @@ const slots = [
     <path d="M450 150C380 150 320 185 244 185" class="flow flow--a" marker-end="url(#lg-arrow-a)"></path>
     <text x="262" y="134" class="note">read: a softmax over</text><text x="262" y="147" class="note">the K slots only</text>
     <!-- gate -->
-    <path d="M555 292V420H290V71H244" class="flow flow--gate" marker-end="url(#lg-arrow)"></path>
-    <text x="300" y="414" class="note">pending eventualities hold back &lt;eos&gt;</text>
+    <path d="M644 292V458H16V71H38" class="flow flow--gate" marker-end="url(#lg-arrow)"></path>
+    <text x="636" y="384" class="note" text-anchor="end">pending debts hold back &lt;eos&gt;</text>
     <text x="466" y="316" class="small">G invariant · F eventuality</text><text x="466" y="328" class="small">L last · # count</text>
   </svg>
 </figure>

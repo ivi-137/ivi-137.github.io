@@ -5,6 +5,7 @@ all variants are judged by exactly the same rules. Also attaches what each promp
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -43,7 +44,7 @@ def load(res=RES, per_k=E.PER_K):
     for f in sorted(Path(res).glob('*-s*.json')):
         d = json.load(open(f))
         v = d['summary']['variant']
-        seed = int(f.stem.rsplit('-s', 1)[1].split('-')[0])
+        seed = int(re.search(r'-s(\d+)', f.stem).group(1))
         recs = d['records']
         evict = v.endswith('evict')
         for i, r in enumerate(recs):

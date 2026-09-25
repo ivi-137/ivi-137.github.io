@@ -59,7 +59,7 @@ const W = 680;
 
 // bars
 const bars = order.map((v, i) => ({ v, i, all: V[v].all.coherent as S, conf: V[v].conflict.coherent as S }));
-const bx = (x: number) => 190 + x * 360;
+const bx = (x: number) => 232 + x * 300;
 
 // lines over k
 const ks = Object.keys(V.base?.by_k ?? {}).map(Number);
@@ -74,7 +74,7 @@ const hzVariants = ['base', 'base_aux', 'ledger', 'ledger_frame'].filter((v) => 
 const kinds = ['font', 'heading', 'math'];
 const KIND_LABEL: Record<string, string> = { font: 'font (every paragraph)', heading: 'headings (every section)', math: 'maths (a formula now and then)' };
 const hzMax = Math.max(0.01, ...hzVariants.flatMap((v) => kinds.map((k) => HZ[v][k].ci[1])));
-const hx = (x: number) => 230 + (x / hzMax) * (W - 290);
+const hx = (x: number) => 230 + (x / hzMax) * (W - 390);
 const fmtHz = (x: number) => `${(x * 100).toFixed(x < 0.01 ? 2 : 1)}%`;
 // font hazard by paragraph
 const bins = (HZ.base?.font_by_paragraph ?? []) as { from: number; to: number }[];
@@ -178,12 +178,12 @@ const baseCost = V.base?.macs_per_token;
           ))}
           {bars.map((b) => (
             <g transform={`translate(0 ${26 + b.i * 44})`}>
-              <text x="180" y="13" text-anchor="end" class="lab">{NAME[b.v]}</text>
+              <text x="222" y="13" text-anchor="end" class="lab">{NAME[b.v]}</text>
               {b.all && <rect x={bx(0)} y="2" width={bx(b.all.mean) - bx(0)} height="14" style={`fill:${COLOR[b.v]}`} />}
               {b.all && <line x1={bx(b.all.min)} x2={bx(b.all.max)} y1="9" y2="9" class="whisk" />}
-              {b.all && <text x={bx(b.all.mean) + 6} y="14" class="val">{pct(b.all.mean)}</text>}
+              {b.all && <text x={bx(Math.max(b.all.mean, b.all.max)) + 6} y="14" class="val">{pct(b.all.mean)}</text>}
               {b.conf && <rect x={bx(0)} y="20" width={bx(b.conf.mean) - bx(0)} height="8" class="conf" style={`fill:${COLOR[b.v]}`} />}
-              {b.conf && <text x={bx(b.conf.mean) + 6} y="28" class="val val--dim">{pct(b.conf.mean)} when the style differs</text>}
+              {b.conf && <text x={bx(b.conf.mean) + 6} y="28" class="val val--dim">{pct(b.conf.mean)} when styles differ</text>}
             </g>
           ))}
         </svg>

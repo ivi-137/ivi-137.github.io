@@ -16,7 +16,7 @@ const dec = [
   box(412, 140, 186, 26, 'Add & Norm', 'norm'),
   box(412, 172, 186, 36, 'Multi-head attention', 'att'),
   box(412, 222, 186, 26, 'Add & Norm', 'norm'),
-  box(412, 254, 186, 36, 'Masked multi-head attention', 'att'),
+  box(412, 254, 186, 36, 'Masked multi-head\nattention', 'att'),
 ];
 ---
 
@@ -37,9 +37,19 @@ const dec = [
       [...enc, ...dec].map((b) => (
         <g class={`blk blk--${b.cls}`}>
           <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="3" />
-          <text x={b.x + b.w / 2} y={b.y + b.h / 2 + 4}>
-            {b.label}
-          </text>
+          {b.label.includes('\n') ? (
+            <text x={b.x + b.w / 2} y={b.y + b.h / 2 - 3}>
+              {b.label.split('\n').map((line, i) => (
+                <tspan x={b.x + b.w / 2} dy={i ? 13 : 0}>
+                  {line}
+                </tspan>
+              ))}
+            </text>
+          ) : (
+            <text x={b.x + b.w / 2} y={b.y + b.h / 2 + 4}>
+              {b.label}
+            </text>
+          )}
         </g>
       ))
     }

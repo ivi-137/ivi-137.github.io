@@ -4,7 +4,6 @@ date: 2026-09-25T18:00:00Z
 description: A transformer can attend to everything in its context and still break the promises its text has made. Why that happens, how often, and a small ledger that keeps them.
 concepts: [transformers, attention, softmax, coherence, temporal logic, runtime verification, Chomsky hierarchy, NP]
 class: NP
-draft: true
 ---
 import '../../styles/coherence.css';
 import TransformerDiagram from '../../components/coherence/TransformerDiagram.astro';
@@ -358,7 +357,7 @@ These give a rule. Act on an obligation at the lowest place where it can be both
 | obligation | where it breaks | where to act |
 |---|---|---|
 | a choice among interchangeable variants | one output token | after: restrict the alphabet (the frame) |
-| an eventuality or a count | the decision to stop | across: a status, and after: a gate on stopping |
+| an eventuality or a count | the decision to stop | across: a status; inside: a read of it; after: a gate on stopping |
 | an order, or anything that needs content retrieved | what is looked up next | inside, before attention |
 | voice, topic, facts | everywhere | inside, by ordinary attention |
 
@@ -387,25 +386,45 @@ Six variants, identical except for the parts under test: a 3-layer decoder with 
 
 Each trained model wrote 300 posts, one for each of the same 300 prompts (two example posts each; 5 requested lengths, 60 authors each), sampled at temperature 1 so that the numbers describe the model's own distribution rather than a decoding trick.
 
-**The compute behind it.** Everything here ran on four CPU cores, with no accelerator. One run at the protocol above takes about twenty minutes to train and ten to evaluate, so I capped the experiment at what fits in that budget, and said so rather than stretch it. ⟦SEEDS⟧ The placement question got a cheaper screen: all six placements and the baseline, one seed each, trained for 400 steps instead of 1,500 and scored on 100 prompts. A screen ranks candidates; it does not settle them. Everything that follows should be read with those numbers in mind: the proofs carry the argument, and the experiment shows the mechanisms doing what the proofs say, at a scale where every run can be checked.
+**The compute behind it.** Everything here ran on four CPU cores, with no accelerator. One run at the protocol above takes about twenty minutes to train and ten to evaluate, so I capped the experiment at what fits in that budget, and said so rather than stretch it. The baseline and the Ledger were trained with two seeds each; the labelled baseline, the shared-softmax Ledger and the two Ledgers with a frame with one seed each; the remaining ablations did not fit, and are listed at the end as work to do. The placement question got a cheaper screen: all six placements and the baseline, one seed each, trained for 400 steps instead of 1,500 and scored on 100 prompts. A screen ranks candidates; it does not settle them. Everything that follows should be read with those numbers in mind: the proofs carry the argument, and the experiment shows the mechanisms doing what the proofs say, at a scale where every run can be checked.
 
 ### Results
 
-<ToyResults chart="bars" caption="Share of posts that keep all seven implicit rules, per model: mean over seeds, with the range across seeds as a line. The thin bar is the same share on authors whose style differs from the request's." />
+Across 600 posts from two seeds, the baseline kept all seven implicit rules in 80.5% of them (77.3% and 83.7% for the two seeds). The Ledger kept them in 90.0% (89.0% and 91.0%). On the same prompts and seeds, the Ledger succeeded where the baseline failed 84 times, and the reverse happened 27 times; an exact McNemar test on those pairs gives $$p = 5.5 \times 10^{-8}$$. The labelled baseline, which sees every label the Ledger sees, reached 82.7% (one seed; $$p = 0.08$$ against the baseline), so the labels alone are not what makes the difference. With the frame the Ledger reached 95.0%, and with the examples dropped 93.7% (one seed each; $$p = 3 \times 10^{-6}$$ and $$1 \times 10^{-9}$$ against the baseline on the same prompts).
+
+<ToyResults chart="bars" caption="Share of posts that keep all seven implicit rules: mean over seeds, with the range across seeds as a line where there are two. The thin bar is the same share for authors whose style differs from the request's." />
 
 <ToyResults chart="monitors" />
 
-<ToyResults chart="cost" />
+The largest single gain is on the one explicit instruction, the length: 98.5% of the Ledger's posts had the requested number of paragraphs, against 38.5% for the baseline and 40.3% for the labelled baseline. Counting to $$n$$ takes state, and the Ledger has state.
 
-<ToyResults chart="placement" />
-
-<ToyResults chart="bylen" caption="Share of coherent posts against the number of paragraphs requested." />
+The invariants behave as the theory says. Per opportunity to break, the baseline broke the maths delimiter, which turns up once every few paragraphs, 3.96% of the time, and the font, which starts every paragraph, 0.75% of the time: the sparse invariant is five times as fragile. The Ledger cut both, to 1.51% and 0.41%. Under gauge fixing both are zero: no break in 3,006 font opportunities, 1,069 headings and 451 formulas, nor in 3,007, 1,076 and 422 with the examples dropped. That is Proposition 4, observed. The frame was read correctly for every prompt, so nothing was left that could break.
 
 <ToyResults chart="hazard" caption="The chance of breaking an invariant at each opportunity to break it (a paragraph, a heading, a formula), pooled over seeds, with 95% intervals. The count is first breaks over opportunities." />
 
+The baseline's font hazard rises from zero at the first paragraph to 0.51% in paragraphs 2 to 4 and 1.09% in paragraphs 5 to 8, and stays at 0.84% beyond. That is the approach to a plateau $$h^{\infty}$$ that Proposition 2 describes, rather than an unbounded climb. With the Ledger it is lower throughout.
+
 <ToyResults chart="rising" caption="The chance that a paragraph is the first to break the font, among posts that reached that paragraph with the font intact (posts that end are left out of later bins, not counted as survivors)." />
 
+Lemma 1 can be watched directly. In the baseline, the share of attention that written tokens pay to the example posts halves over the course of a post: from 0.66 in the first ten tokens to 0.34 at tokens 80 to 99, averaged over layers. The Ledger model's ordinary attention fades in the same way, from 0.69 to 0.34. The Ledger does not stop dilution. It gives the obligations a channel that dilution cannot reach.
+
 <ToyResults chart="attention" caption="Attention that written tokens pay to the example posts, averaged over heads and layers, against how far into the post they are. This is Lemma 1, measured." />
+
+Coherence still falls as the requested length grows, for every model: from 85.8% at four paragraphs to 70.8% at sixteen for the baseline, and from 95.0% to 87.5% for the Ledger. The drop is halved, not removed; the obligations the Ledger does not carry (form, and the eventualities it carries imperfectly) still compound.
+
+<ToyResults chart="bylen" caption="Share of coherent posts against the number of paragraphs requested." />
+
+Put the same slots inside the ordinary softmax, as tokens in the context would be, and they do not help: 74.0% against the baseline's 80.5%, a difference the paired test cannot distinguish from zero ($$p = 0.29$$, one seed). The why-section and the sources suffered most, kept in 88.0% and 93.7% of posts. The slots are the same; only their normalisation differs.
+
+Dropping the examples cuts the keys each written token attends to from 119.6 to 43.2, a reduction of 64%, and the attention work with it. In a model this small, the fixed cost of the projections and feed-forward layers dominates, so the total falls less: the full architecture, Ledger and frame with the examples dropped, costs about 199,000 operations per written token, the same as the baseline and 13% less than the Ledger alone. In a model with long contexts, where attention dominates, the saving grows with the length of the examples.
+
+<ToyResults chart="cost" />
+
+The placement screen, at 400 training steps with one seed and 100 prompts, can rank but not settle. Every model is still learning at that point, so only the comparisons mean anything.
+
+<ToyResults chart="placement" />
+
+Slots in the context did no better than no slots at all (20% against 17%). Every placement with its own channel roughly doubled the baseline (30% to 44%), and the screen cannot separate them from one another: with 100 prompts, a difference of ten points is within noise. One contrast is large enough to read. On the logits alone, the Ledger kept the surface rules best (maths 89%, form 98%) but counted worst (17% of posts had the right length), while the read before attention counted best (76%). A count needs its status read inside the network, not only a gate at the end; the placement table above says so.
 
 ### Try it
 
@@ -430,9 +449,9 @@ With a small budget, the weight of the argument has to sit on the mathematics. H
 | the Ledger computes the base model's function when inserted (property 1) | yes | equal to 12 decimals, for every placement |
 | the Ledger's read does not dilute with context length (property 2) | yes | |
 | the obligations are equivariant under the style group (Proposition 3) | yes | checked on 4,000 random cases |
-| under gauge fixing, invariants break only if the frame is misread (Proposition 4) | yes | ⟦P4⟧ |
+| under gauge fixing, invariants break only if the frame is misread (Proposition 4) | yes | no break in 4,526 opportunities, nor in 4,505 with the examples dropped |
 | the frame is read reliably by counting (Proposition 5) | yes | exact in every evaluation prompt |
-| the Ledger and the frame make posts more coherent | no | ⟦HEADLINE⟧ |
+| the Ledger and the frame make posts more coherent | no | 90.0% against 80.5% (two seeds, $$p = 5.5 \times 10^{-8}$$); 95.0% with the frame (one seed) |
 | where in the network the Ledger belongs | argued | screened, one seed |
 | any of this for a real language model | no | open |
 
