@@ -2,11 +2,13 @@
 Collect results/<variant>-s<seed>.json into results/summary.json (read by the post).
 Every stored output is re-audited with the current monitors (records.py).
 
-  python aggregate.py
+  python aggregate.py            # the full runs  -> results/summary.json
+  python aggregate.py --screen   # the placement screen (400 steps, 100 prompts) -> results/screen/summary.json
 """
 from __future__ import annotations
 
 import json
+import sys
 
 import numpy as np
 
@@ -33,7 +35,9 @@ def rates(recs):
 
 
 def main():
-    runs = load()
+    screen = '--screen' in sys.argv
+    res = RES / 'screen' if screen else RES
+    runs = load(res, per_k=20) if screen else load()
     out = {'variants': {}}
     for v in ORDER:
         if v not in runs:
@@ -50,6 +54,7 @@ def main():
             'all': {m: stats([p[m] for p in per]) for m in per[0]},
             'conflict': {m: stats([p[m] for p in conf]) for m in conf[0]},
             'by_k': {k: {'coherent': stats([np.mean([x['coherent'] for x in r['records'] if x['k'] == k]) for r in rs]), 'length': stats([np.mean([x['ok']['length'] for x in r['records'] if x['k'] == k]) for r in rs])} for k in KS},
+            'frame_read': float(np.mean([x.get('frame_ok', True) for r in rs for x in r['records']])),
             'attention': np.mean([np.mean(r['summary']['attention'], 0) for r in rs], 0).round(4).tolist(),
             'attention_layers': np.mean([r['summary']['attention'] for r in rs], 0).round(4).tolist(),
             'keys_per_token': round(keys, 1),
@@ -60,7 +65,7 @@ def main():
         out['variants'][v] = d
         c = d['all']['coherent']
         print(f"{v:19s} seeds={len(rs)} coherent={c['mean']:.3f} [{c['min']:.3f},{c['max']:.3f}] keys/token={keys:6.1f} MACs/token={d['macs_per_token']['total']:,}  " + ' '.join(f"{m}={d['all'][m]['mean']:.3f}" for m in MONITORS))
-    json.dump(out, open(RES / 'summary.json', 'w'), indent=1)
+    json.dump(out, open(res / 'summary.json', 'w'), indent=1)
 
 
 if __name__ == '__main__':

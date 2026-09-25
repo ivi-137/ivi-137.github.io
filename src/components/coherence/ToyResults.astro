@@ -5,6 +5,7 @@
  */
 import summary from '../../../research/coherence/results/summary.json';
 import hazards from '../../../research/coherence/results/hazards.json';
+import screen from '../../../research/coherence/results/screen/summary.json';
 
 interface Props {
   chart: 'bars' | 'bylen' | 'hazard' | 'rising' | 'attention' | 'monitors' | 'cost' | 'placement';
@@ -14,6 +15,8 @@ const { chart, caption } = Astro.props;
 
 type S = { mean: number; min: number; max: number; sd: number; n: number } | null;
 const V = summary.variants as Record<string, any>;
+// the placement screen: 400 steps, one seed, 100 prompts; never mixed with the full runs
+const SV = (screen as any).variants as Record<string, any>;
 const NAME: Record<string, string> = {
   base: 'baseline',
   base_aux: 'baseline + same labels',
@@ -30,6 +33,7 @@ const NAME: Record<string, string> = {
   ledger_logit: 'Ledger on the logits only',
 };
 const PLACES: [string, string][] = [
+  ['base', 'nowhere: the baseline'],
   ['ledger_joint', 'before: in the context'],
   ['ledger_pre', 'inside, before attention'],
   ['ledger', 'inside, after attention'],
@@ -104,14 +108,14 @@ const baseCost = V.base?.macs_per_token;
         </tr>
       </thead>
       <tbody>
-        {PLACES.filter(([v]) => V[v]).map(([v, where]) => (
+        {PLACES.filter(([v]) => SV[v]).map(([v, where]) => (
           <tr>
             <td>{where}</td>
-            <td>{pct(V[v].all.coherent.mean)}{V[v].seeds > 1 ? <small> ({pct(V[v].all.coherent.min)}–{pct(V[v].all.coherent.max)})</small> : null}</td>
-            <td>{pct(V[v].all.why.mean)}</td>
-            <td>{pct(V[v].all.sources.mean)}</td>
-            <td>{pct(V[v].all.length.mean)}</td>
-            <td>{kmacs(V[v].macs_per_token.ledger)}</td>
+            <td>{pct(SV[v].all.coherent.mean)}</td>
+            <td>{pct(SV[v].all.why.mean)}</td>
+            <td>{pct(SV[v].all.sources.mean)}</td>
+            <td>{pct(SV[v].all.length.mean)}</td>
+            <td>{SV[v].macs_per_token.ledger ? kmacs(SV[v].macs_per_token.ledger) : '0'}</td>
           </tr>
         ))}
       </tbody>
