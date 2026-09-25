@@ -12,7 +12,7 @@ import LedgerDiagram from '../../components/coherence/LedgerDiagram.astro';
 import ToyResults from '../../components/coherence/ToyResults.astro';
 import Audit from '../../components/coherence/Audit.astro';
 
-Ask a language model to read this notebook and write the next entry. It will get the topic right and the voice roughly right. Then, somewhere around the fourth paragraph, a formula will appear between single dollar signs, although every formula here sits between two. A heading will arrive in Title Case. "Behaviour" will lose its u. And the post will stop one section early, without the further reading that closes every post that has any. None of this is hard. Each is a promise the earlier posts made, and each gets broken anyway.
+Ask a language model to read this notebook and write the next entry. It will get the topic right and the voice roughly right. Then, often somewhere around the fourth paragraph, a formula will appear between single dollar signs, although every formula here sits between two. A heading will arrive in Title Case. "Behaviour" will lose its u. And the post will stop one section early, without the sources that close this one. None of this is hard. Each is a promise the earlier posts made, and each gets broken anyway.
 
 This post is about that failure. I'll call the property it breaks *coherence*: a text is coherent when it keeps the commitments its context has made, from the first token to the last. The argument goes in six steps:
 
@@ -147,7 +147,7 @@ The obligations in a blog post come in a few shapes, and linear temporal logic h
 
 All of these can be checked while the text is being written. Bauer, Leucker and Schallhart (2011) give a three-valued verdict on a finite prefix $$u$$ of the output: $$\top$$ if every continuation of $$u$$ satisfies $$\varphi$$, $$\bot$$ if none does, and $$?$$ otherwise. An invariant can only move from $$?$$ to $$\bot$$: one slip breaks it for good. An eventuality can only move from $$?$$ to $$\top$$: once paid, it stays paid, and it is judged $$\bot$$ only when the text ends unpaid. Each obligation compiles to a small deterministic automaton that reads the output once.
 
-That puts coherence on the bottom rung of the hierarchy Chomsky described in 1956: these are regular languages, the ones a finite automaton recognises. You don't need a Turing machine to keep a promise. You need a finite automaton that doesn't forget. Keith Duggar makes the matching point about networks on Machine Learning Street Talk: a network of fixed size is a finite-state machine, not a Turing machine. So carrying a handful of obligations is well within what a transformer can represent. What is in question is whether it carries them in practice. Delétang and colleagues trained 20,910 networks on 15 tasks grouped by the Chomsky hierarchy, and the hierarchy predicted which architectures could extend what they had learned to longer inputs. The networks that climbed highest were the ones given an explicit memory, a stack or a tape.
+That puts coherence on the bottom rung of the hierarchy Chomsky set out in 1956 and 1959: these are regular languages, the ones a finite automaton recognises. You don't need a Turing machine to keep a promise. You need a finite automaton that doesn't forget. Keith Duggar has made the matching point about networks on Machine Learning Street Talk: a network of fixed size is a finite-state machine, not a Turing machine. So carrying a handful of obligations is well within what a transformer can represent. What is in question is whether it carries them in practice. Delétang and colleagues trained 20,910 networks on 15 tasks grouped by the Chomsky hierarchy, and the hierarchy predicted which architectures could extend what they had learned to longer inputs. The networks that climbed highest were the ones given an explicit memory, a stack or a tape.
 
 ### Competence and performance
 
@@ -155,7 +155,7 @@ In *Aspects of the Theory of Syntax* (1965), Chomsky separated what a speaker kn
 
 > unaffected by such grammatically irrelevant conditions as memory limitations, distractions, shifts of attention and interest, and errors (random or characteristic) in applying his knowledge of the language in actual performance.
 
-The distinction fits incoherent models almost too well. Methods that ask a model to criticise and revise its own draft, such as Self-Refine (Madaan et al. 2023), improve the draft, which they could not do if the model couldn't see what was wrong. Checking is a competence the model has. Producing is a performance, and it is subject to exactly Chomsky's list: limited memory, distraction by whatever text is nearest, attention that drifts. Chomsky has been a severe critic of language models, in conversation on Machine Learning Street Talk in 2022 and in the *New York Times* in 2023, where he and his co-authors called ChatGPT "a lumbering statistical engine for pattern matching". This post doesn't need to settle that argument. It borrows his distinction because it says where to look: not at what the model knows, but at the machinery that carries what it knows through a long performance.
+The distinction fits incoherent models almost too well. Methods that ask a model to criticise and revise its own draft, such as Self-Refine (Madaan et al. 2023), improve the draft, which they could not do if the model couldn't see what was wrong. Checking is a competence the model has. Producing is a performance, and it is subject to exactly Chomsky's list: limited memory, distraction by whatever text is nearest, attention that drifts. Chomsky has been a severe critic of language models. He discussed them on Machine Learning Street Talk in 2022, and in the *New York Times* in 2023 he and his co-authors called ChatGPT "a lumbering statistical engine for pattern matching". This post doesn't need to settle that argument. It borrows his distinction because it says where to look: not at what the model knows, but at the machinery that carries what it knows through a long performance.
 
 Subbarao Kambhampati, also on Machine Learning Street Talk, draws a practical conclusion from the same asymmetry: let the model propose and let external verifiers check, in a loop he calls LLM-Modulo. The architecture below moves the verifiers inside. They teach the network during training, and a small state carries their verdicts while it writes.
 
@@ -171,7 +171,7 @@ $$
 
 *Proof.* The numerator is at most $$e^B$$ and each of the $$n$$ terms of the denominator is at least $$e^{-B}$$. ∎
 
-So the $$m$$ tokens of an instruction receive at most $$m e^{2B}/n$$ of a head's attention, and their share of its output is bounded by the same fraction. While the model writes, $$n = n_0 + t$$ grows by one with every token. With bounded scores, the influence of a fixed instruction decays like $$1/(n_0 + t)$$.
+So the $$m$$ tokens of an instruction receive at most $$m e^{2B}/n$$ of a head's attention, and their contribution to its output is at most that fraction of the largest value vector. While the model writes, $$n = n_0 + t$$ grows by one with every token. With bounded scores, the influence of a fixed instruction decays like $$1/(n_0 + t)$$.
 
 The lemma is not new. Veličković and colleagues proved that softmax attention must disperse as inputs grow, and Nakanishi named the effect *attention fading* and proposed multiplying scores by $$s \log n$$, so that the edge grows with the crowd. Trained models do raise some scores, and they park spare attention on the first few tokens, the *attention sinks* found by Xiao and colleagues. Federico Barbero's "Transformers need glasses!", also discussed on Machine Learning Street Talk, shows a related collapse at the other end: distinct inputs can end with almost identical final representations, which the model then provably cannot tell apart. But a fixed budget shared by a growing crowd remains the default.
 
@@ -187,19 +187,19 @@ $$
 S(L) = \prod_{i=1}^{k} \prod_{t=1}^{L} \bigl(1 - h_i(t)\bigr) \le \exp\!\Bigl(-\sum_{i=1}^{k} \sum_{t=1}^{L} h_i(t)\Bigr).
 $$
 
-If each hazard is a non-increasing function of the attention share its evidence receives, $$h_i(t) = g_i(\text{share}_i(t))$$ with $$g_i(0) = h_i^{\infty} > 0$$, then by Lemma 1 $$h_i(t) \to h_i^{\infty}$$, and $$S(L)$$ falls exponentially in $$L$$, $$k$$ times as fast with $$k$$ invariants.
+If each hazard is a non-increasing function of the attention share its evidence receives, $$h_i(t) = g_i(\text{share}_i(t))$$ with $$g_i(0) = h_i^{\infty} > 0$$, then by Lemma 1 $$h_i(t) \to h_i^{\infty}$$, and $$S(L)$$ falls exponentially in $$L$$, at a rate per token that approaches $$\sum_i h_i^{\infty}$$.
 
-*Proof.* The product form is the chain rule for first-failure times. The bound is $$1 - x \le e^{-x}$$. With bounded scores, $$\text{share}_i(t) \to 0$$ by Lemma 1, so $$h_i(t) \to g_i(0)$$. ∎
+*Proof.* The product form is the chain rule for first-failure times, and the bound is $$1 - x \le e^{-x}$$. With bounded scores, $$\text{share}_i(t) \to 0$$ by Lemma 1, so $$h_i(t) \to g_i(0) = h_i^{\infty}$$; past any fixed step, each term of the sum is then within any chosen margin of its limit. ∎
 
 The same arithmetic lies behind the collapse Dziri and colleagues measured in multi-step problems, where small per-step error rates multiply. A long post is a many-step problem, and every paragraph is a step for every invariant at once:
 
 <div data-survival data-caption="The chance that all k obligations survive. Each one's hazard either stays at its opening value, as if attention to the prompt never faded, or climbs towards p∞ as the prompt recedes, with τ setting how fast. Over a thousand words, small rates add up."></div>
 
-The proposition also predicts *which* invariants fail first. An invariant exercised on every line, like the font of each paragraph, can be re-read from the model's own recent output: once the first paragraph is right, copying keeps it right. An invariant exercised rarely, like the delimiter of a formula that turns up once every few hundred words, has to be recovered from the examples every time, across a gap that keeps widening. Its evidence is diluted, so its hazard rises. Sparse invariants should break before dense ones. The experiment below checks this.
+The proposition also predicts *which* invariants are most fragile. An invariant exercised on every line, like the font of each paragraph, can be re-read from the model's own recent output: once the first paragraph is right, copying helps keep it right. An invariant exercised rarely, like the delimiter of a formula that turns up once every few hundred words, has to be recovered from the examples each time, across a gap that keeps widening. So there are two predictions. Per opportunity to break, sparse invariants should break more often than dense ones. And the hazard of any invariant should rise as the post gets longer. A dense invariant can still fail more often per post, simply because it gets more chances. The experiment below checks both.
 
 ### Premature stopping
 
-Eventualities are judged only at the end, and the end is itself a token, $$\langle\text{eos}\rangle$$. Suppose the model writes $$\langle\text{eos}\rangle$$ with probability $$e_t$$ at a step $$t$$ where some eventuality $$q$$ is still owed. Then
+Eventualities are judged only at the end, and the end is itself a token, $$\langle\text{eos}\rangle$$. Suppose the model writes $$\langle\text{eos}\rangle$$ with probability $$e_t$$ at a step $$t$$ where some eventuality $$q$$ is still owed. Treating the steps as independent,
 
 $$
 P(\text{the text ends with } q \text{ unpaid}) = \sum_{t} e_t \prod_{s < t} (1 - e_s)(1 - d_s),
@@ -239,7 +239,7 @@ $$
 \text{logit}_t(\langle\text{eos}\rangle) \mathrel{+}= \gamma \sum_{i \in \text{eventualities}} \log\bigl(1 - \pi_{t,i} + \varepsilon\bigr).
 $$
 
-**Training.** Checking is cheap, so the checkers can teach. Next to the usual next-token loss, the clerk's heads learn from labels for each obligation, and the status learns from the monitors' verdicts on every prefix of the training text: whether the sources have begun yet, whether a paragraph starts here. Every training token becomes a supervised example of bookkeeping.
+**Training.** Checking is cheap, so the checkers can teach. Next to the usual next-token loss, the clerk's heads learn from labels for each obligation, and the status learns from the monitors' verdicts on every prefix of the training text: whether the sources have begun yet, and, for a count, whether a paragraph starts here. Every training token becomes a supervised example of bookkeeping.
 
 $$
 \mathcal{L} = \mathcal{L}_{\text{LM}} + \lambda_{\text{ext}} \sum_i \mathrm{CE}(\text{clerk}_i, \varphi_i) + \lambda_{\text{ev}} \sum_{t, i} \mathrm{BCE}\bigl(u_{t,i},\, [\![ y_{\le t} \text{ has paid } \varphi_i ]\!]\bigr).
@@ -279,7 +279,7 @@ Most authors in the training data use the default style (40% of fonts, half of a
 
 ### The models
 
-Six variants, identical except for the parts under test: a 3-layer decoder with 4 heads, width 64 and rotary positions (155,456 parameters), trained from scratch for 1,500 steps on fresh batches of 32 episodes.
+Six variants, identical except for the parts under test: a 3-layer decoder with 4 heads, width 64 and rotary positions (155,456 parameters), trained from scratch for 1,500 steps on fresh batches of 32 episodes, with AdamW (peak learning rate 0.002, cosine decay, gradient clipping at 1) and the loss taken only on the post the model writes. The Ledger's two label losses are weighted 0.3 each.
 
 1. **baseline**: the plain decoder.
 2. **baseline + same labels**: the plain decoder with the Ledger's supervision attached to linear probes on its hidden states. If the Ledger wins only because it sees more labels, this variant will win too.
@@ -288,7 +288,7 @@ Six variants, identical except for the parts under test: a 3-layer decoder with 
 5. **Ledger, no eos gate.**
 6. **Ledger, no monitor labels**: trained on the next-token loss alone.
 
-The baseline, the labelled baseline, the Ledger and the shared-softmax Ledger were each trained with three seeds; the two other ablations with two. Each trained model wrote 300 posts, one for each of the same 300 prompts (5 requested lengths, 60 authors each), sampled at temperature 1 so that the numbers describe the model's own distribution rather than a decoding trick.
+The baseline, the labelled baseline, the Ledger and the shared-softmax Ledger were each trained with three seeds; the two other ablations with two. Each trained model wrote 300 posts, one for each of the same 300 prompts (two example posts each; 5 requested lengths, 60 authors each), sampled at temperature 1 so that the numbers describe the model's own distribution rather than a decoding trick.
 
 ### Results
 
@@ -298,7 +298,9 @@ The baseline, the labelled baseline, the Ledger and the shared-softmax Ledger we
 
 <ToyResults chart="bylen" caption="Share of coherent posts against the number of paragraphs requested." />
 
-<ToyResults chart="survival" caption="Share of posts in which all three invariants (font, headings, maths) are still intact after a given number of written tokens." />
+<ToyResults chart="hazard" caption="The chance of breaking an invariant at each opportunity to break it (a paragraph, a heading, a formula), pooled over seeds, with 95% intervals. The count is first breaks over opportunities." />
+
+<ToyResults chart="rising" caption="The chance that a paragraph is the first to break the font, among posts that reached that paragraph with the font intact (posts that end are left out of later bins, not counted as survivors)." />
 
 <ToyResults chart="attention" caption="Attention that written tokens pay to the example posts, averaged over heads and layers, against how far into the post they are. This is Lemma 1, measured." />
 
@@ -333,7 +335,7 @@ Checking whether a draft keeps a set of obligations takes one pass of a few smal
 *Further reading:*
 
 - Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin, "Attention Is All You Need," *NeurIPS* (2017).
-- Noam Chomsky, "Three Models for the Description of Language," *IRE Transactions on Information Theory* 2 (1956); *Syntactic Structures* (1957); *Aspects of the Theory of Syntax* (1965).
+- Noam Chomsky, "Three Models for the Description of Language," *IRE Transactions on Information Theory* 2 (1956); *Syntactic Structures* (1957); "On Certain Formal Properties of Grammars," *Information and Control* 2 (1959); *Aspects of the Theory of Syntax* (1965).
 - Noam Chomsky, Ian Roberts, Jeffrey Watumull, "The False Promise of ChatGPT," *The New York Times* (8 March 2023).
 - *Machine Learning Street Talk*: "#78, Prof. Noam Chomsky (Special Edition)" (July 2022); "Prof. Subbarao Kambhampati: LLMs don't reason, they memorize" (July 2024); "Transformers Need Glasses!, Federico Barbero".
 - Amir Pnueli, "The Temporal Logic of Programs," *FOCS* (1977).

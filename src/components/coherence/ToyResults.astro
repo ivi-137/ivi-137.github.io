@@ -4,9 +4,10 @@
  * research/coherence/results/summary.json (written by aggregate.py).
  */
 import summary from '../../../research/coherence/results/summary.json';
+import hazards from '../../../research/coherence/results/hazards.json';
 
 interface Props {
-  chart: 'bars' | 'bylen' | 'survival' | 'attention' | 'monitors';
+  chart: 'bars' | 'bylen' | 'hazard' | 'rising' | 'attention' | 'monitors';
   caption?: string;
 }
 const { chart, caption } = Astro.props;
@@ -44,9 +45,19 @@ const kx = (k: number) => 60 + ((k - ks[0]) / (ks[ks.length - 1] - ks[0] || 1)) 
 const ky = (y: number) => 220 - y * 190;
 const path = (pts: [number, number][]) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('');
 
-// survival
-const L = V.base?.survival.L ?? [];
-const sx = (l: number) => 60 + (l / (L[L.length - 1] || 1)) * (W - 100);
+// hazards per opportunity, with 95% Wilson intervals (analyze.py)
+const HZ = hazards as Record<string, any>;
+const hzVariants = ['base', 'base_aux', 'ledger_joint', 'ledger'].filter((v) => HZ[v]);
+const kinds = ['font', 'heading', 'math'];
+const KIND_LABEL: Record<string, string> = { font: 'font (every paragraph)', heading: 'headings (every section)', math: 'maths (a formula now and then)' };
+const hzMax = Math.max(0.01, ...hzVariants.flatMap((v) => kinds.map((k) => HZ[v][k].ci[1])));
+const hx = (x: number) => 230 + (x / hzMax) * (W - 290);
+const fmtHz = (x: number) => `${(x * 100).toFixed(x < 0.01 ? 2 : 1)}%`;
+// font hazard by paragraph
+const bins = (HZ.base?.font_by_paragraph ?? []) as { from: number; to: number }[];
+const rMax = Math.max(0.005, ...['base', 'ledger'].filter((v) => HZ[v]).flatMap((v) => HZ[v].font_by_paragraph.map((b: any) => b.hazard)));
+const rx = (i: number) => 90 + i * ((W - 160) / Math.max(1, bins.length - 1));
+const ry = (y: number) => 210 - (y / rMax) * 170;
 
 // attention
 const att = (v: string) => (V[v]?.attention ?? []) as number[];
@@ -119,20 +130,40 @@ const MON_LABEL: Record<string, string> = { font: 'font', heading: 'headings', m
           ))}
         </svg>
       )}
-      {chart === 'survival' && (
-        <svg viewBox={`0 0 ${W} 250`} role="img" aria-label="Survival of the three invariants against output position">
-          {[0, 0.5, 1].map((t) => (
-            <g>
-              <line x1="60" x2={W - 40} y1={ky(t)} y2={ky(t)} class="grid" />
-              <text x="50" y={ky(t) + 4} text-anchor="end" class="tick">{pct(t)}</text>
+      {chart === 'hazard' && (
+        <svg viewBox={`0 0 ${W} ${28 + kinds.length * (hzVariants.length * 16 + 22)}`} role="img" aria-label="Chance of breaking each invariant per opportunity">
+          {kinds.map((k, ki) => (
+            <g transform={`translate(0 ${16 + ki * (hzVariants.length * 16 + 22)})`}>
+              <text x="0" y="10" class="lab">{KIND_LABEL[k]}</text>
+              {hzVariants.map((v, j) => {
+                const h = HZ[v][k];
+                return (
+                  <g transform={`translate(0 ${18 + j * 16})`}>
+                    <text x="220" y="9" text-anchor="end" class="tick">{NAME[v]}</text>
+                    <rect x={hx(0)} y="0" width={hx(h.hazard) - hx(0)} height="10" style={`fill:${COLOR[v]}`} />
+                    <line x1={hx(h.ci[0])} x2={hx(h.ci[1])} y1="5" y2="5" class="whisk" />
+                    <text x={hx(h.ci[1]) + 6} y="9" class="tick">{fmtHz(h.hazard)} · {h.breaks}/{h.opportunities}</text>
+                  </g>
+                );
+              })}
             </g>
           ))}
-          {L.filter((l: number) => l % 20 === 0).map((l: number) => <text x={sx(l)} y="240" text-anchor="middle" class="tick">{l}</text>)}
-          <text x={W - 40} y="232" text-anchor="end" class="tick">tokens written</text>
-          {lineVariants.map((v, j) => (
+        </svg>
+      )}
+      {chart === 'rising' && (
+        <svg viewBox={`0 0 ${W} 240`} role="img" aria-label="Font hazard by paragraph">
+          {[0, rMax / 2, rMax].map((t) => (
             <g>
-              <path d={path(L.map((l: number, i: number) => [sx(l), ky(V[v].survival.S[i])]))} class="line" style={`stroke:${COLOR[v]}`} />
-              <text x={W - 36} y={130 + j * 14} text-anchor="end" class="lab" style={`fill:${COLOR[v]}`}>{NAME[v]}</text>
+              <line x1="80" x2={W - 60} y1={ry(t)} y2={ry(t)} class="grid" />
+              <text x="70" y={ry(t) + 4} text-anchor="end" class="tick">{fmtHz(t)}</text>
+            </g>
+          ))}
+          {bins.map((b, i) => <text x={rx(i)} y="230" text-anchor="middle" class="tick">{b.from === b.to ? `¶${b.from}` : `¶${b.from}–${b.to}`}</text>)}
+          {['base', 'ledger'].filter((v) => HZ[v]).map((v, j) => (
+            <g>
+              <path d={path(HZ[v].font_by_paragraph.map((b: any, i: number) => [rx(i), ry(b.hazard)]))} class="line" style={`stroke:${COLOR[v]}`} />
+              {HZ[v].font_by_paragraph.map((b: any, i: number) => <circle cx={rx(i)} cy={ry(b.hazard)} r="3.5" style={`fill:${COLOR[v]}`} />)}
+              <text x={W - 60} y={20 + j * 14} text-anchor="end" class="lab" style={`fill:${COLOR[v]}`}>{NAME[v]}</text>
             </g>
           ))}
         </svg>
