@@ -48,7 +48,7 @@ export const INSTRUMENTS: Array<{ id: string; title: string; url: string; class:
     url: '/atlas/',
     class: 'P',
     glyph: '0–255',
-    why: 'Running an elementary automaton for n steps on n cells takes O(n²) time: prediction by simulation is polynomial.',
+    why: 'Running an elementary automaton for n steps on n cells takes O(n²) time, and every property on its labels is checked by exhaustive or polynomial computation.',
   },
   {
     id: 'logic',

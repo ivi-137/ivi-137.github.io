@@ -2179,3 +2179,428 @@ main,
     max-width: 26px;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Atlas of the 256: exhibition, catalogue, map
+   ══════════════════════════════════════════════════════════════════════════ */
+.atlas {
+  --c1: #cfc3a6;
+  --c2: #7d8cff;
+  --c3: #ff4b1f;
+  --c4: #c6ff3d;
+}
+.atlas__head {
+  position: relative;
+}
+.atlas__head > .stamp {
+  position: absolute;
+  right: 0;
+  top: 22vh;
+  rotate: 8deg;
+}
+.atlas__statement {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 2rem 3rem;
+  margin: 2rem 0 3rem;
+  padding: 1.6rem 1.8rem;
+  background: rgba(10, 10, 11, 0.72);
+  backdrop-filter: blur(6px);
+  border-left: 2px solid var(--acid);
+}
+.atlas__statement > p {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.65;
+}
+@media (max-width: 900px) {
+  .atlas__statement {
+    grid-template-columns: 1fr;
+  }
+}
+.atlas__census {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  font-size: 11.5px;
+}
+.atlas__census div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px dashed rgba(236, 229, 211, 0.16);
+  padding-bottom: 4px;
+}
+.atlas__census dt {
+  opacity: 0.7;
+}
+.atlas__census dd {
+  margin: 0;
+  color: var(--acid);
+  text-align: right;
+}
+.atlas__controls {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin: 0 calc(-1 * var(--gutter)) 1.6rem;
+  padding: 12px var(--gutter);
+  background: rgba(10, 10, 11, 0.86);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(236, 229, 211, 0.12);
+}
+.atlas__group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.atlas__glabel {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  margin-right: 2px;
+}
+.atlas .chip[aria-pressed='true'] {
+  background: var(--acid);
+  color: var(--ink);
+  border-color: var(--acid);
+}
+
+/* wall */
+.atlas__wall[hidden],
+.atlas__map[hidden] {
+  display: none;
+}
+.specimen[hidden] {
+  display: none;
+}
+.specimen__label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.specimen__label b {
+  font-weight: 400;
+}
+.specimen__label i {
+  font-style: normal;
+  font-size: 9.5px;
+  padding: 1px 5px;
+  color: var(--ink);
+  background: var(--c1);
+}
+.specimen--c2 .specimen__label i {
+  background: var(--c2);
+  color: var(--paper);
+}
+.specimen--c3 .specimen__label i {
+  background: var(--c3);
+  color: var(--paper);
+}
+.specimen--c4 .specimen__label i {
+  background: var(--c4);
+}
+.specimen--c4 {
+  outline: 2px solid var(--c4);
+  outline-offset: 3px;
+}
+.specimen.is-noted::after {
+  right: auto;
+  left: 6px;
+  top: 6px;
+  bottom: auto;
+  width: 6px;
+  height: 6px;
+}
+.room,
+.room__axis {
+  grid-column: 1 / -1;
+}
+.room {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 1.5rem;
+  margin: 2.6rem 0 0.6rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid rgba(236, 229, 211, 0.2);
+}
+.room:first-child {
+  margin-top: 0;
+}
+.room__n {
+  font: italic 400 clamp(3.4rem, 8vw, 6rem) / 0.8 var(--f-display);
+  color: var(--c1);
+}
+.room--c2 .room__n {
+  color: var(--c2);
+}
+.room--c3 .room__n {
+  color: var(--c3);
+}
+.room--c4 .room__n {
+  color: var(--c4);
+}
+.room h2 {
+  margin: 0 0 0.4rem;
+  font: 400 clamp(1.8rem, 3.5vw, 2.6rem) / 1 var(--f-display);
+}
+.room p {
+  max-width: 60ch;
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  opacity: 0.85;
+}
+.room .room__count {
+  margin-top: 0.5rem;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+.room__axis {
+  margin: 0 0 0.6rem;
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+/* map */
+.atlas__map {
+  margin: 0;
+  padding: 1rem;
+  background: rgba(10, 10, 11, 0.8);
+  border: 1px solid rgba(236, 229, 211, 0.12);
+}
+.atlas__map svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.map__axis {
+  stroke: rgba(236, 229, 211, 0.4);
+  stroke-width: 1;
+}
+.map__label {
+  fill: rgba(236, 229, 211, 0.6);
+  font: 11px var(--f-mono);
+}
+.map__dot circle {
+  fill: var(--c1);
+  stroke: var(--void);
+  stroke-width: 1;
+  transition: r 0.2s;
+}
+.map__dot--c2 circle {
+  fill: var(--c2);
+}
+.map__dot--c3 circle {
+  fill: var(--c3);
+}
+.map__dot--c4 circle {
+  fill: var(--c4);
+}
+.map__dot:hover circle,
+.map__dot:focus-visible circle {
+  stroke: var(--paper);
+  stroke-width: 2;
+}
+.map__num {
+  fill: var(--paper);
+  font: 10px var(--f-mono);
+  pointer-events: none;
+}
+.atlas__map figcaption {
+  margin-top: 0.8rem;
+  font-size: 11.5px;
+  line-height: 1.55;
+  opacity: 0.75;
+}
+.map__key {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: 0.6rem;
+}
+.map__key i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.map__key .c1 {
+  background: var(--c1);
+}
+.map__key .c2 {
+  background: var(--c2);
+}
+.map__key .c3 {
+  background: var(--c3);
+}
+.map__key .c4 {
+  background: var(--c4);
+}
+.atlas__method {
+  max-width: 90ch;
+  margin: 3rem 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  opacity: 0.6;
+}
+
+/* the label: detail view */
+.atlas__view {
+  width: min(1060px, calc(100vw - 20px));
+  max-height: calc(100vh - 20px);
+}
+.atlas__label {
+  max-width: 62ch;
+}
+.atlas__class {
+  display: inline-block;
+  margin: 0.8rem 0 0;
+  padding: 3px 9px;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--c1);
+  color: var(--ink);
+}
+.atlas__class--c2 {
+  background: var(--c2);
+  color: var(--paper);
+}
+.atlas__class--c3 {
+  background: var(--c3);
+  color: var(--paper);
+}
+.atlas__class--c4 {
+  background: var(--c4);
+}
+.atlas__medium {
+  margin: 0.8rem 0 0;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.atlas__prints {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 1.4rem 0;
+}
+@media (max-width: 760px) {
+  .atlas__prints {
+    grid-template-columns: 1fr;
+  }
+}
+.atlas__prints figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.atlas__prints canvas {
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  border: 1px solid rgba(22, 20, 15, 0.3);
+}
+.atlas__prints figcaption {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--ink-2);
+}
+.atlas__seed {
+  display: grid;
+  grid-template-columns: repeat(41, 1fr);
+  gap: 1px;
+  margin-bottom: 4px;
+}
+.seedcell {
+  aspect-ratio: 1;
+  padding: 0;
+  cursor: pointer;
+  background: var(--paper-2);
+  border: 1px solid rgba(22, 20, 15, 0.25);
+}
+.seedcell[aria-pressed='true'] {
+  background: var(--ink);
+}
+.atlas__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5rem 2.5rem;
+}
+@media (max-width: 760px) {
+  .atlas__cols {
+    grid-template-columns: 1fr;
+  }
+}
+.rt {
+  padding: 4px 2px;
+  cursor: pointer;
+  background: none;
+  border: 1px solid transparent;
+}
+.rt:hover {
+  border-color: var(--ink);
+}
+.atlas__family {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+}
+.portrait {
+  display: grid;
+  gap: 3px;
+  padding: 4px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 1px solid rgba(22, 20, 15, 0.25);
+}
+.portrait[aria-current='true'] {
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--acid);
+}
+.portrait canvas {
+  width: 100%;
+  image-rendering: pixelated;
+}
+.portrait span {
+  font-size: 10px;
+}
+.atlas__facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  margin: 0;
+  font-size: 11.5px;
+  align-content: start;
+}
+.atlas__facts dt {
+  color: var(--ink-2);
+}
+.atlas__facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  .atlas__head > .stamp {
+    position: static;
+    display: inline-flex;
+    margin-top: 1rem;
+    rotate: -4deg;
+  }
+}
+@media (max-width: 760px) {
+  .atlas__controls {
+    position: static;
+  }
+}

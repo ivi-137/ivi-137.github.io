@@ -1,44 +1,137 @@
 ---
 import Base from '../layouts/Base.astro';
+import Stamp from '../components/Stamp.astro';
+import { catalogue, NOTES, ROOMS } from '../lib/atlas-data';
+
+const entries = catalogue();
+const count = (c: number) => entries.filter((e) => e.wclass === c && e.rep === e.rule).length;
+const stats = {
+  families: new Set(entries.map((e) => e.rep)).size,
+  additive: entries.filter((e) => e.additive).length,
+  conserving: entries.filter((e) => e.conserving).map((e) => e.rule),
+  reversible: entries.filter((e) => e.reversible).map((e) => e.rule),
+  eden: entries.filter((e) => e.edenFrom !== null).length,
+};
 ---
 
-<Base title="Atlas" description="All 256 elementary cellular automata, hung like an exhibition: one row of cells, eight rules each, nothing else.">
+<Base title="Atlas of the 256" description="All 256 elementary cellular automata as an exhibition, with a catalogue measured by the page: Wolfram classes, Langton's λ, symmetry families, compressibility, damage spreading, reversibility and Gardens of Eden.">
   <section class="atlas" data-atlas>
-    <header class="section-head section-head--page">
-      <p class="kicker mono" data-decode>exhibition · 256 works</p>
-      <h1 class="section-head__title">The <em>atlas</em></h1>
+    <header class="section-head section-head--page atlas__head">
+      <p class="kicker mono" data-decode>exhibition · 256 works · catalogue raisonné</p>
+      <h1 class="section-head__title">Atlas of the <em>256</em></h1>
       <p class="section-head__lede">
-        Every elementary cellular automaton, hung on one wall. Each is a single byte of rule, run forward from a single live cell. Time
-        flows down.
+        Every elementary cellular automaton: one row of cells, two states, three neighbours, one byte of rule. Hung on one wall
+        and measured by this page.
       </p>
-      <div class="atlas__controls mono">
+      <Stamp id="P" />
+    </header>
+
+    <div class="atlas__statement">
+      <p>
+        There are exactly 2<sup>8</sup> = 256 ways to answer eight yes-or-no questions, and each answer set is a universe. Swap
+        left and right, or black and white, and you get the same universe seen differently; that folds the 256 into
+        <b>{stats.families} families</b>. Stephen Wolfram sorted their behaviour into four classes in 1984. This page redoes the
+        sorting itself, from random starting rows, and prints the numbers on every label.
+      </p>
+      <dl class="atlas__census mono">
+        <div><dt>class I · homogeneous</dt><dd>{count(1)} families</dd></div>
+        <div><dt>class II · periodic</dt><dd>{count(2)} families</dd></div>
+        <div><dt>class III · chaotic</dt><dd>{count(3)} families</dd></div>
+        <div><dt>class IV · complex</dt><dd>{count(4)} families</dd></div>
+        <div><dt>additive over GF(2)</dt><dd>{stats.additive} rules</dd></div>
+        <div><dt>number-conserving</dt><dd>{stats.conserving.join(', ')}</dd></div>
+        <div><dt>reversible</dt><dd>{stats.reversible.join(', ')}</dd></div>
+        <div><dt>with Gardens of Eden</dt><dd>{stats.eden} of 256</dd></div>
+      </dl>
+    </div>
+
+    <div class="atlas__controls mono" role="toolbar" aria-label="Hang the wall">
+      <span class="atlas__group">
+        <span class="atlas__glabel">hang by</span>
+        <button type="button" class="chip" data-hang value="number" aria-pressed="true">number</button>
+        <button type="button" class="chip" data-hang value="class" aria-pressed="false">class (rooms)</button>
+        <button type="button" class="chip" data-hang value="lambda" aria-pressed="false">Langton's λ</button>
+        <button type="button" class="chip" data-hang value="complexity" aria-pressed="false">complexity</button>
+      </span>
+      <span class="atlas__group">
+        <span class="atlas__glabel">view</span>
+        <button type="button" class="chip" data-view value="wall" aria-pressed="true">wall</button>
+        <button type="button" class="chip" data-view value="map" aria-pressed="false">map</button>
+      </span>
+      <span class="atlas__group">
         <button type="button" class="chip" data-atlas-seed>seed: one cell</button>
         <button type="button" class="chip" data-atlas-families>showing all 256</button>
         <span class="atlas__count" data-atlas-count></span>
-        <span class="atlas__legend"><i></i> annotated</span>
-      </div>
-    </header>
+      </span>
+    </div>
 
     <div class="atlas__wall" data-atlas-wall></div>
+
+    <figure class="atlas__map" data-atlas-map hidden>
+      <svg role="group" aria-label="Map of the rules: compressibility against damage spreading, coloured by class"></svg>
+      <figcaption class="mono">
+        Each dot is a rule. Across: how well its spacetime diagram compresses (order on the left, noise on the right). Up: how far
+        a single flipped bit spreads. Class III climbs to the upper right; class IV sits between order and noise, the "edge of
+        chaos" Christopher Langton described in 1990.
+        <span class="map__key"><i class="c1"></i>I <i class="c2"></i>II <i class="c3"></i>III <i class="c4"></i>IV</span>
+      </figcaption>
+    </figure>
+
+    <p class="atlas__method mono">
+      Method. Classes I–III are assigned by this page: four random rows on a ring of 149 cells run for 600 steps; if every run
+      ends uniform the rule is class I; if every run ends in a (possibly sliding) cycle of period ≤ 160 it is class II; otherwise
+      class III. Class IV (54, 110 and their families) cannot be certified by measurement and is taken from the literature.
+      Damage spreading is averaged over three seeds at non-power-of-two horizons. Reversibility and Gardens of Eden are checked
+      exhaustively on every ring of 3–12 cells. Compressibility is deflate on a 256 × 256 diagram. Rule 73 and Rule 106 land in
+      class III here; some authors file them elsewhere.
+    </p>
 
     <dialog class="atlas__view" data-atlas-view aria-labelledby="atlas-title">
       <div class="sheet atlas__sheet">
         <form method="dialog" class="atlas__close"><button aria-label="Close">×</button></form>
-        <p class="kicker mono"><span data-atlas-bits></span><span>wolfram code</span></p>
-        <h2 id="atlas-title" class="sheet__title" data-atlas-title>Rule</h2>
-        <canvas class="atlas__big" data-atlas-big aria-hidden="true"></canvas>
-        <div class="atlas__table" data-atlas-table aria-label="Rule table: each neighbourhood and the cell it produces"></div>
-        <p class="atlas__note" data-atlas-note></p>
-        <p class="mono atlas__fam-label">Family: mirror and colour-swap equivalents</p>
-        <div class="atlas__family" data-atlas-family></div>
+        <div class="atlas__label">
+          <p class="kicker mono"><span data-atlas-bits></span><span>Wolfram code</span></p>
+          <h2 id="atlas-title" class="sheet__title" data-atlas-title>Rule</h2>
+          <p class="atlas__class" data-atlas-class></p>
+          <p class="atlas__medium mono">Elementary cellular automaton · two states, radius 1 · eight-entry lookup table</p>
+          <p class="atlas__note" data-atlas-note></p>
+        </div>
+
+        <div class="atlas__prints">
+          <figure>
+            <div class="atlas__seed" data-atlas-seed-strip aria-label="Edit the first row"></div>
+            <canvas data-atlas-one aria-hidden="true"></canvas>
+            <figcaption class="mono">from your seed (edit the row above)</figcaption>
+          </figure>
+          <figure>
+            <canvas data-atlas-rand aria-hidden="true"></canvas>
+            <figcaption class="mono">from random noise</figcaption>
+          </figure>
+          <figure>
+            <canvas data-atlas-damage aria-hidden="true"></canvas>
+            <figcaption class="mono">damage: two runs one bit apart, differences in vermilion</figcaption>
+          </figure>
+        </div>
+
+        <div class="atlas__cols">
+          <div>
+            <p class="mono atlas__fam-label">Rule table · click an output to flip it and walk to a neighbouring rule</p>
+            <div class="atlas__table" data-atlas-table></div>
+            <p class="mono atlas__fam-label">Family portrait · mirror and colour-swap</p>
+            <div class="atlas__family" data-atlas-family></div>
+          </div>
+          <dl class="atlas__facts mono" data-atlas-facts></dl>
+        </div>
+
         <div class="atlas__nav mono">
           <button type="button" class="chip" data-atlas-prev>← prev</button>
-          <button type="button" class="chip" data-atlas-rerun>rerun</button>
+          <button type="button" class="chip" data-atlas-rerun>rerun the random prints</button>
           <button type="button" class="chip" data-atlas-next>next →</button>
         </div>
       </div>
     </dialog>
   </section>
+  <script type="application/json" id="atlas-data" set:html={JSON.stringify({ entries, notes: NOTES, rooms: ROOMS })} />
   <script>
     import { mountAtlas } from '../lib/atlas';
     document.addEventListener('astro:page-load', mountAtlas);
