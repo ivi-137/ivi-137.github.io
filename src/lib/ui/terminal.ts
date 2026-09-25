@@ -13,7 +13,7 @@ type Out = { text: (s: string, cls?: string) => void; link: (label: string, url:
 type Cmd = { run: (args: string[], out: Out) => void | Promise<void>; man: string };
 
 const HOST = 'gianni@gpojani';
-const PAGES: Record<string, string> = { lab: '/lab/', atlas: '/atlas/', network: '/network/', unveiled: '/unveiled/', logic: '/logic/', drums: '/drums/', sequencer: '/sequencer/', stochos: '/sequencer/', synth: '/synth/', vocoder: '/vocoder/', zoo: '/archive/', about: '/about/', home: '/' };
+const PAGES: Record<string, string> = { lab: '/lab/', atlas: '/atlas/', network: '/network/', unveiled: '/unveiled/', logic: '/logic/', drums: '/drums/', sequencer: '/sequencer/', stochos: '/sequencer/', chords: '/chords/', attrattore: '/chords/', synth: '/synth/', vocoder: '/vocoder/', zoo: '/archive/', about: '/about/', home: '/' };
 const README = `gpojani.me: a specimen archive.
 Everything here is either a transmission (posts/), a taxonomy (classes/)
 or an instrument (lab, atlas, network). Try: ls posts, cat posts/<name>.md,

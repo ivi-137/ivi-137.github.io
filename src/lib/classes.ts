@@ -91,6 +91,14 @@ export const INSTRUMENTS: Array<{ id: string; title: string; url: string; class:
     why: 'One pattern holds 2^1024 gate configurations; searching them by brute force takes exponential time, which is why the generators exist.',
   },
   {
+    id: 'attrattore',
+    title: 'Attrattore: a chaotic chord progression machine',
+    url: '/chords/',
+    class: 'NP',
+    glyph: 'I–V–?',
+    why: 'Whether any progression satisfies a set of harmonic constraints is a constraint-satisfaction problem, NP-complete in general: easy to check, hard to find.',
+  },
+  {
     id: 'network',
     title: 'Network of transmissions and ideas',
     url: '/network/',
