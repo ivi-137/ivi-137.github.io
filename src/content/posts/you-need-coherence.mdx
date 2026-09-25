@@ -11,17 +11,19 @@ import TransformerDiagram from '../../components/coherence/TransformerDiagram.as
 import LedgerDiagram from '../../components/coherence/LedgerDiagram.astro';
 import ToyResults from '../../components/coherence/ToyResults.astro';
 import Audit from '../../components/coherence/Audit.astro';
+import FrameDiagram from '../../components/coherence/FrameDiagram.astro';
 
 Ask a language model to read this notebook and write the next entry. It will get the topic right and the voice roughly right. Then, often somewhere around the fourth paragraph, a formula will appear between single dollar signs, although every formula here sits between two. A heading will arrive in Title Case. "Behaviour" will lose its u. And the post will stop one section early, without the sources that close this one. None of this is hard. Each is a promise the earlier posts made, and each gets broken anyway.
 
-This post is about that failure. I'll call the property it breaks *coherence*: a text is coherent when it keeps the commitments its context has made, from the first token to the last. The argument goes in six steps:
+This post is about that failure. I'll call the property it breaks *coherence*: a text is coherent when it keeps the commitments its context has made, from the first token to the last. The argument goes in seven steps:
 
 1. **The machine.** The Transformer of "Attention is all you need", with its mathematics.
 2. **The evidence.** What published measurements say about how often models lose the thread.
 3. **A definition.** Coherence as a set of obligations in temporal logic, each checkable by a finite automaton.
 4. **Three mechanisms.** Dilution, compounding and premature stopping, each with a short proof.
 5. **An architecture.** The *Ledger*: a small block that can be inserted into a trained transformer without changing what it computes on the day it is inserted.
-6. **An experiment.** A controlled toy, trained from scratch several times over, small enough to run live on this page.
+6. **Symmetry.** Many conventions are choices among interchangeable variants. Group theory turns keeping them into something that cannot fail after one reading, and lets the model forget its examples.
+7. **An experiment.** A controlled toy, trained from scratch several times over, small enough to run live on this page.
 
 Every measurement below is either quoted from a paper in the reading list at the end or produced by code that lives in this site's repository, under `research/coherence/`.
 
@@ -272,6 +274,64 @@ The parts have ancestors. The combination, as far as I can find, does not.
 | progress monitor, Ma et al. 2019 | a navigation agent estimates how much of its instruction is done | the same instinct, made typed and connected to the decision to stop |
 | constrained decoding with automata | forbids tokens that would break a constraint given as a formula | needs the constraint written out; the Ledger reads it off the examples |
 | checklist rewards, LLM-Modulo | verifiers score or filter whole outputs | verifiers supervise a state inside the network at every token |
+| equivariant networks, Cohen and Welling 2016; learned canonicalisation, Kaba et al. 2023 | build a symmetry of the input into the network, or map inputs to a canonical pose first | the symmetry acts on the style of the output as well as on the input, and the output alphabet becomes the orbits |
+| gist tokens, Mu et al. 2023 | compress a prompt into a few tokens by masking attention | what survives is a typed ledger and a group element, both checked by monitors |
+
+## Symmetry
+
+The Ledger treats every obligation as something to remember. Many of them have more structure than that, and mathematics has a name for it.
+
+### Coherence in mathematics
+
+Mathematics has used the word *coherence* for a long time, with a precise meaning. In a monoidal category there are many ways to rebracket a product such as $$(a \otimes b) \otimes (c \otimes d)$$, each a chain of associativity isomorphisms. Mac Lane's coherence theorem (1963) says that any two such chains between the same two bracketings are equal: every diagram built from them commutes. An equivalent form says that every monoidal category is equivalent to a *strict* one, in which those isomorphisms are identities and there is nothing left to choose. Coherence, there, is the guarantee that choices made in different places agree, and strictification makes the agreement automatic.
+
+Style has the same shape. Many conventions are a choice among interchangeable variants: which font, which delimiter, "colour" or "color". A text keeps such a convention when it makes the same choice everywhere. So far the network has been asked to remember its choice. The alternative is to make the choice once, outside the network, and leave nothing to remember.
+
+### A group acting on words
+
+Let a finite group $$G$$ act on the vocabulary $$V$$ by permutations, $$\rho : G \to \mathrm{Sym}(V)$$ with $$\rho(gh) = \rho(g)\,\rho(h)$$, extended to texts one token at a time. In the toy, $$G = S_6 \times S_4 \times S_3$$: one factor permutes the six fonts, one the four heading styles, one the three delimiters (opening and closing together), and every other token is fixed. The orbits $$G \cdot v = \{\rho(g)\,v : g \in G\}$$ are the four style families plus single tokens, and a style is a choice of one member from each family. Attention has a symmetry of the same kind, permutations, acting on positions instead of words: without positional encodings and without the mask, it is equivariant to any reordering of the tokens, which is exactly why the 2017 paper had to add positions. The Geometric Deep Learning programme of Bronstein, Bruna, Cohen and Veličković, the subject of a special edition of Machine Learning Street Talk, builds whole architectures from such symmetries.
+
+The obligations respect this one. Write $$C(x, q)$$ for the set of coherent posts given example posts $$x$$ and a request $$q$$.
+
+**Proposition 3 (equivariance).** For every $$g \in G$$, $$C(\rho(g)\,x,\ q) = \rho(g)\,C(x, q)$$. Relabel the author's examples, and the coherent posts are relabelled the same way.
+
+*Proof.* Each style monitor checks that every token of its family equals the member the examples use; applying one permutation to both sides preserves that equality. The other monitors never ask which member of a family appears, and from the request they read only the requested length, which $$G$$ fixes. ∎
+
+A network that learns this relation from data must learn it separately for every style it meets, and it sees the rare styles least. In the baseline, posts by authors with the default font kept their font 98% of the time; posts by authors with one of the other five, 85%.
+
+### Gauge fixing
+
+In physics, a gauge is a choice of reference frame that the laws do not depend on, and fixing it removes the redundancy. The same move works here. Choose a canonical style $$c$$ (the first member of each family). Read the author's style $$\hat s$$ from the examples, and let $$\hat g$$ be a group element with $$\hat g \cdot c = \hat s$$; in the toy, a product of three transpositions, which is its own inverse. Then:
+
+1. move the context into the canonical frame, $$x \mapsto \rho(\hat g)^{-1} x$$;
+2. let the transformer write, with its output restricted to the canonical member of every family, so that its alphabet is the set of orbits $$V/G$$ (96 tokens become 84);
+3. map the text back, $$y = \rho(\hat g)\, y_c$$.
+
+<FrameDiagram />
+
+**Proposition 4 (invariants by construction).** Under gauge fixing, the invariant of family $$i$$ holds at every position of the text if the frame read it correctly, and fails at every occurrence of that family otherwise. For every length $$L$$,
+
+$$
+P(\text{invariant } i \text{ is broken}) \le P(\hat s_i \ne s_i),
+$$
+
+with equality whenever the family occurs at all.
+
+After the frame is read, the hazard is zero, and the compounding of Proposition 2 no longer applies.
+
+*Proof.* The only member of family $$i$$ the network can emit is $$c_i$$, and step 3 maps it to $$\rho(\hat g)\,c_i = \hat s_i$$ wherever it appears. So every occurrence matches the author if $$\hat s_i = s_i$$, and none does otherwise. ∎
+
+**Proposition 5 (reading the frame).** Suppose the examples contain $$m$$ tokens of family $$i$$, each equal to the author's member independently with probability $$1 - \eta$$, where $$\eta < \tfrac12$$. Then the most frequent member is the author's with probability at least $$1 - e^{-2m(1/2 - \eta)^2}$$.
+
+*Proof.* Let $$X \sim \mathrm{Bin}(m, 1 - \eta)$$ count the author's tokens. If $$X > m/2$$ the author's member is a strict majority. By Hoeffding's inequality, $$P(X \le m/2) = P\bigl(X - m(1 - \eta) \le -m(\tfrac12 - \eta)\bigr) \le e^{-2m(1/2 - \eta)^2}$$. ∎
+
+So the frame is read by counting: one pass over the examples, linear time, no attention, and exponentially reliable in how often the style is shown. It is strictification in miniature. The many places that had to agree are replaced by one choice that cannot disagree.
+
+### What it saves
+
+Two things become cheaper. First, once the clerk and the frame have read the examples, the written tokens need the examples only for their content. When the examples are there for their conventions alone, as in the toy, their keys and values can be dropped as soon as they are read. Each written token then attends to the request, its own text and the $$K$$ slots, and a post of $$L$$ tokens that followed $$n_{\text{ex}}$$ example tokens saves $$L\, n_{\text{ex}}$$ key lookups per head and layer. Gist tokens (Mu et al. 2023) compress prompts the same way, by masking attention during training; here what survives the compression is typed and checked. Second, the output alphabet shrinks from $$V$$ to $$V/G$$, and the network stops spending capacity on relabelled copies of the same behaviour.
+
+There are limits. The group must act on the units the model writes: "colour" and "color" can be tokenised differently, and lower-casing a heading is not invertible, so not every convention is a permutation of tokens. And examples that carry content, such as voice, topic and facts, cannot be dropped wholesale; only their conventions can be factored out. Obligations with no symmetry, like "end with sources" or "write nine paragraphs", stay with the Ledger.
 
 ## An experiment
 
@@ -281,11 +341,11 @@ A claim about architecture should be tested where everything else is held still.
 
 An *author* has a house style: one of six paragraph fonts, one of four heading styles, one of three formula delimiters, and two habits, a closing "why" section and a sources section, each present or absent. The context shows two or three of the author's posts, then a request: a line in the *default* style (plain serif, single-dollar formulas) that says how many paragraphs to write. Then the model writes. The style is never stated. It has to be read off the posts, and held against the request, which sits right next to the point where writing begins. The words themselves come from a fixed random chain over 48 words and mean nothing. Chomsky's ideas are colourless on purpose: only form is under test.
 
-Most authors in the training data use the default style (40% of fonts, half of all delimiters), so a model that stops looking at the evidence drifts towards the request's style. Six monitors check each post: font, headings, maths (the three invariants), the why-section and the sources (eventualities, with sources required to come last), and their order. A seventh checks the requested length, which is the one explicit instruction.
+Most authors in the training data use the default style (40% of fonts, half of all delimiters), so a model that stops looking at the evidence drifts towards the request's style. Seven monitors check each post for the implicit rules: font, headings, maths (the three invariants), the why-section and the sources (eventualities, with sources required to come last), their order, and form (no token that belongs to the prompt, such as a stray request marker). An eighth checks the requested length, which is the one explicit instruction.
 
 ### The models
 
-Six variants, identical except for the parts under test: a 3-layer decoder with 4 heads, width 64 and rotary positions (155,456 parameters), trained from scratch for 1,500 steps on fresh batches of 32 episodes, with AdamW (peak learning rate 0.002, cosine decay, gradient clipping at 1) and the loss taken only on the post the model writes. The Ledger's two label losses are weighted 0.3 each.
+Nine variants, identical except for the parts under test: a 3-layer decoder with 4 heads, width 64 and rotary positions (155,456 parameters), trained from scratch for 1,500 steps on fresh batches of 32 episodes, with AdamW (peak learning rate 0.002, cosine decay, gradient clipping at 1) and the loss taken only on the post the model writes. The Ledger's two label losses are weighted 0.3 each.
 
 1. **baseline**: the plain decoder.
 2. **baseline + same labels**: the plain decoder with the Ledger's supervision attached to linear probes on its hidden states. If the Ledger wins only because it sees more labels, this variant will win too.
@@ -293,14 +353,19 @@ Six variants, identical except for the parts under test: a 3-layer decoder with 
 4. **Ledger, one shared softmax**: the same slots, but read inside the ordinary attention softmax, as memory tokens would be.
 5. **Ledger, no eos gate.**
 6. **Ledger, no monitor labels**: trained on the next-token loss alone.
+7. **baseline + frame**: the plain decoder with gauge fixing.
+8. **Ledger + frame**: both.
+9. **Ledger + frame, examples dropped**: as 8, but written tokens may not attend to the example posts; only the clerk and the frame read them, so their keys and values can be discarded before writing begins.
 
-The baseline, the labelled baseline, the Ledger and the shared-softmax Ledger were each trained with three seeds; the two other ablations with two. Each trained model wrote 300 posts, one for each of the same 300 prompts (two example posts each; 5 requested lengths, 60 authors each), sampled at temperature 1 so that the numbers describe the model's own distribution rather than a decoding trick.
+The baseline, the labelled baseline, the Ledger, the shared-softmax Ledger and the two Ledgers with a frame were each trained with three seeds; the other three variants with two. Each trained model wrote 300 posts, one for each of the same 300 prompts (two example posts each; 5 requested lengths, 60 authors each), sampled at temperature 1 so that the numbers describe the model's own distribution rather than a decoding trick.
 
 ### Results
 
-<ToyResults chart="bars" caption="Share of posts that keep all six implicit rules, per model: mean over seeds, with the range across seeds as a line. The thin bar is the same share on authors whose style differs from the request's." />
+<ToyResults chart="bars" caption="Share of posts that keep all seven implicit rules, per model: mean over seeds, with the range across seeds as a line. The thin bar is the same share on authors whose style differs from the request's." />
 
 <ToyResults chart="monitors" />
+
+<ToyResults chart="cost" />
 
 <ToyResults chart="bylen" caption="Share of coherent posts against the number of paragraphs requested." />
 
@@ -320,11 +385,11 @@ The recipe for a pretrained model follows the toy's. Freeze the model. Insert th
 
 The Ledger also makes a model easier to question, which speaks to one of Chomsky's objections. The slots can be read out: what the clerk thinks is owed, and what the model believes it has paid.
 
-The theory makes three predictions that a real test should check. The hazard of a sparse invariant should stop rising with length. The shared-softmax version should degrade as the context grows, and the separate one shouldn't. And the gains should concentrate on eventualities and sparse invariants, not on rules the text repeats every line.
+The theory makes predictions that a real test should check. With a Ledger, the hazard of a sparse invariant should stop rising with length. The shared-softmax version should degrade as the context grows, and the separate one shouldn't. For conventions that are genuine permutations of the vocabulary, gauge fixing should make the violation rate independent of length, equal to the rate at which the frame is misread. And dropping the examples should cost nothing on obligations the Ledger and the frame carry, while saving attention in proportion to the length of the examples.
 
 ## What this does not show
 
-The toy is tiny, its prose is noise, and its style has five dimensions where a real blog has hundreds. Its labels come free from the generator; a real system has to extract them, and extraction errors are a new way to fail. The experiment shows that the mechanism works where the theory says it should, in a world simple enough to measure. It does not show that a Ledger makes a frontier model write better blog posts. That needs the retrofit above, trained at scale and measured on the benchmarks in the table, which is the obvious next experiment.
+The toy is tiny, its prose is noise, and its style has five dimensions where a real blog has hundreds. Its labels come free from the generator; a real system has to extract them, and extraction errors are a new way to fail. Its symmetry is exact and declared in advance, and in the toy its frame is never misread; real conventions are only approximately permutations, and their groups have to be written down or learned. The experiment shows that the mechanism works where the theory says it should, in a world simple enough to measure. It does not show that a Ledger makes a frontier model write better blog posts. That needs the retrofit above, trained at scale and measured on the benchmarks in the table, which is the obvious next experiment.
 
 ## The ledger of this notebook
 
@@ -343,7 +408,7 @@ Checking whether a draft keeps a set of obligations takes one pass of a few smal
 - Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin, "Attention Is All You Need," *NeurIPS* (2017).
 - Noam Chomsky, "Three Models for the Description of Language," *IRE Transactions on Information Theory* 2 (1956); *Syntactic Structures* (1957); "On Certain Formal Properties of Grammars," *Information and Control* 2 (1959); *Aspects of the Theory of Syntax* (1965).
 - Noam Chomsky, Ian Roberts, Jeffrey Watumull, "The False Promise of ChatGPT," *The New York Times* (8 March 2023).
-- *Machine Learning Street Talk*: "#78, Prof. Noam Chomsky (Special Edition)" (July 2022); "Prof. Subbarao Kambhampati: LLMs don't reason, they memorize" (July 2024); "Transformers Need Glasses!, Federico Barbero".
+- *Machine Learning Street Talk*: "#60, Geometric Deep Learning Blueprint (Special Edition)" (2021); "#78, Prof. Noam Chomsky (Special Edition)" (July 2022); "Prof. Subbarao Kambhampati: LLMs don't reason, they memorize" (July 2024); "Transformers Need Glasses!, Federico Barbero".
 - Amir Pnueli, "The Temporal Logic of Programs," *FOCS* (1977).
 - Giuseppe De Giacomo, Moshe Y. Vardi, "Linear Temporal Logic and Linear Dynamic Logic on Finite Traces," *IJCAI* (2013).
 - Andreas Bauer, Martin Leucker, Christian Schallhart, "Runtime Verification for LTL and TLTL," *ACM TOSEM* 20 (2011).
@@ -366,6 +431,12 @@ Checking whether a draft keeps a set of obligations takes one pass of a few smal
 - Nouha Dziri et al., "Faith and Fate: Limits of Transformers on Compositionality," *NeurIPS* (2023).
 - Aman Madaan et al., "Self-Refine: Iterative Refinement with Self-Feedback," *NeurIPS* (2023).
 - Subbarao Kambhampati et al., "Position: LLMs Can't Plan, But Can Help Planning in LLM-Modulo Frameworks," *ICML* (2024).
+- Saunders Mac Lane, "Natural Associativity and Commutativity," *Rice University Studies* 49 (1963).
+- Michael M. Bronstein, Joan Bruna, Taco Cohen, Petar Veličković, "Geometric Deep Learning: Grids, Groups, Graphs, Geodesics, and Gauges," arXiv:2104.13478 (2021).
+- Taco Cohen, Max Welling, "Group Equivariant Convolutional Networks," *ICML* (2016).
+- Sékou-Oumar Kaba, Arnab Kumar Mondal, Yan Zhang, Yoshua Bengio, Siamak Ravanbakhsh, "Equivariance with Learned Canonicalization Functions," *ICML* (2023).
+- Jesse Mu, Xiang Lisa Li, Noah Goodman, "Learning to Compress Prompts with Gist Tokens," *NeurIPS* (2023).
+- Wassily Hoeffding, "Probability Inequalities for Sums of Bounded Random Variables," *Journal of the American Statistical Association* 58 (1963).
 - Chloé Kiddon, Luke Zettlemoyer, Yejin Choi, "Globally Coherent Text Generation with Neural Checklist Models," *EMNLP* (2016).
 - Zhaopeng Tu, Zhengdong Lu, Yang Liu, Xiaohua Liu, Hang Li, "Modeling Coverage for Neural Machine Translation," *ACL* (2016).
 - Sainbayar Sukhbaatar et al., "Augmenting Self-attention with Persistent Memory," arXiv:1907.01470 (2019).

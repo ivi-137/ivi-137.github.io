@@ -8,6 +8,11 @@ Variants (cfg['variant']):
   ledger_joint   Ledger slots read inside the ordinary softmax (no separate normalisation)
   ledger_nogate  Ledger without the EOS gate
   ledger_nosup   Ledger trained on the language-model loss alone
+  base_frame     base + gauge fixing: the style is read by counting, the context is moved into the
+                 canonical frame, the output is restricted to one member per orbit, and mapped back
+  ledger_frame   Ledger + gauge fixing
+  ledger_frame_evict   Ledger + gauge fixing, and written tokens may not attend to the example posts
+                 (only the clerk and the frame read them), so their keys and values can be dropped
 
 The Ledger (K slots):
   clerk    K learned queries attend once over the prompt  ->  o_i          (what is owed)
@@ -29,7 +34,7 @@ import math
 import jax
 import jax.numpy as jnp
 
-from toy import EOS, K_MAX, K_MIN, N_FONT, N_HEAD, N_MATH, PAD, V
+from toy import EOS, K_MAX, K_MIN, N_FONT, N_HEAD, N_MATH, NONCANONICAL, PAD, V
 
 K = 8
 INVARIANT, EVENT, COUNT = 0, 1, 2
@@ -49,7 +54,15 @@ def has_ledger(cfg):
 
 
 def supervised(cfg):
-    return cfg['variant'] in ('base_aux', 'ledger', 'ledger_joint', 'ledger_nogate')
+    return cfg['variant'] in ('base_aux', 'ledger', 'ledger_joint', 'ledger_nogate', 'ledger_frame', 'ledger_frame_evict')
+
+
+def gauged(cfg):
+    return 'frame' in cfg['variant']
+
+
+def evicts(cfg):
+    return cfg['variant'].endswith('evict')
 
 
 # ── init ─────────────────────────────────────────────────────────────────
@@ -141,7 +154,7 @@ def rope(x, pos):
     return jnp.concatenate([x1 * c - x2 * s, x1 * s + x2 * c], -1)
 
 
-def self_attn(lp, x, pos, valid, H, slots=None, slot_on=None):
+def self_attn(lp, x, pos, valid, H, slots=None, slot_on=None, hide=None):
     """Causal multi-head attention. If `slots` (B,T,K,d) is given, their keys join the same softmax
     (the 'joint' ablation): each query sees its context *and* the K slots, normalised together."""
     B, T, d = x.shape
@@ -154,6 +167,8 @@ def self_attn(lp, x, pos, valid, H, slots=None, slot_on=None):
     logits = jnp.einsum('bthd,bshd->bhts', q, k) / math.sqrt(dh)
     causal = jnp.tril(jnp.ones((T, T), bool))
     mask = causal[None, None] & valid[:, None, None, :]
+    if hide is not None:
+        mask = mask & ~hide[:, None]  # hide: (B,T,S) keys a query may not see
     logits = jnp.where(mask, logits, -1e9)
     if slots is None:
         a = jax.nn.softmax(logits, -1)
@@ -211,9 +226,13 @@ def status(P, h, o, gen_mask, k_hat):
     return e, u
 
 
-def forward(p, x, gen_mask, cfg, want_attn=False):
-    """x: (B,T) tokens; gen_mask: (B,T) 1 from <new> on. Returns logits and extras."""
+def forward(p, x, gen_mask, cfg, want_attn=False, exm=None):
+    """x: (B,T) tokens; gen_mask: (B,T) 1 from <new> on; exm: (B,T) positions inside the example
+    posts (used only when the variant evicts them). Returns logits and extras."""
     B, T = x.shape
+    hide = None
+    if evicts(cfg):
+        hide = (gen_mask > 0)[:, :, None] & exm[:, None, :]
     H = cfg['H']
     valid = x != PAD
     valid = valid.at[:, 0].set(True)
@@ -226,7 +245,7 @@ def forward(p, x, gen_mask, cfg, want_attn=False):
     attn = []
     for li, lp in enumerate(p['layers']):
         joint = variant == 'ledger_joint' and slots is not None
-        a_out, a = self_attn(lp, ln(lp['ln1'], h), pos, valid, H, slots if joint else None, gen_mask > 0 if joint else None)
+        a_out, a = self_attn(lp, ln(lp['ln1'], h), pos, valid, H, slots if joint else None, gen_mask > 0 if joint else None, hide)
         if want_attn:
             attn.append(a)
         h = h + a_out
@@ -258,6 +277,9 @@ def forward(p, x, gen_mask, cfg, want_attn=False):
                 extras['ext'] = [hg @ w for w in A['ext']]
                 extras['e'] = jax.nn.sigmoid(ha @ A['ev'] + A['ev_b'])
     logits = ln(p['lnf'], h) @ p['emb'].T
+    if gauged(cfg):
+        # the output alphabet is the set of orbits: one member per style family
+        logits = logits.at[..., jnp.array(NONCANONICAL)].set(-1e9)
     if led and variant != 'ledger_nogate':
         pend = extras['pend'][..., 3:6]
         gate = p['ledger']['gamma'] * jnp.log1p(-pend * 0.999).sum(-1)
@@ -283,9 +305,20 @@ def read(rp, x, slots, H):
 # ── loss ─────────────────────────────────────────────────────────────────
 
 
+def canonical(b, cfg):
+    """Move a batch into the canonical frame (identity for ungauged variants)."""
+    if not gauged(cfg):
+        return b
+    b = dict(b)
+    b['x'] = jnp.take_along_axis(b['perm'], b['x'], axis=1)
+    b['labels'] = b['labels'].at[:, :3].set(0)  # in the canonical frame the style is (0, 0, 0)
+    return b
+
+
 def loss_fn(p, b, cfg):
+    b = canonical(b, cfg)
     x = b['x']
-    logits, ex = forward(p, x, b['gen_mask'], cfg)
+    logits, ex = forward(p, x, b['gen_mask'], cfg, exm=b.get('exm'))
     lp = jax.nn.log_softmax(logits[:, :-1], -1)
     tgt = x[:, 1:]
     nll = -jnp.take_along_axis(lp, tgt[..., None], -1)[..., 0]

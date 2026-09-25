@@ -8,7 +8,7 @@ import { chip, shell, slider } from './figures';
 import { loadNet, SLOT_NAME, type Net } from './net';
 import { FONT_NAMES, HEAD_NAMES, IMPLICIT, MATH_OPEN, MATH_CLOSE, MONITORS, renderPost, rng, Toy, type Style } from './toy';
 
-const LABEL: Record<string, string> = { font: 'font', heading: 'headings', math: 'maths', why: 'why-section', sources: 'sources last', order: 'order', length: 'length' };
+const LABEL: Record<string, string> = { font: 'font', heading: 'headings', math: 'maths', why: 'why-section', sources: 'sources last', order: 'order', form: 'form', length: 'length' };
 
 function sample(logits: Float32Array, r: () => number, temp: number, pad: number) {
   let mx = -Infinity;
@@ -22,8 +22,12 @@ function sample(logits: Float32Array, r: () => number, temp: number, pad: number
 }
 
 /** Write one post. Yields after every token so the page can draw. */
-async function* write(net: Net, toy: Toy, prompt: number[], r: () => number, temp = 1, max = 320) {
+async function* write(net: Net, toy: Toy, raw: number[], r: () => number, temp = 1, max = 320) {
   net.reset();
+  // a gauge-fixed model writes in the canonical frame; the frame is read by counting
+  const perm = net.gauged ? toy.framePerm(toy.readFrame(raw)) : [...Array(toy.V).keys()];
+  const prompt = raw.map((t) => perm[t]);
+  net.examples(1, raw.indexOf(toy.id['<req>']));
   let logits: Float32Array = new Float32Array(0);
   prompt.forEach((t, i) => (logits = net.step(t, i === prompt.length - 1)));
   const y: number[] = [];
@@ -34,7 +38,7 @@ async function* write(net: Net, toy: Toy, prompt: number[], r: () => number, tem
       yield { y, done: true, ended: true };
       return;
     }
-    y.push(tok);
+    y.push(perm[tok]);
     yield { y, done: false, ended: false };
     logits = net.step(tok, true);
   }
@@ -48,7 +52,7 @@ export function mountDemo(host: HTMLElement) {
     <div class="cd__author mono"></div>
     <div class="cd__cols">
       <section class="cd__col" data-col="base"><header class="mono"><b>baseline</b> <span data-meta></span></header><div class="cd__post" data-post></div><ul class="cd__mon mono" data-mon></ul></section>
-      <section class="cd__col" data-col="ledger"><header class="mono"><b>with the Ledger</b> <span data-meta></span></header><div class="cd__post" data-post></div><ul class="cd__mon mono" data-mon></ul><div class="cd__led mono" data-led></div></section>
+      <section class="cd__col" data-col="ledger"><header class="mono"><b>Ledger + frame</b> <span data-meta></span></header><div class="cd__post" data-post></div><ul class="cd__mon mono" data-mon></ul><div class="cd__led mono" data-led></div></section>
     </div>
     <p class="cd__tally mono" data-tally></p>`;
   const author = stage.querySelector<HTMLElement>('.cd__author')!;
@@ -77,10 +81,10 @@ export function mountDemo(host: HTMLElement) {
   async function ensure() {
     if (nets) return nets;
     status.textContent = 'loading weights…';
-    const [b, l] = await Promise.all([loadNet(base, 'base'), loadNet(base, 'ledger')]);
+    const [b, l] = await Promise.all([loadNet(base, 'base'), loadNet(base, 'ledger_frame_evict')]);
     toy = new Toy(b.meta);
     nets = { base: b, ledger: l };
-    status.textContent = `baseline ${b.meta.n_params.toLocaleString()} parameters · Ledger ${l.meta.n_params.toLocaleString()}`;
+    status.textContent = `baseline ${b.meta.n_params.toLocaleString()} parameters · Ledger + frame ${l.meta.n_params.toLocaleString()}; the second never attends to the example posts while it writes`;
     return nets;
   }
 
@@ -94,15 +98,16 @@ export function mountDemo(host: HTMLElement) {
     }).join('');
   }
 
-  function ledgerPanel(el: HTMLElement, net: Net) {
+  function ledgerPanel(el: HTMLElement, net: Net, frame: [number, number, number]) {
     const v = net.view;
     if (!v) return (el.innerHTML = '');
-    const read = `clerk read: font ${FONT_NAMES[v.read.font]}, headings ${HEAD_NAMES[v.read.head]}, maths ${MATH_OPEN[v.read.math]}…${MATH_CLOSE[v.read.math]}, why ${(v.read.why * 100).toFixed(0)}%, sources ${(v.read.src * 100).toFixed(0)}%, ${v.read.k} ¶`;
+    const style = net.gauged ? frame : [v.read.font, v.read.head, v.read.math];
+    const read = `${net.gauged ? 'frame, read by counting' : 'clerk read'}: font ${FONT_NAMES[style[0]]}, headings ${HEAD_NAMES[style[1]]}, maths ${MATH_OPEN[style[2]]}…${MATH_CLOSE[style[2]]} · clerk: why ${(v.read.why * 100).toFixed(0)}%, sources ${(v.read.src * 100).toFixed(0)}%, ${v.read.k} ¶`;
     const rows = SLOT_NAME.slice(0, 6)
       .map((n, i) => {
         const ty = i < 3 ? 'G' : i === 5 ? '#' : 'F';
         const pend = v.pend[i];
-        return `<div class="cd__slot"><span>${ty}</span><span>${n}</span><span class="cd__meter"><i style="width:${(ty === 'G' ? 100 : (1 - pend) * 100).toFixed(0)}%"></i></span><span>${ty === 'G' ? 'in force' : pend > 0.5 ? 'owed' : 'paid'}</span></div>`;
+        return `<div class="cd__slot"><span>${ty}</span><span>${n}</span><span class="cd__meter"><i style="width:${(ty === 'G' ? 100 : (1 - pend) * 100).toFixed(0)}%"></i></span><span>${ty === 'G' ? (net.gauged ? 'by frame' : 'in force') : pend > 0.5 ? 'owed' : 'paid'}</span></div>`;
       })
       .join('');
     el.innerHTML = `<p>${read}</p>${rows}<p>p(eos) × ${v.eosFactor < 0.001 ? v.eosFactor.toExponential(0) : v.eosFactor.toFixed(3)}</p>`;
@@ -120,6 +125,7 @@ export function mountDemo(host: HTMLElement) {
         const st = style;
         author.innerHTML = describe(st);
         const prompt = toy.prompt(r, st, k);
+        const frame = toy.readFrame(prompt);
         const cols = (['base', 'ledger'] as const).map((name) => {
           const col = stage.querySelector<HTMLElement>(`[data-col="${name}"]`)!;
           return { name, col, post: col.querySelector<HTMLElement>('[data-post]')!, mon: col.querySelector<HTMLElement>('[data-mon]')!, meta: col.querySelector<HTMLElement>('[data-meta]')!, led: col.querySelector<HTMLElement>('[data-led]') };
@@ -135,21 +141,21 @@ export function mountDemo(host: HTMLElement) {
               last = s;
               if (!many && (n++ % 3 === 0 || s.done)) {
                 c.post.innerHTML = renderPost(toy, s.y);
-                if (c.led) ledgerPanel(c.led, net);
+                if (c.led) ledgerPanel(c.led, net, frame);
                 c.post.scrollTop = c.post.scrollHeight;
                 await new Promise((res) => setTimeout(res, 16));
               } else if (n++ % 40 === 0) await new Promise((res) => setTimeout(res, 0));
             }
             const res = toy.audit(last.y, st, k, last.ended);
             c.post.innerHTML = renderPost(toy, last.y, res.bad);
-            if (c.led) ledgerPanel(c.led, net);
+            if (c.led) ledgerPanel(c.led, net, frame);
             monitors(c.mon, res);
-            c.meta.textContent = `${last.y.length} tokens · ${res.paras} ¶`;
+            c.meta.textContent = `${last.y.length} tokens · ${res.paras} ¶ · ${Math.round(net.keysSeen / Math.max(1, last.y.length + 1))} keys/token`;
             score[c.name].n++;
             if (IMPLICIT.every((m) => res.ok[m])) score[c.name].ok++;
           }),
         );
-        tally.textContent = `coherent so far (all six implicit rules kept): baseline ${score.base.ok}/${score.base.n} · Ledger ${score.ledger.ok}/${score.ledger.n}`;
+        tally.textContent = `coherent so far (all seven implicit rules kept): baseline ${score.base.ok}/${score.base.n} · Ledger + frame ${score.ledger.ok}/${score.ledger.n}`;
       }
     } catch (e) {
       status.textContent = `could not load the models: ${(e as Error).message}`;

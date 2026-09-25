@@ -13,9 +13,10 @@ export interface Style {
   src: number;
 }
 
-export const MONITORS = ['font', 'heading', 'math', 'why', 'sources', 'order', 'length'] as const;
+export const MONITORS = ['font', 'heading', 'math', 'why', 'sources', 'order', 'form', 'length'] as const;
 export type Monitor = (typeof MONITORS)[number];
-export const IMPLICIT: Monitor[] = ['font', 'heading', 'math', 'why', 'sources', 'order'];
+/** everything except the requested length is implicit: read off the posts, never stated */
+export const IMPLICIT: Monitor[] = ['font', 'heading', 'math', 'why', 'sources', 'order', 'form'];
 
 /** The prose is deliberately meaningless: only its form is under test. */
 export const LEXICON = [
@@ -128,6 +129,34 @@ export class Toy {
     return seq;
   }
 
+  /** The author's style, read by counting inside the example posts (toy.read_frame). */
+  readFrame(seq: number[]): [number, number, number] {
+    const end = seq.indexOf(this.id['<req>']);
+    const c = [new Array(6).fill(0), new Array(4).fill(0), new Array(3).fill(0)];
+    for (const tok of seq.slice(1, end < 0 ? seq.length : end)) {
+      const k = this.kind(tok);
+      if (k === 'F') c[0][this.num(tok)]++;
+      else if (k === 'H') c[1][this.num(tok)]++;
+      else if (k === 'MO' || k === 'MC') c[2][this.num(tok)]++;
+    }
+    const arg = (a: number[]) => a.indexOf(Math.max(...a));
+    return [arg(c[0]), arg(c[1]), arg(c[2])];
+  }
+
+  /** The group element (0 f)(0 h)(0 m) as a permutation of the vocabulary; its own inverse. */
+  framePerm([f, h, m]: [number, number, number]) {
+    const p = [...Array(this.V).keys()];
+    const swap = (a: string, b: string) => {
+      const i = this.id[a], j = this.id[b];
+      [p[i], p[j]] = [j, i];
+    };
+    swap('F0', `F${f}`);
+    swap('H0', `H${h}`);
+    swap('M0(', `M${m}(`);
+    swap(')M0', `)M${m}`);
+    return p;
+  }
+
   /** The monitors, exactly as in toy.py. y excludes <new> and <eos>. */
   audit(y: number[], st: Style, k: number, ended: boolean) {
     const ok = Object.fromEntries(MONITORS.map((m) => [m, true])) as Record<Monitor, boolean>;
@@ -155,7 +184,7 @@ export class Toy {
         srcAt = t;
       }
       if (srcAt >= 0 && t > srcAt && k2 !== 'R') fail('sources', t);
-      if (['<post>', '</post>', '<req>', '<new>', '<bos>', '<pad>', 'L'].includes(k2)) fail('font', t);
+      if (['<post>', '</post>', '<req>', '<new>', '<bos>', '<pad>', 'L'].includes(k2)) fail('form', t);
     });
     const end = y.length;
     if (!ended) for (const m of ['why', 'sources', 'length'] as Monitor[]) fail(m, end);

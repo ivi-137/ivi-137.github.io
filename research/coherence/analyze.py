@@ -18,14 +18,11 @@ from __future__ import annotations
 import json
 import sys
 from collections import defaultdict
-from pathlib import Path
 
 import numpy as np
 
-from toy import FONT0, HEAD0, MOPEN0, N_FONT, N_HEAD, N_MATH, is_font, is_head, is_mopen
-
-RES = Path(__file__).parent / 'results'
-IMPLICIT = ['font', 'heading', 'math', 'why', 'sources', 'order']
+from records import RES, load
+from toy import FONT0, HEAD0, IMPLICIT, MOPEN0, is_font, is_head, is_mopen
 
 
 def wilson(k, n, z=1.96):
@@ -90,10 +87,10 @@ def km_by_paragraph(recs, max_p=16):
 def main():
     runs = defaultdict(list)
     seeds = defaultdict(list)
-    for f in sorted(RES.glob('*-s*.json')):
-        d = json.load(open(f))
-        runs[d['summary']['variant']].append(d['records'])
-        seeds[d['summary']['variant']].append(int(f.stem.rsplit('-s', 1)[1]))
+    for v, rs in load().items():
+        for r in sorted(rs, key=lambda x: x['seed']):
+            runs[v].append(r['records'])
+            seeds[v].append(r['seed'])
     out = {}
     for v, rr in runs.items():
         recs = [r for rs in rr for r in rs]
@@ -101,7 +98,7 @@ def main():
         for kind in ('font', 'heading', 'math'):
             b, o = opportunities(recs, kind)
             row[kind] = {'breaks': b, 'opportunities': o, 'hazard': b / max(o, 1), 'ci': wilson(b, o)}
-        coh = [all(r['ok'][m] for m in IMPLICIT) for r in recs]
+        coh = [r['coherent'] for r in recs]
         row['coherent'] = {'k': int(sum(coh)), 'n': len(coh), 'rate': float(np.mean(coh)), 'ci': wilson(sum(coh), len(coh))}
         # paired against the baseline: same prompts, same seed index
         if v != 'base' and 'base' in runs:
@@ -109,8 +106,8 @@ def main():
             pa, pb = [], []
             for sd, rs in zip(seeds[v], rr):
                 if sd in bs:
-                    pa += [all(r['ok'][m] for m in IMPLICIT) for r in rs]
-                    pb += [all(r['ok'][m] for m in IMPLICIT) for r in bs[sd]]
+                    pa += [r['coherent'] for r in rs]
+                    pb += [r['coherent'] for r in bs[sd]]
             x, y, p = mcnemar(pa, pb)
             row['vs_base'] = {'pairs': len(pa), 'only_this': x, 'only_base': y, 'p': p}
         h, n, b = km_by_paragraph(recs)

@@ -7,7 +7,7 @@ import summary from '../../../research/coherence/results/summary.json';
 import hazards from '../../../research/coherence/results/hazards.json';
 
 interface Props {
-  chart: 'bars' | 'bylen' | 'hazard' | 'rising' | 'attention' | 'monitors';
+  chart: 'bars' | 'bylen' | 'hazard' | 'rising' | 'attention' | 'monitors' | 'cost';
   caption?: string;
 }
 const { chart, caption } = Astro.props;
@@ -21,6 +21,9 @@ const NAME: Record<string, string> = {
   ledger_joint: 'Ledger, one shared softmax',
   ledger_nogate: 'Ledger, no eos gate',
   ledger_nosup: 'Ledger, no monitor labels',
+  base_frame: 'baseline + frame',
+  ledger_frame: 'Ledger + frame',
+  ledger_frame_evict: 'Ledger + frame, examples dropped',
 };
 const COLOR: Record<string, string> = {
   base: 'var(--c-exp)',
@@ -29,8 +32,12 @@ const COLOR: Record<string, string> = {
   ledger_joint: 'var(--c-np)',
   ledger_nogate: 'var(--ink-2)',
   ledger_nosup: '#b98a00',
+  base_frame: '#b0508a',
+  ledger_frame: '#0d7a5f',
+  ledger_frame_evict: 'var(--ink)',
 };
-const order = ['base', 'base_aux', 'ledger_nosup', 'ledger_joint', 'ledger_nogate', 'ledger'].filter((v) => V[v]);
+const order = ['base', 'base_aux', 'base_frame', 'ledger_nosup', 'ledger_nogate', 'ledger_joint', 'ledger', 'ledger_frame', 'ledger_frame_evict'].filter((v) => V[v]);
+const tableOrder = ['base', 'base_aux', 'base_frame', 'ledger_joint', 'ledger', 'ledger_frame', 'ledger_frame_evict'].filter((v) => V[v]);
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 const W = 680;
 
@@ -40,14 +47,14 @@ const bx = (x: number) => 190 + x * 360;
 
 // lines over k
 const ks = Object.keys(V.base?.by_k ?? {}).map(Number);
-const lineVariants = ['base', 'base_aux', 'ledger_joint', 'ledger'].filter((v) => V[v]);
+const lineVariants = ['base', 'base_aux', 'ledger', 'ledger_frame_evict'].filter((v) => V[v]);
 const kx = (k: number) => 60 + ((k - ks[0]) / (ks[ks.length - 1] - ks[0] || 1)) * (W - 100);
 const ky = (y: number) => 220 - y * 190;
 const path = (pts: [number, number][]) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('');
 
 // hazards per opportunity, with 95% Wilson intervals (analyze.py)
 const HZ = hazards as Record<string, any>;
-const hzVariants = ['base', 'base_aux', 'ledger_joint', 'ledger'].filter((v) => HZ[v]);
+const hzVariants = ['base', 'base_aux', 'ledger', 'ledger_frame'].filter((v) => HZ[v]);
 const kinds = ['font', 'heading', 'math'];
 const KIND_LABEL: Record<string, string> = { font: 'font (every paragraph)', heading: 'headings (every section)', math: 'maths (a formula now and then)' };
 const hzMax = Math.max(0.01, ...hzVariants.flatMap((v) => kinds.map((k) => HZ[v][k].ci[1])));
@@ -65,25 +72,53 @@ const amax = Math.max(0.05, ...att('base'), ...att('ledger'));
 const ax = (t: number) => 60 + (t / 110) * (W - 100);
 const ay = (y: number) => 220 - (y / amax) * 190;
 
-const MON = ['font', 'heading', 'math', 'why', 'sources', 'order', 'length', 'coherent'];
-const MON_LABEL: Record<string, string> = { font: 'font', heading: 'headings', math: 'maths', why: 'why-section', sources: 'sources last', order: 'order', length: 'length', coherent: 'all six implicit' };
+const MON = ['font', 'heading', 'math', 'why', 'sources', 'order', 'form', 'length', 'coherent'];
+const MON_LABEL: Record<string, string> = { font: 'font', heading: 'headings', math: 'maths', why: 'why-section', sources: 'sources last', order: 'order', form: 'form', length: 'length (explicit)', coherent: 'all seven implicit' };
+const kmacs = (x: number) => `${Math.round(x / 1000)}k`;
+const baseCost = V.base?.macs_per_token;
 ---
 
 {
-  chart === 'monitors' ? (
+  chart === 'cost' ? (
+    <table class="cx-table">
+      <thead>
+        <tr>
+          <th>model</th>
+          <th>coherent</th>
+          <th>keys attended per written token</th>
+          <th>attention per token</th>
+          <th>all operations per token</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tableOrder.map((v) => {
+          const c = V[v].macs_per_token;
+          return (
+            <tr>
+              <td>{NAME[v]}</td>
+              <td>{pct(V[v].all.coherent.mean)}</td>
+              <td>{V[v].keys_per_token}</td>
+              <td>{kmacs(c.attention)}{baseCost && v !== 'base' ? <small> ({c.attention <= baseCost.attention ? '−' : '+'}{Math.abs(Math.round((100 * (c.attention - baseCost.attention)) / baseCost.attention))}%)</small> : null}</td>
+              <td>{kmacs(c.total)}{baseCost && v !== 'base' ? <small> ({c.total <= baseCost.total ? '−' : '+'}{Math.abs(Math.round((100 * (c.total - baseCost.total)) / baseCost.total))}%)</small> : null}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  ) : chart === 'monitors' ? (
     <table class="cx-table">
       <thead>
         <tr>
           <th>monitor</th>
-          {order.map((v) => <th>{NAME[v]}</th>)}
+          {tableOrder.map((v) => <th>{NAME[v]}</th>)}
         </tr>
       </thead>
       <tbody>
         {MON.map((m) => (
           <tr>
             <td>{MON_LABEL[m]}</td>
-            {order.map((v) => {
-              const s = V[v].conflict[m] as S;
+            {tableOrder.map((v) => {
+              const s = V[v].all[m] as S;
               return <td>{s ? `${pct(s.mean)}` : '·'}{s && s.n > 1 ? <small> ±{Math.round(s.sd * 100)}</small> : null}</td>;
             })}
           </tr>

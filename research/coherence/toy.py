@@ -150,6 +150,42 @@ def episode(r, k=None, n_ex=None, st=None, T=320):
             return seq, g, st, k
 
 
+# ── symmetry ──────────────────────────────────────────────────────────────
+# The style group G = S6 x S4 x S3 acts on the vocabulary by permuting the six fonts,
+# the four heading styles, and the three delimiters (opening and closing together).
+# Every other token is fixed. Its orbits on V are the four style families and singletons.
+
+ORBITS = [
+    list(range(FONT0, FONT0 + N_FONT)),
+    list(range(HEAD0, HEAD0 + N_HEAD)),
+    list(range(MOPEN0, MOPEN0 + N_MATH)),
+    list(range(MCLOSE0, MCLOSE0 + N_MATH)),
+]
+# gauge fixing keeps only the canonical member (index 0) of each orbit in the output
+NONCANONICAL = [v for orb in ORBITS for v in orb[1:]]
+
+
+def read_frame(seq):
+    """The author's style, read by counting inside the example posts: one pass, no attention."""
+    end = seq.index(REQ) if REQ in seq else len(seq)
+    c = np.zeros((3, max(N_FONT, N_HEAD, N_MATH)), int)
+    for tok in seq[1:end]:
+        if is_font(tok): c[0, tok - FONT0] += 1
+        elif is_head(tok): c[1, tok - HEAD0] += 1
+        elif is_mopen(tok): c[2, tok - MOPEN0] += 1
+        elif is_mclose(tok): c[2, tok - MCLOSE0] += 1
+    return int(c[0].argmax()), int(c[1].argmax()), int(c[2].argmax())
+
+
+def frame_perm(f, h, m):
+    """A group element taking the canonical style (0, 0, 0) to (f, h, m): the product of the
+    transpositions (0 f)(0 h)(0 m) acting on V. It is an involution, so it is its own inverse."""
+    p = np.arange(V)
+    for base, i in ((FONT0, f), (HEAD0, h), (MOPEN0, m), (MCLOSE0, m)):
+        p[base], p[base + i] = base + i, base
+    return p
+
+
 def batch(r, B, T=320, **kw):
     """Teacher-forcing batch. Loss only on what the model writes (after <new>)."""
     x = np.zeros((B, T), np.int32)
@@ -158,10 +194,14 @@ def batch(r, B, T=320, **kw):
     g_idx = np.zeros(B, np.int32)
     labels = np.zeros((B, 6), np.int32)  # font, head, math, why, src, k-K_MIN
     ev = np.zeros((B, T, 3), np.float32)  # per position: paragraph starts here, WHY seen, SRC seen
+    perm = np.tile(np.arange(V, dtype=np.int32), (B, 1))  # the frame, as a permutation of V
+    exm = np.zeros((B, T), bool)  # positions inside the example posts
     for b in range(B):
         seq, g, st, k = episode(r, T=T, **kw)
         n = len(seq)
         x[b, :n] = seq
+        perm[b] = frame_perm(*read_frame(seq))
+        exm[b, 1 : seq.index(REQ)] = True
         g_idx[b] = g
         # position t predicts token t+1
         loss_mask[b, g:n - 1] = 1
@@ -173,7 +213,7 @@ def batch(r, B, T=320, **kw):
             seen_w |= tok == WHY
             seen_s |= tok == SRC
             ev[b, t] = [float(is_font(tok)), float(seen_w), float(seen_s)]
-    return dict(x=x, loss_mask=loss_mask, gen_mask=gen_mask, g=g_idx, labels=labels, ev=ev)
+    return dict(x=x, loss_mask=loss_mask, gen_mask=gen_mask, g=g_idx, labels=labels, ev=ev, perm=perm, exm=exm)
 
 
 def prompt(r, k, st=None, n_ex=2, T=320):
@@ -187,8 +227,9 @@ def prompt(r, k, st=None, n_ex=2, T=320):
 # Each check reads the output once, left to right. Invariants report the first
 # position where they broke; eventualities can only be judged at the end.
 
-MONITORS = ['font', 'heading', 'math', 'why', 'sources', 'order', 'length']
-IMPLICIT = ['font', 'heading', 'math', 'why', 'sources', 'order']
+MONITORS = ['font', 'heading', 'math', 'why', 'sources', 'order', 'form', 'length']
+# everything except the requested length is implicit: read off the posts, never stated
+IMPLICIT = ['font', 'heading', 'math', 'why', 'sources', 'order', 'form']
 
 
 def audit(y: list[int], st: Style, k: int, ended: bool):
@@ -223,7 +264,7 @@ def audit(y: list[int], st: Style, k: int, ended: bool):
         if src_at is not None and t > src_at and not is_ref(tok):
             fail('sources', t)  # sources must be the last thing
         if tok in (POST, END_POST, REQ, NEW, BOS, PAD) or (LEN0 <= tok < LEN0 + (K_MAX - K_MIN + 1)):
-            fail('font', t)  # structural garbage counts against the surface form
+            fail('form', t)  # a token that belongs to the prompt, never to a post
     if not ended:
         # never finished: every eventuality is unpaid
         for m in ('why', 'sources', 'length'):

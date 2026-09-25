@@ -1,0 +1,112 @@
+---
+/**
+ * Gauge fixing: read the frame by counting, move the context into the canonical
+ * frame, write over orbits, move the text back.
+ */
+const steps = [
+  { x: 20, w: 150, t: 'example posts', s: 'the author writes in style s' },
+  { x: 200, w: 120, t: 'count', s: 'ŝ, one pass, no attention' },
+  { x: 350, w: 150, t: 'transformer', s: 'context ρ(ĝ)⁻¹x, alphabet V/G' },
+  { x: 530, w: 130, t: 'map back', s: 'y = ρ(ĝ) y꜀' },
+];
+---
+
+<figure class="cx-diagram" aria-label="Gauge fixing: count, canonicalise, write over orbits, map back">
+  <svg viewBox="0 0 680 190" role="img">
+    <title>Gauge fixing</title>
+    <defs>
+      <marker id="fr-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0 0L8 4L0 8z" class="fill-ink"></path>
+      </marker>
+    </defs>
+    {
+      steps.map((b, i) => (
+        <g class={`blk ${i === 1 || i === 3 ? 'blk--led' : i === 2 ? 'blk--att' : ''}`}>
+          <rect x={b.x} y="40" width={b.w} height="46" rx="3" />
+          <text x={b.x + b.w / 2} y="60">{b.t}</text>
+          <text x={b.x + b.w / 2} y="76" class="small">{b.s}</text>
+        </g>
+      ))
+    }
+    <path d="M170 63H198 M320 63H348 M500 63H528" class="flow" marker-end="url(#fr-arrow)"></path>
+    <text x="20" y="24" class="h">the frame is read once; every later position agrees with it</text>
+    <!-- the orbit of fonts -->
+    <g transform="translate(20 116)">
+      <text x="0" y="12" class="note">one orbit (fonts):</text>
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <g>
+          <rect x={120 + i * 36} y="0" width="28" height="18" rx="2" class={i === 0 ? 'canon' : 'other'} />
+          <text x={134 + i * 36} y="13" class="tk">F{i}</text>
+        </g>
+      ))}
+      <text x="346" y="12" class="note">the network may only write F0; ρ(ĝ) turns it into the author's font</text>
+      <text x="0" y="46" class="note">G = S₆ × S₄ × S₃ permutes fonts, heading styles and delimiters; every other token is fixed</text>
+    </g>
+  </svg>
+</figure>
+
+<style>
+  .cx-diagram {
+    margin: 2.4em calc(-1 * min(var(--pad), 2rem));
+    padding: 12px;
+    border: 1px solid rgba(22, 20, 15, 0.25);
+    background: var(--paper);
+    background-image: radial-gradient(rgba(22, 20, 15, 0.08) 1px, transparent 1.2px);
+    background-size: 12px 12px;
+  }
+  .cx-diagram svg {
+    width: 100%;
+    height: auto;
+    font-family: var(--f-mono);
+    font-size: 11px;
+  }
+  .h {
+    fill: var(--ink);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .blk rect {
+    fill: var(--paper);
+    stroke: var(--ink);
+  }
+  .blk text {
+    text-anchor: middle;
+    fill: var(--ink);
+  }
+  .blk--att rect {
+    fill: color-mix(in srgb, var(--c-np) 16%, var(--paper));
+  }
+  .blk--led rect {
+    fill: color-mix(in srgb, var(--acid) 55%, var(--paper));
+  }
+  .small {
+    font-size: 9.5px;
+    fill: var(--ink-2);
+  }
+  .note {
+    fill: var(--ink-2);
+  }
+  .flow {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.3;
+  }
+  .canon {
+    fill: var(--ink);
+  }
+  .other {
+    fill: none;
+    stroke: var(--ink);
+    stroke-dasharray: 2 2;
+  }
+  .tk {
+    text-anchor: middle;
+    fill: var(--ink);
+  }
+  .canon + .tk {
+    fill: var(--paper);
+  }
+  :global(.fill-ink) {
+    fill: var(--ink);
+  }
+</style>

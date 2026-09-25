@@ -20,7 +20,7 @@ import jax.numpy as jnp
 import numpy as np
 
 import model as M
-from toy import EOS, IMPLICIT, MONITORS, PAD, REQ, Style, audit, batch, prompt
+from toy import EOS, IMPLICIT, MONITORS, PAD, REQ, Style, audit, batch, frame_perm, prompt, read_frame
 
 KS = [4, 7, 10, 13, 16]
 PER_K = 60
@@ -39,7 +39,8 @@ def prompts(seed=7):
 
 
 def sample(params, cfg, items, seed=0, temp=1.0, bs=150):
-    fwd = jax.jit(lambda p, x, gm: M.forward(p, x, gm, cfg)[0])
+    """Returns, per prompt, (tokens written, ended, frame read correctly, mean keys attended per written token)."""
+    fwd = jax.jit(lambda p, x, gm, ex: M.forward(p, x, gm, cfg, exm=ex)[0])
     key = jax.random.PRNGKey(seed)
     outs = [None] * len(items)
     for s in range(0, len(items), bs):
@@ -47,15 +48,23 @@ def sample(params, cfg, items, seed=0, temp=1.0, bs=150):
         B = len(chunk)
         x = np.zeros((B, TB), np.int32)
         gm = np.zeros((B, TB), np.float32)
+        ex = np.zeros((B, TB), bool)
         pos = np.zeros(B, np.int32)
-        for b, (seq, _, _) in enumerate(chunk):
-            x[b, : len(seq)] = seq
+        perms, frame_ok, req_at = [], [], []
+        for b, (seq, st, _) in enumerate(chunk):
+            f = read_frame(seq)
+            frame_ok.append(f == (st.font, st.head, st.math))
+            perm = frame_perm(*f) if M.gauged(cfg) else np.arange(M.V)
+            perms.append(perm)
+            x[b, : len(seq)] = perm[np.asarray(seq)]  # into the canonical frame (identity if ungauged)
             gm[b, len(seq) - 1 :] = 1  # from <new> on
+            req_at.append(seq.index(REQ))
+            ex[b, 1 : req_at[-1]] = True
             pos[b] = len(seq) - 1
         start = pos.copy()
         done = np.zeros(B, bool)
         while not done.all():
-            logits = np.asarray(fwd(params, jnp.asarray(x), jnp.asarray(gm)))
+            logits = np.asarray(fwd(params, jnp.asarray(x), jnp.asarray(gm), jnp.asarray(ex)))
             lg = logits[np.arange(B), pos] / temp
             lg[:, PAD] = -1e9
             key, sk = jax.random.split(key)
@@ -68,11 +77,15 @@ def sample(params, cfg, items, seed=0, temp=1.0, bs=150):
                 if tok[b] == EOS or pos[b] >= TB - 1:
                     done[b] = True
         for b in range(B):
-            y = x[b, start[b] + 1 : pos[b] + 1].tolist()
+            y = perms[b][x[b, start[b] + 1 : pos[b] + 1]].tolist()  # back out of the canonical frame
             ended = bool(y and y[-1] == EOS)
             if ended:
                 y = y[:-1]
-            outs[s + b] = (y, ended)
+            # keys each written token attends to: everything before it, minus the examples if evicted
+            n0 = start[b] + 1
+            span = n0 - (req_at[b] - 1 if M.evicts(cfg) else 0)
+            mean_keys = span + (len(y) + 1) / 2
+            outs[s + b] = (y, ended, bool(frame_ok[b]), float(mean_keys))
     return outs
 
 
@@ -80,7 +93,9 @@ def attention_curve(params, cfg, seed=11, n=64, T=288, max_off=110):
     """Mean attention mass from written tokens onto the example posts, by offset into the post."""
     r = np.random.default_rng(seed)
     b = batch(r, n, T)
-    _, ex = M.forward(params, jnp.asarray(b['x']), jnp.asarray(b['gen_mask']), cfg, want_attn=True)
+    if M.gauged(cfg):
+        b['x'] = np.take_along_axis(b['perm'], b['x'], axis=1)
+    _, ex = M.forward(params, jnp.asarray(b['x']), jnp.asarray(b['gen_mask']), cfg, want_attn=True, exm=jnp.asarray(b['exm']))
     x = b['x']
     req = np.array([int(np.where(row == REQ)[0][0]) for row in x])
     curves = []
@@ -134,9 +149,9 @@ def main(paths):
         cfg, params = run['cfg'], jax.tree_util.tree_map(jnp.asarray, run['params'])
         outs = sample(params, cfg, items)
         recs = []
-        for (seq, st, k), (y, ended) in zip(items, outs):
+        for (seq, st, k), (y, ended, frame_ok, keys) in zip(items, outs):
             ok, first, paras = audit(y, st, k, ended)
-            recs.append(dict(k=k, style=st.labels(), ok=ok, first=first, paras=paras, ended=ended, n=len(y), y=y))
+            recs.append(dict(k=k, style=st.labels(), ok=ok, first=first, paras=paras, ended=ended, n=len(y), y=y, frame_ok=frame_ok, keys=keys, n0=len(seq)))
         summ = summarise(recs)
         summ['attention'] = attention_curve(params, cfg)
         summ['variant'] = cfg['variant']

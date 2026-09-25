@@ -143,12 +143,31 @@ export class Net {
   private kvO: Float32Array[][] = [];
   private kvS: Float32Array[] = [];
   view: LedgerView | null = null;
+  /** gauge fixing: the output alphabet is one member per style family */
+  gauged: boolean;
+  /** written tokens may not attend to the example posts */
+  evicts: boolean;
+  private hidden: number[] = [];
+  private exFrom = 0;
+  private exTo = 0;
+  /** keys each written token attended to, summed over written tokens */
+  keysSeen = 0;
 
   constructor(meta: Manifest, w: Record<string, T>) {
     this.meta = meta;
     this.cfg = meta.cfg;
     this.w = w;
     this.ledger = meta.cfg.variant.startsWith('ledger');
+    this.gauged = meta.cfg.variant.includes('frame');
+    this.evicts = meta.cfg.variant.endsWith('evict');
+    const ids = Object.fromEntries(meta.vocab.map((t, i) => [t, i]));
+    this.hidden = meta.vocab.filter((t) => /^(F[1-9]|H[1-9]|M[1-9]\(|\)M[1-9])$/.test(t)).map((t) => ids[t]);
+  }
+
+  /** Positions [from, to) hold the example posts (only matters for a model that evicts them). */
+  examples(from: number, to: number) {
+    this.exFrom = from;
+    this.exTo = to;
   }
 
   private t(name: string) {
@@ -167,6 +186,7 @@ export class Net {
     this.slots = null;
     this.o = [];
     this.view = null;
+    this.keysSeen = 0;
   }
 
   /** Feed one token. `gen` marks the first written position (<new>) and everything after it. */
@@ -189,9 +209,16 @@ export class Net {
       this.vc[l].push(v);
       const out = new Float32Array(d);
       const sc = new Float32Array(t + 1);
+      // an evicting model's written tokens never see the example posts: their keys can be gone
+      const skip = gen && this.evicts;
+      if (l === 0 && gen) this.keysSeen += t + 1 - (skip ? this.exTo - this.exFrom : 0);
       for (let h = 0; h < H; h++) {
         const o = h * dh;
         for (let s = 0; s <= t; s++) {
+          if (skip && s >= this.exFrom && s < this.exTo) {
+            sc[s] = -Infinity;
+            continue;
+          }
           const ks = this.kc[l][s];
           let dot = 0;
           for (let j = 0; j < dh; j++) dot += q[o + j] * ks[o + j];
@@ -236,6 +263,7 @@ export class Net {
       for (let i = 0; i < d; i++) s += f[i] * E[row + i];
       logits[tkn] = s;
     }
+    if (this.gauged) for (const v of this.hidden) logits[v] = -1e9;
     if (this.ledger && this.slots && this.view) {
       const gamma = this.t('ledger.gamma').data[0];
       let gate = 0;
