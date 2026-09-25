@@ -83,10 +83,28 @@ const rx = (i: number) => 90 + i * ((W - 160) / Math.max(1, bins.length - 1));
 const ry = (y: number) => 210 - (y / rMax) * 170;
 
 // attention
-const att = (v: string) => (V[v]?.attention ?? []) as number[];
+// offsets no post reached come back as 0: they are missing data, not zero attention, so stop there
+const att = (v: string) => {
+  const a = ((V[v]?.attention ?? []) as number[]).slice(0, 101);
+  const end = a.findIndex((x) => x === 0);
+  return end < 0 ? a : a.slice(0, end);
+};
 const amax = Math.max(0.05, ...att('base'), ...att('ledger'));
-const ax = (t: number) => 60 + (t / 110) * (W - 100);
+const ax = (t: number) => 60 + (t / 100) * (W - 100);
 const ay = (y: number) => 220 - (y / amax) * 190;
+
+/** A legend below the axis: a short line in each series' colour, then its name; wraps to a new row. */
+const legend = (vs: string[], y0: number) => {
+  let x = 60, y = y0;
+  return vs.map((v) => {
+    const w = 22 + NAME[v].length * 6.7 + 26;
+    if (x + w > W - 10) (x = 60), (y += 17);
+    const it = { v, x, y };
+    x += w;
+    return it;
+  });
+};
+const legendRows = (vs: string[]) => new Set(legend(vs, 0).map((i) => i.y)).size;
 
 const MON = ['font', 'heading', 'math', 'why', 'sources', 'order', 'form', 'length', 'coherent'];
 const MON_LABEL: Record<string, string> = { font: 'font', heading: 'headings', math: 'maths', why: 'why-section', sources: 'sources last', order: 'order', form: 'form', length: 'length (explicit)', coherent: 'all seven implicit' };
@@ -189,19 +207,25 @@ const baseCost = V.base?.macs_per_token;
         </svg>
       )}
       {chart === 'bylen' && (
-        <svg viewBox={`0 0 ${W} 250`} role="img" aria-label="Coherent share against requested length">
+        <svg viewBox={`0 0 ${W} ${270 + 17 * legendRows(lineVariants)}`} role="img" aria-label="Coherent share against requested length">
           {[0, 0.5, 1].map((t) => (
             <g>
               <line x1="60" x2={W - 40} y1={ky(t)} y2={ky(t)} class="grid" />
               <text x="50" y={ky(t) + 4} text-anchor="end" class="tick">{pct(t)}</text>
             </g>
           ))}
-          {ks.map((k) => <text x={kx(k)} y="240" text-anchor="middle" class="tick">{k} ¶</text>)}
-          {lineVariants.map((v, j) => (
+          {ks.map((k) => <text x={kx(k)} y="238" text-anchor="middle" class="tick">{k} ¶</text>)}
+          <text x={(60 + W - 40) / 2} y="254" text-anchor="middle" class="tick">paragraphs requested</text>
+          {lineVariants.map((v) => (
             <g>
               <path d={path(ks.map((k) => [kx(k), ky(V[v].by_k[k].coherent.mean)]))} class="line" style={`stroke:${COLOR[v]}`} />
               {ks.map((k) => <circle cx={kx(k)} cy={ky(V[v].by_k[k].coherent.mean)} r="3" style={`fill:${COLOR[v]}`} />)}
-              <text x={W - 36} y={14 + j * 14} text-anchor="end" class="lab" style={`fill:${COLOR[v]}`}>{NAME[v]}</text>
+            </g>
+          ))}
+          {legend(lineVariants, 276).map((it) => (
+            <g class="key">
+              <line x1={it.x} x2={it.x + 16} y1={it.y - 4} y2={it.y - 4} style={`stroke:${COLOR[it.v]}`} />
+              <text x={it.x + 22} y={it.y} class="lab">{NAME[it.v]}</text>
             </g>
           ))}
         </svg>
@@ -227,37 +251,47 @@ const baseCost = V.base?.macs_per_token;
         </svg>
       )}
       {chart === 'rising' && (
-        <svg viewBox={`0 0 ${W} 240`} role="img" aria-label="Font hazard by paragraph">
+        <svg viewBox={`0 0 ${W} ${262}`} role="img" aria-label="Font hazard by paragraph">
           {[0, rMax / 2, rMax].map((t) => (
             <g>
               <line x1="80" x2={W - 60} y1={ry(t)} y2={ry(t)} class="grid" />
               <text x="70" y={ry(t) + 4} text-anchor="end" class="tick">{fmtHz(t)}</text>
             </g>
           ))}
-          {bins.map((b, i) => <text x={rx(i)} y="230" text-anchor="middle" class="tick">{b.from === b.to ? `¶${b.from}` : `¶${b.from}–${b.to}`}</text>)}
-          {['base', 'ledger'].filter((v) => HZ[v]).map((v, j) => (
+          {bins.map((b, i) => <text x={rx(i)} y="228" text-anchor="middle" class="tick">{b.from === b.to ? `¶${b.from}` : `¶${b.from}–${b.to}`}</text>)}
+          {['base', 'ledger'].filter((v) => HZ[v]).map((v) => (
             <g>
               <path d={path(HZ[v].font_by_paragraph.map((b: any, i: number) => [rx(i), ry(b.hazard)]))} class="line" style={`stroke:${COLOR[v]}`} />
               {HZ[v].font_by_paragraph.map((b: any, i: number) => <circle cx={rx(i)} cy={ry(b.hazard)} r="3.5" style={`fill:${COLOR[v]}`} />)}
-              <text x={W - 60} y={20 + j * 14} text-anchor="end" class="lab" style={`fill:${COLOR[v]}`}>{NAME[v]}</text>
+            </g>
+          ))}
+          {legend(['base', 'ledger'].filter((v) => HZ[v]), 254).map((it) => (
+            <g class="key">
+              <line x1={it.x} x2={it.x + 16} y1={it.y - 4} y2={it.y - 4} style={`stroke:${COLOR[it.v]}`} />
+              <text x={it.x + 22} y={it.y} class="lab">{NAME[it.v]}</text>
             </g>
           ))}
         </svg>
       )}
       {chart === 'attention' && (
-        <svg viewBox={`0 0 ${W} 250`} role="img" aria-label="Attention on the example posts against output position">
+        <svg viewBox={`0 0 ${W} 278`} role="img" aria-label="Attention on the example posts against output position">
           {[0, amax / 2, amax].map((t) => (
             <g>
               <line x1="60" x2={W - 40} y1={ay(t)} y2={ay(t)} class="grid" />
               <text x="50" y={ay(t) + 4} text-anchor="end" class="tick">{t.toFixed(2)}</text>
             </g>
           ))}
-          {[0, 20, 40, 60, 80, 100].map((t) => <text x={ax(t)} y="240" text-anchor="middle" class="tick">{t}</text>)}
-          <text x={W - 40} y="232" text-anchor="end" class="tick">tokens written</text>
-          {['base', 'ledger'].filter((v) => V[v]).map((v, j) => (
+          {[0, 20, 40, 60, 80, 100].map((t) => <text x={ax(t)} y="238" text-anchor="middle" class="tick">{t}</text>)}
+          <text x={(60 + W - 40) / 2} y="254" text-anchor="middle" class="tick">tokens written</text>
+          {['base', 'ledger'].filter((v) => V[v]).map((v) => (
             <g>
               <path d={path(att(v).map((y, t) => [ax(t), ay(y)]))} class="line" style={`stroke:${COLOR[v]}`} />
-              <text x={W - 36} y={14 + j * 14} text-anchor="end" class="lab" style={`fill:${COLOR[v]}`}>{NAME[v]}</text>
+            </g>
+          ))}
+          {legend(['base', 'ledger'].filter((v) => V[v]), 272).map((it) => (
+            <g class="key">
+              <line x1={it.x} x2={it.x + 16} y1={it.y - 4} y2={it.y - 4} style={`stroke:${COLOR[it.v]}`} />
+              <text x={it.x + 22} y={it.y} class="lab">{NAME[it.v]}</text>
             </g>
           ))}
         </svg>
@@ -294,6 +328,9 @@ const baseCost = V.base?.macs_per_token;
   .line {
     fill: none;
     stroke-width: 2;
+  }
+  .key line {
+    stroke-width: 3;
   }
   .cx-table td small {
     font-weight: 400;
