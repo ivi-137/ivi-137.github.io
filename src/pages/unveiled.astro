@@ -1,0 +1,207 @@
+---
+import 'katex/dist/katex.min.css';
+import katex from 'katex';
+import Base from '../layouts/Base.astro';
+import Stamp from '../components/Stamp.astro';
+import { hilbert, peano } from '../lib/curves';
+
+const tex = (s: string, display = false) => katex.renderToString(s, { displayMode: display, throwOnError: false });
+
+/** Build-time SVG paths of the first few orders of each curve. */
+const path = (f: (k: number, d: number) => [number, number], k: number, n: number) => {
+  let d = '';
+  for (let i = 0; i < n * n; i++) {
+    const [x, y] = f(k, i);
+    d += `${i ? 'L' : 'M'}${((x + 0.5) / n) * 100} ${((y + 0.5) / n) * 100}`;
+  }
+  return d;
+};
+const orders = [1, 2, 3, 4, 5].map((k) => ({ k, d: path(hilbert, k, 2 ** k), len: (2 ** k - 1 / 2 ** k).toFixed(3) }));
+const peanos = [1, 2, 3].map((k) => ({ k, d: path(peano, k, 3 ** k) }));
+---
+
+<Base title="Complexity unveiled" description="An 8-bit rule, a 1D thread of execution, a space-filling fold and a lower limit no machine can compute.">
+  <article class="unveiled" data-unveiled>
+    <header class="section-head section-head--page unveiled__head">
+      <p class="kicker mono" data-decode>essay · instrument · filed under RE</p>
+      <h1 class="section-head__title">Complexity <em>unveiled</em></h1>
+      <p class="section-head__lede">
+        Eight bits of rule and a handful of seed bits unfold into a dense plane of structure. This page runs that expansion in
+        front of you and measures how much was really there.
+      </p>
+      <Stamp id="RE" />
+    </header>
+
+    <section class="unveiled__chapter">
+      <p class="unveiled__num mono">i · the seed</p>
+      <div class="unveiled__text">
+        <p>
+          A program is a string. The <strong>Kolmogorov complexity</strong> of an output <i>s</i> is the length of the shortest
+          program that prints it on a fixed universal machine <i>U</i>:
+        </p>
+        <div class="unveiled__eq" set:html={tex('K(s) \\;=\\; \\min\\{\\, |p| \\;:\\; U(p) = s \\,\\}', true)} />
+        <p>
+          Here the program is tiny: an elementary automaton's rule (8 bits), a seed (the bits of a word), and a loop that applies
+          the rule row after row. Choose them below.
+        </p>
+      </div>
+    </section>
+
+    <section class="unveiled__lab" aria-label="The expansion, live">
+      <div class="unveiled__figure">
+        <canvas data-unv-canvas aria-label="The automaton's output, folded into the plane"></canvas>
+        <div class="unveiled__fold mono">
+          <span>spacetime</span>
+          <input type="range" min="0" max="1000" value="0" data-unv-fold aria-label="Fold the thread into the plane" />
+          <span data-unv-curve-name>Hilbert fold</span>
+        </div>
+      </div>
+      <form class="unveiled__controls sheet torn" data-unv-form onsubmit="return false">
+        <label class="mono">
+          rule
+          <select data-unv-rule>
+            <option value="110">110 · class IV, universal</option>
+            <option value="137" selected>137 · 110's complement, universal</option>
+            <option value="30">30 · class III, chaotic</option>
+            <option value="90">90 · additive, Sierpiński</option>
+            <option value="45">45 · class III</option>
+            <option value="184">184 · traffic, conservative</option>
+          </select>
+        </label>
+        <label class="mono">
+          seed
+          <input data-unv-seed value="gianni" maxlength="16" spellcheck="false" />
+        </label>
+        <label class="mono">
+          curve
+          <select data-unv-curve>
+            <option value="hilbert">Hilbert · 128 × 128</option>
+            <option value="peano">Peano · 81 × 81</option>
+          </select>
+        </label>
+        <button type="button" class="button button--sm" data-unv-play>▶ fold</button>
+        <dl class="unveiled__stats mono">
+          <div><dt>|s| · raw thread</dt><dd data-unv-n>…</dd></div>
+          <div><dt>deflate(s)</dt><dd data-unv-deflate>…</dd></div>
+          <div><dt>deflate(random)</dt><dd data-unv-random>…</dd></div>
+          <div class="is-key"><dt>|p| · rule + seed + loop</dt><dd data-unv-program>…</dd></div>
+        </dl>
+        <div class="unveiled__bars" data-unv-bars aria-hidden="true"></div>
+        <p class="unveiled__verdict" data-unv-verdict></p>
+      </form>
+    </section>
+
+    <section class="unveiled__chapter">
+      <p class="unveiled__num mono">ii · the thread</p>
+      <div class="unveiled__text">
+        <p>
+          The automaton writes one row at a time. Read row after row and the output is a single one-dimensional thread of bits,
+          which is how any machine actually executes: one step, then the next. Slide the control above to the left and you see
+          the thread laid out as time; that is the familiar spacetime diagram.
+        </p>
+        <p>
+          A general-purpose compressor such as <code>deflate</code> only finds repetition. For Rule 30 it finds almost none and
+          reports the thread as nearly incompressible. But the true description is tiny: the program is the compression, and
+          <span set:html={tex('K(s) \\le |p| + c_U')} /> where <span set:html={tex('c_U')} /> is the fixed cost of the interpreter.
+          The bar marked <b>|p|</b> counts all of it, including the gzipped source of the loop that runs the rule.
+        </p>
+      </div>
+    </section>
+
+    <section class="unveiled__chapter">
+      <p class="unveiled__num mono">iii · the fold</p>
+      <div class="unveiled__text">
+        <p>
+          Slide right and the same thread is folded into the square by a <strong>space-filling curve</strong>, a continuous
+          surjection <span set:html={tex('f : [0,1] \\to [0,1]^2')} />. Hilbert's curve visits every cell of a
+          <span set:html={tex('2^k \\times 2^k')} /> grid exactly once, and neighbours in the thread stay neighbours in the plane.
+          As the order grows the path length diverges, <span set:html={tex('L_k = 2^k - 2^{-k}')} />, and its image fills the
+          square: a one-dimensional line with Hausdorff dimension
+        </p>
+        <div class="unveiled__eq" set:html={tex('D_H \\;=\\; \\lim_{\\varepsilon \\to 0} \\frac{\\log N(\\varepsilon)}{\\log (1/\\varepsilon)} \\;=\\; 2', true)} />
+        <figure class="unveiled__orders">
+          {
+            orders.map((o) => (
+              <div>
+                <svg viewBox="-2 -2 104 104" aria-hidden="true">
+                  <path d={o.d} />
+                </svg>
+                <span class="mono">
+                  k={o.k} · L={o.len}
+                </span>
+              </div>
+            ))
+          }
+          {
+            peanos.map((o) => (
+              <div class="is-peano">
+                <svg viewBox="-2 -2 104 104" aria-hidden="true">
+                  <path d={o.d} />
+                </svg>
+                <span class="mono">Peano k={o.k}</span>
+              </div>
+            ))
+          }
+          <figcaption>Hilbert (1891) and Peano (1890) curves, orders 1–5 and 1–3, computed at build time from the same code that draws the fold above.</figcaption>
+        </figure>
+        <table class="unveiled__boxes mono" data-unv-boxes>
+          <caption>Box counting, measured live on the current curve</caption>
+          <thead><tr><th>ε</th><th>N(ε)</th><th>log N / log(1/ε)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="unveiled__chapter">
+      <p class="unveiled__num mono">iv · the limit</p>
+      <div class="unveiled__text">
+        <p>
+          Every bar above is an <em>upper</em> bound. Nothing can give the exact value: <strong>K is uncomputable</strong>. If a
+          program could compute it, a short program could search for “the first string whose complexity exceeds a billion bits”
+          and print it, a string described in far fewer bits than a billion. That is Berry's paradox turned into a proof.
+        </p>
+        <p>
+          The same wall appears everywhere at the edge of the taxonomy. The halting problem is undecidable (Turing, 1936).
+          <strong>Rice's theorem</strong> extends it: every non-trivial property of what a program computes is undecidable.
+          <strong>Chaitin's</strong> halting probability for a prefix-free universal machine,
+        </p>
+        <div class="unveiled__eq" set:html={tex('\\Omega \\;=\\; \\sum_{p \\,:\\, U(p)\\text{ halts}} 2^{-|p|}', true)} />
+        <p>
+          is a well-defined real number between 0 and 1 whose binary digits are algorithmically random. Knowing its first
+          <i>n</i> bits would decide the halting problem for every program up to length <i>n</i>. The set of pairs
+          <span set:html={tex('(s, k)')} /> with <span set:html={tex('K(s) \\le k')} /> is recursively enumerable: you can confirm an
+          upper bound by running a program, but no procedure can confirm there is no shorter one. That is why this page is filed
+          under <a href="/archive/#RE">RE</a>.
+        </p>
+      </div>
+    </section>
+
+    <section class="unveiled__chapter">
+      <p class="unveiled__num mono">v · the observer</p>
+      <div class="unveiled__text">
+        <p>
+          The colony behind this page is watching you. Your pointer, keys and scrolling are coded as symbols, and their Shannon
+          entropy is your input variety. <strong>Ashby's Law of Requisite Variety</strong> (1956) says a regulator must command at
+          least as much variety as the disturbances it absorbs, so the colony is steered until its own entropy tracks yours.
+          Move restlessly and it grows turbulent; go still and it settles into still lifes.
+        </p>
+        <div class="unveiled__observer mono" data-unv-observer>
+          <div><span>H_you</span><b data-obs-you>0.00</b><i style="--v:0" data-obs-you-bar></i></div>
+          <div><span>target</span><b data-obs-target>0.00</b><i style="--v:0" data-obs-target-bar></i></div>
+          <div><span>H_colony</span><b data-obs-colony>0.00</b><i style="--v:0" data-obs-colony-bar></i></div>
+          <div><span>tempo</span><b data-obs-tempo>×1.00</b><i style="--v:0.5" data-obs-tempo-bar></i></div>
+        </div>
+        <p>
+          This is second-order cybernetics in Heinz von Foerster's sense: the observer belongs to the system being observed. The
+          page measures the reader measuring the page, and those measurements change what there is to see. It is also a small
+          case of what Maturana and Varela called <strong>autopoiesis</strong>: the colony continually regenerates the pattern
+          that keeps it going, and the site's job is only to perturb it, never to specify it.
+        </p>
+      </div>
+    </section>
+  </article>
+  <script>
+    import { mountUnveiled } from '../lib/unveiled';
+    document.addEventListener('astro:page-load', mountUnveiled);
+  </script>
+</Base>

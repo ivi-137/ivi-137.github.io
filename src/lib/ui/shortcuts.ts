@@ -9,7 +9,7 @@ const typing = (t: EventTarget | null) => {
   return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 };
 
-const GOTO: Record<string, string> = { h: '/', z: '/archive/', l: '/lab/', a: '/atlas/', n: '/network/', b: '/about/' };
+const GOTO: Record<string, string> = { h: '/', z: '/archive/', l: '/lab/', a: '/atlas/', n: '/network/', b: '/about/', u: '/unveiled/', x: '/logic/' };
 const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 
 let sound: Sonifier | null = null;
@@ -112,5 +112,9 @@ export function mountShortcuts() {
   addEventListener('palette:open', openPalette);
   addEventListener('term:open', openTerminal);
   addEventListener('sound:toggle', toggleSound);
+  addEventListener('homeostat:toggle', () => {
+    const h = (window as any).__homeostat;
+    if (h) toast(h.toggle() ? '⟲ homeostat on: the colony will match your variety' : 'homeostat off: the colony runs open-loop');
+  });
   zen();
 }

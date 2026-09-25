@@ -121,6 +121,8 @@ function progress() {
   const prose = document.querySelector<HTMLElement>('.sheet');
   if (!bar || !prose) return;
   gsap.to(bar, { scaleX: 1, ease: 'none', scrollTrigger: { trigger: prose, start: 'top top', end: 'bottom bottom', scrub: 0.3 } });
+  const gauge = document.querySelector('[data-hilbert-gauge]');
+  if (gauge) gsap.to(gauge, { attr: { 'stroke-dashoffset': 0 }, ease: 'none', scrollTrigger: { trigger: prose, start: 'top top', end: 'bottom bottom', scrub: 0.3 } });
 }
 
 /** Archive: filter the ledger by complexity class via the zoo rings or #hash. */
@@ -138,7 +140,7 @@ function zooFilter() {
     });
     document.querySelectorAll<HTMLElement>('[data-zoo]').forEach((z) => z.classList.toggle('is-active', z.dataset.zoo === id));
     document.querySelectorAll<HTMLElement>('[data-zoo-legend]').forEach((z) => z.classList.toggle('is-dim', !!id && z.dataset.zooLegend !== id));
-    label.textContent = id ? `${id}: ${n} transmission${n === 1 ? '' : 's'}` : `Showing all ${rows.length}`;
+    label.textContent = id ? `${id}: ${n} entr${n === 1 ? 'y' : 'ies'}` : `Showing all ${rows.length}`;
     clear.hidden = !id;
     if (!reduced()) gsap.from(rows.filter((r) => !r.hidden), { x: -20, opacity: 0, stagger: 0.03, duration: 0.5, ease: 'power3.out', clearProps: 'all' });
   };

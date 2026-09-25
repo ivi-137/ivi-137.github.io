@@ -1,0 +1,77 @@
+---
+import Base from '../layouts/Base.astro';
+import Stamp from '../components/Stamp.astro';
+---
+
+<Base title="Glider logic" description="A working NOT gate built from glider collisions in Conway's Game of Life, and why that makes Life a universal computer.">
+  <section class="logic" data-logic>
+    <header class="section-head section-head--page">
+      <p class="kicker mono" data-decode>instrument · signals &amp; gates</p>
+      <h1 class="section-head__title">Glider <em>logic</em></h1>
+      <p class="section-head__lede">
+        Two glider guns, one crossing, no wires. A missing glider is a 0, a present one is a 1, and a collision is a computation.
+      </p>
+      <Stamp id="P" />
+    </header>
+
+    <div class="logic__grid">
+      <div class="logic__stage">
+        <canvas class="logic__board" data-logic-board aria-label="The NOT gate running in Conway's Life"></canvas>
+        <div class="lab__transport mono">
+          <button type="button" class="button button--sm" data-logic-play>▶ run</button>
+          <button type="button" data-logic-reset>reset</button>
+          <label class="lab__speed">speed <input type="range" min="5" max="120" value="30" data-logic-speed /></label>
+          <span class="lab__readout">gen <b data-logic-gen>0</b></span>
+        </div>
+      </div>
+
+      <aside class="logic__panel sheet torn">
+        <form class="logic__form" data-logic-form>
+          <label class="mono" for="logic-bits">input bits</label>
+          <div class="lab__row">
+            <input id="logic-bits" class="mono lab__code" data-logic-bits value="10110010" maxlength="32" pattern="[01]*" spellcheck="false" />
+            <button class="chip">send ↵</button>
+          </div>
+        </form>
+        <button type="button" class="chip logic__switch" data-logic-switch aria-pressed="true">input switch: 1</button>
+        <p class="mono logic__queue">queued: <span data-logic-queue>empty</span></p>
+        <div class="logic__tapes mono">
+          <p><span>in</span><output data-logic-in>·</output></p>
+          <p><span>¬in</span><output data-logic-out>·</output></p>
+        </div>
+        <p class="logic__lamp mono"><i data-logic-lamp aria-hidden="true"></i> output glider</p>
+        <p class="lab__note">
+          Gun A fires the input stream (acid). Gun B, its mirror image, fires a clock stream (violet) every 30 generations. At the
+          crossing each A-glider annihilates its B partner completely. Delete an A-glider at the input tap and its partner flies
+          through: the output is <b>NOT</b> the input, five periods (150 generations) later.
+        </p>
+      </aside>
+    </div>
+
+    <article class="unveiled__chapter">
+      <p class="unveiled__num mono">why it matters</p>
+      <div class="unveiled__text">
+        <p>
+          A NOT gate plus a way to merge two streams (a second collision that kills a clock glider if <i>either</i> input is
+          present) gives NOR, and NOR alone builds every Boolean circuit. Add memory from glider loops or stable blocks, and the
+          board holds a computer. Berlekamp, Conway and Guy sketched this in <i>Winning Ways</i> (1982); Paul Rendell built a
+          working Turing machine in Life in 2000. The same story plays out in one dimension: Matthew Cook's proof that
+          <a href="/posts/rule-137/">Rule 110</a> is universal uses gliders colliding against a periodic background.
+        </p>
+        <p>
+          The complexity stamp says <b>P</b> because evaluating a Boolean circuit is P-complete: this gate is the unit of that
+          problem. The board it runs on is not so tame. Ask what a large Life pattern will eventually do and you are asking what a
+          computer will eventually do. That question lives in <a href="/archive/#RE">RE</a>.
+        </p>
+        <p class="mono logic__provenance">
+          Geometry found by exhaustive search and checked on random bit strings: scripts/find-not-gate.mts,
+          scripts/verify-not-gate.mts.
+        </p>
+      </div>
+    </article>
+  </section>
+  <script>
+    import { mountLogic } from '../lib/logic';
+    document.addEventListener('astro:page-load', mountLogic);
+  </script>
+</Base>

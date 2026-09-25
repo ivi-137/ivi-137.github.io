@@ -178,8 +178,10 @@ export function mountLab() {
   });
 
   // keyboard: space = play/pause, . = step (only while the lab is on screen)
+  let family = 'discrete';
+  addEventListener('lab:family', (e) => (family = (e as CustomEvent).detail));
   const onKey = (e: KeyboardEvent) => {
-    if (!document.body.contains(root) || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement).tagName)) return;
+    if (family !== 'discrete' || !document.body.contains(root) || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement).tagName)) return;
     if (e.key === ' ') e.preventDefault(), play();
     if (e.key === '.') play(false), board.step(), draw();
   };

@@ -53,6 +53,11 @@ Plain HTML in any Markdown post becomes an interactive figure:
 | **Lab** `/lab/` | Any Life-like rule, pattern library, RLE import/export, share links, PNG export |
 | **Atlas** `/atlas/` | All 256 elementary automata, symmetry families, rule tables |
 | **Network** `/network/` | Force-directed graph of posts, concepts and classes |
+| **Complexity unveiled** `/unveiled/` | 8-bit rule → 1D thread → Hilbert/Peano fold (D_H = 2, box-counted live) → Kolmogorov bounds via real deflate vs program length; Ω, Rice, Berry |
+| **Glider logic** `/logic/` | A NOT gate from glider collisions, geometry found and proven by `scripts/find-not-gate.mts` / `verify-not-gate.mts` |
+| **Continuous CA** (Lab tabs) | Lenia and SmoothLife on WebGPU compute shaders (WGSL), WebGL2 float-texture fallback |
+| **Homeostat** (⟲ in the HUD) | Second-order loop: your input entropy (H_you) sets the colony's target variety (Ashby's Law); tempo, perturbation and vividness are the actuators |
+| **Taxonomy for tools** | Every instrument is filed P / NP / PSPACE / EXP / RE with the complexity fact that puts it there (`src/lib/classes.ts`) |
 | **Sound** | Press **M**: a scanline sonifies the colony (births → pentatonic notes) |
 | **Shortcuts** | **?** for the sheet; **J/K** next/previous post; **G** then **H/Z/L/A/N** to jump |
 | **Offline** | Installable PWA; pages you've read work offline |

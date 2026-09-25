@@ -10,7 +10,12 @@ export class Board {
   survive = (1 << 2) | (1 << 3);
   gen = 0;
 
-  constructor(public w: number, public h: number) {
+  w: number;
+  h: number;
+
+  constructor(w: number, h: number) {
+    this.w = w;
+    this.h = h;
     this.cells = new Uint8Array(w * h);
     this.next = new Uint8Array(w * h);
     this.age = new Uint16Array(w * h);

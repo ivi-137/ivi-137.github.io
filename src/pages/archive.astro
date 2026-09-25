@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import Zoo from '../components/Zoo.astro';
 import Stamp from '../components/Stamp.astro';
 import Sigil from '../components/Sigil.astro';
-import { CLASSES } from '../lib/classes';
+import { CLASSES, INSTRUMENTS } from '../lib/classes';
 import { catalogue, getPosts, postUrl } from '../lib/posts';
 
 const posts = await getPosts();
@@ -14,7 +14,7 @@ const posts = await getPosts();
     <header class="section-head section-head--page">
       <p class="kicker mono" data-decode>archive · taxonomy</p>
       <h1 class="section-head__title">The complexity <em>zoo</em></h1>
-      <p class="section-head__lede">Every transmission, filed by how hard it is to think through. Click a ring to filter.</p>
+      <p class="section-head__lede">Every transmission and every instrument, filed by how hard it is to think through. Click a ring to filter.</p>
     </header>
 
     <div class="zoo-page__grid">
@@ -34,7 +34,7 @@ const posts = await getPosts();
     </div>
 
     <div class="filterbar mono" role="status" aria-live="polite">
-      <span data-filter-label>Showing all {posts.length}</span>
+      <span data-filter-label>Showing all {posts.length + INSTRUMENTS.length}</span>
       <button type="button" class="linkish" data-filter-clear hidden>clear filter ×</button>
     </div>
 
@@ -52,6 +52,22 @@ const posts = await getPosts();
             <Sigil class="ledger__sigil" seed={post.data.title} rule={post.data.rule} cols={32} rows={7} ink="acid" />
             <span class="ledger__class">
               <Stamp id={post.data.class} link={false} />
+            </span>
+          </li>
+        ))
+      }
+      {
+        INSTRUMENTS.map((t) => (
+          <li class="ledger__row ledger__row--tool" data-class={t.class}>
+            <span class="ledger__num mono">instrument</span>
+            <span class="ledger__date mono ledger__glyph">{t.glyph}</span>
+            <a class="ledger__title" href={t.url}>
+              {t.title}
+              <small class="ledger__why">{t.why}</small>
+            </a>
+            <span class="ledger__sigil" aria-hidden="true" />
+            <span class="ledger__class">
+              <Stamp id={t.class} link={false} />
             </span>
           </li>
         ))

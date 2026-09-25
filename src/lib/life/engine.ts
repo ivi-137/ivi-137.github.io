@@ -79,6 +79,9 @@ export class Life {
   running: boolean;
   /** Set while reading below the hero: the colony recedes to ambient strength. */
   receded = false;
+  /** Multipliers driven by the homeostat (1 = neutral). */
+  tempo = 1;
+  vividness = 1;
 
   constructor(private canvas: HTMLCanvasElement, opts: { reducedMotion: boolean }) {
     const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, powerPreference: 'low-power' });
@@ -338,12 +341,12 @@ export class Life {
       const dt = Math.min(now - this.last, 100);
       this.last = now;
       const target = MODE[this.mode];
-      const want = this.receded ? Math.min(target.intensity, MODE.ambient.intensity) : target.intensity;
+      const want = (this.receded ? Math.min(target.intensity, MODE.ambient.intensity) : target.intensity) * this.vividness;
       this.intensity += (want - this.intensity) * Math.min(1, dt / 400);
       this.mouse.lens += (this.mouse.target - this.mouse.lens) * Math.min(1, dt / 180);
 
       if (this.running && now > this.holdUntil) {
-        this.acc += (dt / 1000) * target.gps;
+        this.acc += (dt / 1000) * target.gps * this.tempo;
         let n = 0;
         while (this.acc >= 1 && n++ < 3) {
           this.acc -= 1;

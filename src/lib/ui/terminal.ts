@@ -7,12 +7,13 @@ import { loadIndex, search, type Doc } from './search';
 import { go, life, openDialog } from './nav';
 import { RULES } from '../life/engine';
 import { CLASSES } from '../classes';
+import { hilbert } from '../curves';
 
 type Out = { text: (s: string, cls?: string) => void; link: (label: string, url: string) => void; line: (...parts: Array<string | Node>) => void };
 type Cmd = { run: (args: string[], out: Out) => void | Promise<void>; man: string };
 
 const HOST = 'gianni@gpojani';
-const PAGES: Record<string, string> = { lab: '/lab/', atlas: '/atlas/', network: '/network/', zoo: '/archive/', about: '/about/', home: '/' };
+const PAGES: Record<string, string> = { lab: '/lab/', atlas: '/atlas/', network: '/network/', unveiled: '/unveiled/', logic: '/logic/', zoo: '/archive/', about: '/about/', home: '/' };
 const README = `gpojani.me: a specimen archive.
 Everything here is either a transmission (posts/), a taxonomy (classes/)
 or an instrument (lab, atlas, network). Try: ls posts, cat posts/<name>.md,
@@ -243,6 +244,59 @@ const COMMANDS: Record<string, Cmd> = {
       ];
       o.text(info.map((l, i) => `${art[i] ?? '       '}  ${l}`).join('\n'), 'hi');
     },
+  },
+  homeostat: {
+    man: 'the Ashby loop between you and the colony: homeostat [on|off]',
+    run: ([arg], o) => {
+      const h = (window as any).__homeostat;
+      if (!h) return o.text('homeostat: no colony', 'err');
+      if (arg === 'on' || arg === 'off') h.toggle(arg === 'on');
+      const r = h.history[h.history.length - 1];
+      o.text(`homeostat ${h.on ? 'ON' : 'OFF'}`, 'hi');
+      if (r) o.text(`  H_you    ${r.you.toFixed(3)}   (your input variety)\n  target   ${r.target.toFixed(3)}\n  H_colony ${r.colony.toFixed(3)}   (block entropy)\n  tempo    ×${r.tempo.toFixed(2)}`);
+      o.text('Requisite variety: only variety can absorb variety. (Ashby, 1956)', 'dim');
+    },
+  },
+  K: {
+    man: 'upper bounds on Kolmogorov complexity: K <text>',
+    run: async (args, o) => {
+      const s = args.join(' ');
+      if (!s) return o.text('usage: K <text>', 'err');
+      const bytes = new TextEncoder().encode(s);
+      const z = await new Response(new Blob([bytes as BlobPart]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();
+      o.text(`|s|         ${bytes.length * 8} bits`);
+      o.text(`deflate(s)  ${z.byteLength * 8} bits`);
+      o.text(`K(s) ≤ min(|s|, deflate(s)) + O(1). The exact value is uncomputable.`, 'dim');
+    },
+  },
+  hilbert: {
+    man: 'draw a Hilbert curve: hilbert <1-5>',
+    run: ([n = '3'], o) => {
+      const k = Math.max(1, Math.min(5, Number(n) || 3));
+      const size = 2 ** k;
+      const grid = Array.from({ length: size * 2 - 1 }, () => Array(size * 2 - 1).fill(' '));
+      let prev = hilbert(k, 0);
+      grid[prev[1] * 2][prev[0] * 2] = '●';
+      for (let d = 1; d < size * size; d++) {
+        const p = hilbert(k, d);
+        grid[prev[1] + p[1]][prev[0] + p[0]] = p[0] === prev[0] ? '│' : '─';
+        grid[p[1] * 2][p[0] * 2] = d === size * size - 1 ? '●' : '┼';
+        prev = p;
+      }
+      o.text(grid.map((r) => r.join('')).join('\n'), 'ca');
+      o.text(`order ${k}: ${size * size} cells, one thread. As k → ∞ the image fills the square (D_H = 2).`, 'dim');
+    },
+  },
+  omega: {
+    man: "Chaitin's halting probability",
+    run: (_, o) => {
+      o.text('Ω = Σ 2^(−|p|) over every program p that halts.', 'hi');
+      o.text('A real number in (0, 1). Its bits are algorithmically random, and the first n of them would decide the\nhalting problem for all programs up to length n. It can be approximated from below, forever, never known.');
+    },
+  },
+  rice: {
+    man: "Rice's theorem",
+    run: (_, o) => o.text('Every non-trivial semantic property of programs is undecidable. (H. G. Rice, 1953)'),
   },
   whoami: { man: 'who are you', run: (_, o) => o.text('a reader. or a glider. hard to tell from here.') },
   uname: { man: 'kernel name', run: (_, o) => o.text('gpojani 0.137.0 #110 SMP PREEMPT WebGL2 x86_64 GNU/Automaton') },

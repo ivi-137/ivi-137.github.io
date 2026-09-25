@@ -17,17 +17,48 @@ const PRESETS = [
 ];
 ---
 
-<Base title="Lab" description="A rule explorer for every Life-like cellular automaton: 262,144 universes, one grid.">
+<Base title="Lab" description="Rule explorer for every Life-like automaton, plus Lenia and SmoothLife running on WebGPU compute shaders.">
   <section class="lab" data-lab>
     <header class="section-head section-head--page lab__head">
       <p class="kicker mono" data-decode>instrument · rule explorer</p>
       <h1 class="section-head__title">The <em>lab</em></h1>
       <p class="section-head__lede">
-        2<sup>18</sup> = 262,144 Life-like universes, one for every choice of birth and survival counts. Pick one, draw, and press play.
+        2<sup>18</sup> = 262,144 Life-like universes, one for every choice of birth and survival counts. Then leave the grid of
+        integers behind: Lenia and SmoothLife make space, time and state continuous.
       </p>
+      <div class="lab__tabs mono" role="tablist" aria-label="Automaton family">
+        <button type="button" role="tab" aria-selected="true" data-lab-tab="discrete">Life-like · B/S</button>
+        <button type="button" role="tab" aria-selected="false" data-lab-tab="lenia">Lenia</button>
+        <button type="button" role="tab" aria-selected="false" data-lab-tab="smooth">SmoothLife</button>
+      </div>
     </header>
 
-    <div class="lab__grid">
+    <div class="lab__grid lab__cont" data-cont hidden>
+      <div class="lab__stage">
+        <canvas class="lab__board lab__board--cont" data-cont-canvas aria-label="Continuous automaton: click to drop a new creature"></canvas>
+        <div class="lab__transport mono">
+          <button type="button" class="button button--sm" data-cont-play>❚❚ pause</button>
+          <button type="button" data-cont-seed>reseed</button>
+          <button type="button" data-cont-clear>clear</button>
+          <span class="lab__readout"><b data-cont-backend>…</b> · <b data-cont-fps>0</b> steps/s</span>
+        </div>
+      </div>
+      <aside class="lab__panel sheet torn">
+        <p class="lab__rulename mono" data-cont-title>Lenia</p>
+        <p class="lab__note" data-cont-about></p>
+        <fieldset>
+          <legend class="mono">Parameters</legend>
+          <label class="lab__slider mono">R <input type="range" min="5" max="24" step="1" data-cont-p="R" /><output data-cont-o="R"></output></label>
+          <label class="lab__slider mono" data-only="lenia">μ <input type="range" min="0.05" max="0.45" step="0.001" data-cont-p="mu" /><output data-cont-o="mu"></output></label>
+          <label class="lab__slider mono" data-only="lenia">σ <input type="range" min="0.003" max="0.06" step="0.001" data-cont-p="sigma" /><output data-cont-o="sigma"></output></label>
+          <label class="lab__slider mono">Δt <input type="range" min="0.02" max="0.5" step="0.01" data-cont-p="dt" /><output data-cont-o="dt"></output></label>
+          <div class="lab__row"><button type="button" class="chip" data-cont-preset>reset to preset</button></div>
+        </fieldset>
+        <p class="lab__note">Click the field to drop a new creature. Nothing is guaranteed to live: most seeds dissolve or explode, a few become organisms.</p>
+      </aside>
+    </div>
+
+    <div class="lab__grid" data-discrete>
       <div class="lab__stage">
         <canvas class="lab__board" data-lab-board aria-label="Automaton board: drag to draw cells"></canvas>
         <div class="lab__transport mono">
@@ -84,6 +115,10 @@ const PRESETS = [
   </section>
   <script>
     import { mountLab } from '../lib/lab';
-    document.addEventListener('astro:page-load', mountLab);
+    import { mountContinuous } from '../lib/continuous-ui';
+    document.addEventListener('astro:page-load', () => {
+      mountLab();
+      mountContinuous();
+    });
   </script>
 </Base>

@@ -28,6 +28,7 @@
     "typescript": "^6.0.3"
   },
   "devDependencies": {
-    "@types/d3-force": "^3.0.10"
+    "@types/d3-force": "^3.0.10",
+    "@webgpu/types": "^0.1.74"
   }
 }

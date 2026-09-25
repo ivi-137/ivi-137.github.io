@@ -1,4 +1,5 @@
 import { Life, type Mode } from './engine';
+import { Homeostat, type Reading } from './homeostat';
 
 /**
  * Starts the colony once and keeps it alive across view-transition navigations
@@ -33,8 +34,10 @@ function start() {
   // shared handle for the terminal, sound, lab links and easter eggs
   (window as any).__life = life;
   window.dispatchEvent(new CustomEvent('life:ready', { detail: life }));
+  const homeostat = new Homeostat(life, { on: !reduced });
+  (window as any).__homeostat = homeostat;
   wireInput(life);
-  wireHud(life);
+  wireHud(life, homeostat);
   const l = life;
   const onScroll = () => (l.receded = scrollY > innerHeight * 0.55);
   addEventListener('scroll', onScroll, { passive: true });
@@ -81,7 +84,7 @@ function wireInput(l: Life) {
   });
 }
 
-function wireHud(l: Life) {
+function wireHud(l: Life, h: Homeostat) {
   const hud = document.querySelector<HTMLElement>('[data-hud]');
   if (!hud) return;
   const $ = (k: string) => hud.querySelector<HTMLElement>(`[data-hud-${k}]`)!;
@@ -102,6 +105,32 @@ function wireHud(l: Life) {
   pause.addEventListener('click', () => l.toggle());
   $('reseed').addEventListener('click', () => l.seed());
   $('sound').addEventListener('click', () => window.dispatchEvent(new Event('sound:toggle')));
+  const loop = $('loop');
+  const spark = hud.querySelector<HTMLCanvasElement>('[data-hud-spark]')!;
+  const sctx = spark.getContext('2d')!;
+  const paintLoop = (r: Reading) => {
+    loop.setAttribute('aria-pressed', String(r.on));
+    loop.title = `Homeostat ${r.on ? 'on' : 'off'} · H_you ${r.you.toFixed(2)} → target ${r.target.toFixed(2)} · H_colony ${r.colony.toFixed(2)} · tempo ×${r.tempo.toFixed(2)}`;
+    // two traces: your variety (acid) and the colony's (ghost); the loop tries to make them meet
+    const w = spark.width, ht = spark.height;
+    sctx.clearRect(0, 0, w, ht);
+    const hist = h.history.slice(-w / 2);
+    for (const [key, color] of [['target', '#c6ff3d'], ['colony', '#7d8cff']] as const) {
+      sctx.beginPath();
+      hist.forEach((p, i) => {
+        const y = ht - 2 - Math.min(1, p[key] / 0.5) * (ht - 4);
+        i ? sctx.lineTo(i * 2, y) : sctx.moveTo(i * 2, y);
+      });
+      sctx.strokeStyle = color;
+      sctx.lineWidth = 1.5;
+      sctx.stroke();
+    }
+  };
+  h.onReading(paintLoop);
+  loop.addEventListener('click', () => {
+    const on = h.toggle();
+    loop.setAttribute('aria-pressed', String(on));
+  });
   addEventListener('sound:change', (e) => $('sound').setAttribute('aria-pressed', String((e as CustomEvent).detail)));
 }
 
