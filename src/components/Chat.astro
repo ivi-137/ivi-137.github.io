@@ -1,0 +1,26 @@
+---
+import { SITE } from '../lib/site';
+---
+
+<div class="chat" data-chat data-url={SITE.chatUrl} transition:persist="chat">
+  <button type="button" class="chat__chip mono" data-chat-toggle aria-expanded="false" aria-controls="chat-panel">
+    <i class="chat__dot" aria-hidden="true"></i>
+    <span>channel</span>
+    <b data-chat-online hidden></b>
+    <em class="chat__unread" data-chat-unread hidden></em>
+  </button>
+  <section id="chat-panel" class="chat__panel" data-chat-panel role="dialog" aria-label="Live channel" hidden>
+    <header class="chat__head mono">
+      <span class="chat__title">colony channel</span>
+      <span class="chat__status" data-chat-status>offline</span>
+      <button type="button" class="chat__x" data-chat-close aria-label="Close channel">×</button>
+    </header>
+    <ol class="chat__log" data-chat-log aria-live="polite"></ol>
+    <form class="chat__form" data-chat-form>
+      <button type="button" class="chat__me mono" data-chat-me title="Change your handle">…</button>
+      <input class="chat__input" data-chat-input maxlength="500" placeholder="Transmit…" autocomplete="off" aria-label="Message" />
+      <button class="chat__send mono" aria-label="Send">↵</button>
+    </form>
+    <p class="chat__fine mono">Public and anonymous. Be kind; the colony remembers the last 300 messages.</p>
+  </section>
+</div>

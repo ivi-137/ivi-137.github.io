@@ -1,11 +1,11 @@
 ---
 layout: ../layouts/Page.astro
 title: About
-kicker: dossier · ivi-137
+kicker: dossier · Gianni Pojani
 description: Who writes gpojani.me, and why it looks like this.
 ---
 
-This is the notebook of **ivi-137**. I write here about cellular automata, complex systems, computational complexity, and technology strange enough to feel like it came from somewhere else.
+This is the notebook of **Gianni Pojani**. I write here about cellular automata, complex systems, computational complexity, and technology strange enough to feel like it came from somewhere else.
 
 <!-- ✎ Replace this paragraph with your own introduction: who you are, what you work on, where to find you. -->
 

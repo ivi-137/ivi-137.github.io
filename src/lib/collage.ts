@@ -1,6 +1,11 @@
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { fnv1a, mountSigils, stopAllSigils } from './sigil';
+import { mountEmbeds } from './embeds';
+import { mountGiscus } from './ui/giscus';
+import { openPalette } from './ui/palette';
+import { openTerminal } from './ui/terminal';
+import { toast } from './ui/nav';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -154,6 +159,58 @@ function zooFilter() {
   fromHash();
 }
 
+/** Reading aids: heading anchors, copy buttons on code and citations, TOC tracking. */
+function reading() {
+  document.querySelectorAll<HTMLElement>('.prose :is(h2, h3)[id]').forEach((h) => {
+    if (h.querySelector('.anchor')) return;
+    const a = document.createElement('a');
+    a.className = 'anchor mono';
+    a.href = `#${h.id}`;
+    a.textContent = '#';
+    a.setAttribute('aria-label', `Link to “${h.textContent}”`);
+    h.append(a);
+  });
+  document.querySelectorAll<HTMLPreElement>('.prose pre').forEach((pre) => {
+    if (pre.querySelector('.copy')) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'copy mono';
+    b.textContent = 'copy';
+    b.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(pre.querySelector('code')?.innerText ?? pre.innerText);
+      b.textContent = 'copied';
+      setTimeout(() => (b.textContent = 'copy'), 1500);
+    });
+    pre.append(b);
+  });
+  document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const src = document.querySelector<HTMLElement>(`[data-copy-src="${b.dataset.copy}"]`);
+      if (!src) return;
+      await navigator.clipboard.writeText(src.innerText);
+      toast('Citation copied.');
+    }),
+  );
+  const toc = document.querySelector<HTMLElement>('[data-toc]');
+  if (toc) {
+    const links = new Map([...toc.querySelectorAll<HTMLAnchorElement>('a')].map((a) => [a.hash.slice(1), a]));
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries)
+          if (e.isIntersecting) {
+            links.forEach((a) => a.removeAttribute('aria-current'));
+            links.get(e.target.id)?.setAttribute('aria-current', 'true');
+          }
+      },
+      { rootMargin: '0px 0px -70% 0px' },
+    );
+    links.forEach((_, id) => {
+      const h = document.getElementById(id);
+      if (h) io.observe(h);
+    });
+  }
+}
+
 let ctx: gsap.Context | null = null;
 
 function mount() {
@@ -161,6 +218,11 @@ function mount() {
   mountSigils();
   document.querySelectorAll<HTMLElement>('[data-decode]').forEach(decode);
   zooFilter();
+  mountEmbeds();
+  reading();
+  mountGiscus();
+  document.querySelectorAll('[data-open-palette]').forEach((b) => b.addEventListener('click', openPalette));
+  document.querySelectorAll('[data-open-term]').forEach((b) => b.addEventListener('click', openTerminal));
   ctx = gsap.context((self) => {
     if (reduced()) return;
     hero(self);

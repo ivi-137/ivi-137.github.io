@@ -1,0 +1,26 @@
+---
+/**
+ * Per-post discussion via Giscus (GitHub Discussions on this repo). Loaded
+ * lazily when the reader scrolls near it, themed by /giscus.css.
+ */
+interface Props {
+  term: string;
+}
+const { term } = Astro.props;
+const GISCUS = {
+  repo: 'ivi-137/ivi-137.github.io',
+  repoId: 'R_kgDOUpoZEQ',
+  category: 'Announcements',
+  categoryId: 'DIC_kwDOUpoZEc4DGWxv',
+};
+---
+
+<section class="discussion" aria-labelledby="discussion-title">
+  <header class="discussion__head">
+    <h2 id="discussion-title" class="discussion__title">Discussion</h2>
+    <p class="mono">replies are stored as GitHub Discussions · sign in with GitHub to post</p>
+  </header>
+  <div class="discussion__frame" data-giscus data-giscus-term={term} data-repo={GISCUS.repo} data-repo-id={GISCUS.repoId} data-category={GISCUS.category} data-category-id={GISCUS.categoryId}>
+    <p class="discussion__placeholder mono">establishing link…</p>
+  </div>
+</section>

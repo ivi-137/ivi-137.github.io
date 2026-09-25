@@ -1,0 +1,72 @@
+/* Giscus theme for gpojani.me: ink on paper, acid accents. Loaded inside the giscus iframe. */
+main {
+  --color-prettylights-syntax-comment: #6e6a5e;
+  --color-prettylights-syntax-constant: #2336d6;
+  --color-prettylights-syntax-entity: #6a2fcf;
+  --color-prettylights-syntax-keyword: #d8360f;
+  --color-prettylights-syntax-string: #2f6b00;
+  --color-prettylights-syntax-variable: #16140f;
+  --color-btn-text: #16140f;
+  --color-btn-bg: #ddd3bb;
+  --color-btn-border: rgba(22, 20, 15, 0.25);
+  --color-btn-shadow: none;
+  --color-btn-inset-shadow: none;
+  --color-btn-hover-bg: #cfc3a6;
+  --color-btn-hover-border: #16140f;
+  --color-btn-active-bg: #cfc3a6;
+  --color-btn-selected-bg: #cfc3a6;
+  --color-btn-primary-text: #16140f;
+  --color-btn-primary-bg: #c6ff3d;
+  --color-btn-primary-border: #16140f;
+  --color-btn-primary-shadow: 3px 3px 0 #2f45ff;
+  --color-btn-primary-inset-shadow: none;
+  --color-btn-primary-hover-bg: #d4ff66;
+  --color-btn-primary-hover-border: #16140f;
+  --color-btn-primary-selected-bg: #c6ff3d;
+  --color-btn-primary-disabled-text: rgba(22, 20, 15, 0.5);
+  --color-btn-primary-disabled-bg: #ddd3bb;
+  --color-btn-primary-disabled-border: rgba(22, 20, 15, 0.2);
+  --color-action-list-item-default-hover-bg: #ddd3bb;
+  --color-segmented-control-bg: #ddd3bb;
+  --color-segmented-control-button-bg: #ece5d3;
+  --color-segmented-control-button-selected-border: #16140f;
+  --color-fg-default: #16140f;
+  --color-fg-muted: #4a4538;
+  --color-fg-subtle: #6e6a5e;
+  --color-canvas-default: #ece5d3;
+  --color-canvas-overlay: #ece5d3;
+  --color-canvas-inset: #e4dcc6;
+  --color-canvas-subtle: #e4dcc6;
+  --color-border-default: rgba(22, 20, 15, 0.22);
+  --color-border-muted: rgba(22, 20, 15, 0.14);
+  --color-neutral-muted: rgba(22, 20, 15, 0.1);
+  --color-accent-fg: #d8360f;
+  --color-accent-emphasis: #2f45ff;
+  --color-accent-muted: rgba(47, 69, 255, 0.4);
+  --color-accent-subtle: rgba(198, 255, 61, 0.35);
+  --color-success-fg: #2f6b00;
+  --color-attention-fg: #9a6b00;
+  --color-attention-muted: rgba(154, 107, 0, 0.4);
+  --color-attention-subtle: rgba(154, 107, 0, 0.12);
+  --color-danger-fg: #d8360f;
+  --color-danger-muted: rgba(216, 54, 15, 0.4);
+  --color-danger-subtle: rgba(216, 54, 15, 0.1);
+  --color-primer-shadow-inset: none;
+  --color-scale-gray-7: #4a4538;
+  --color-scale-blue-8: #2336d6;
+  --color-social-reaction-bg-hover: #ddd3bb;
+  --color-social-reaction-bg-reacted-hover: #c6ff3d;
+}
+
+main .pagination-loader-container {
+  background-image: none;
+}
+
+main .gsc-loading-image {
+  background-image: none;
+}
+
+.gsc-comment-box-textarea,
+.gsc-comment-box {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}

@@ -5,17 +5,20 @@ import Sigil from './Sigil.astro';
 const path = Astro.url.pathname;
 const links = [
   { href: '/archive/', label: 'Zoo' },
+  { href: '/lab/', label: 'Lab', wide: true },
+  { href: '/atlas/', label: 'Atlas', wide: true },
   { href: '/about/', label: 'About' },
-  { href: '/rss.xml', label: 'RSS' },
 ];
 ---
 
 <header class="masthead">
   <a class="brand" href="/" aria-label={`${SITE.title}, home`}>
-    <Sigil class="brand__sigil" seed="ivi-137" rule={137} cols={40} rows={14} animate="always" ink="acid" persist="brand-sigil" />
+    <Sigil class="brand__sigil" seed="gianni-pojani" rule={137} cols={40} rows={14} animate="always" ink="acid" persist="brand-sigil" />
     <span class="brand__name">{SITE.title}</span>
   </a>
   <nav class="nav" aria-label="Primary">
-    {links.map((l) => <a href={l.href} aria-current={path.startsWith(l.href) ? 'page' : undefined}>{l.label}</a>)}
+    {links.map((l) => <a href={l.href} class:list={{ 'nav--wide': l.wide }} aria-current={path.startsWith(l.href) ? 'page' : undefined}>{l.label}</a>)}
+    <button type="button" class="nav__icon" data-open-palette aria-label="Search (/ or ⌘K)" title="Search  /  ⌘K">⌕</button>
+    <button type="button" class="nav__icon" data-open-term aria-label="Terminal (~)" title="Terminal  ~">&gt;_</button>
   </nav>
 </header>

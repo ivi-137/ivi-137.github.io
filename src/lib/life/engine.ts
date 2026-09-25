@@ -15,6 +15,16 @@ export const RULES: Rule[] = [
   { name: 'Anneal', code: 'B4678/S35678', birth: [4, 6, 7, 8], survive: [3, 5, 6, 7, 8] },
 ];
 
+/** Parse "B3/S23" (also "b36s23", "B3678/S34678"). Returns null if malformed. */
+export function parseRule(code: string): Rule | null {
+  const m = code.trim().toUpperCase().match(/^B([0-8]*)\/?S([0-8]*)$/);
+  if (!m) return null;
+  const digits = (d: string) => [...new Set([...d].map(Number))].sort();
+  const birth = digits(m[1]), survive = digits(m[2]);
+  const known = RULES.find((r) => r.birth.join() === birth.join() && r.survive.join() === survive.join());
+  return known ?? { name: 'Custom', code: `B${birth.join('')}/S${survive.join('')}`, birth, survive };
+}
+
 export type Mode = 'hero' | 'ambient';
 
 export interface Stats {
@@ -50,6 +60,10 @@ export class Life {
   private dpr = 1;
 
   private ruleIndex = 0;
+  private custom: Rule | null = null;
+  private stepHooks = new Set<(gen: number) => void>();
+  /** Screen-space y (CSS px) of the sonification scanline, or -1 when off. */
+  probeY = -1;
   private gen = 0;
   private acc = 0;
   private last = 0;
@@ -248,14 +262,23 @@ export class Life {
   }
 
   setRule(i: number) {
+    this.custom = null;
     this.ruleIndex = ((i % RULES.length) + RULES.length) % RULES.length;
     this.emit();
   }
   cycleRule() {
     this.setRule(this.ruleIndex + 1);
   }
+  /** Any Life-like rule, e.g. "B36/S23". Returns false if the code doesn't parse. */
+  setRuleCode(code: string) {
+    const r = parseRule(code);
+    if (!r) return false;
+    this.custom = r;
+    this.emit();
+    return true;
+  }
   get rule() {
-    return RULES[this.ruleIndex];
+    return this.custom ?? RULES[this.ruleIndex];
   }
 
   toggle(run = !this.running) {
@@ -268,6 +291,35 @@ export class Life {
     this.mouse.x = x * this.dpr;
     this.mouse.y = y * this.dpr;
     this.mouse.target = active ? 1 : 0;
+  }
+
+  onStep(fn: (gen: number) => void) {
+    this.stepHooks.add(fn);
+    return () => this.stepHooks.delete(fn);
+  }
+
+  /** Live cells along one screen row (CSS px), left to right. Cheap: one row readback. */
+  probeRow(yCss: number): Uint8Array {
+    const gl = this.gl;
+    const { w } = this.view;
+    const vw = Math.min(w, this.W);
+    const y = Math.max(0, Math.min(this.H - 1, Math.floor(yCss / this.cellCss)));
+    const buf = new Uint8Array(vw * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo[this.cur]);
+    gl.readPixels(0, y, vw, 1, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    const out = new Uint8Array(vw);
+    for (let i = 0; i < vw; i++) out[i] = buf[i * 4] > 127 ? 1 : 0;
+    return out;
+  }
+
+  /** Stamp any pattern given as rows of `O`/`.` at a CSS-pixel position. */
+  stampAt(p: Pattern, px: number, py: number, flipX = false, flipY = false) {
+    this.stamp(p, px / this.cellCss, py / this.cellCss, flipX, flipY);
+  }
+
+  get generation() {
+    return this.gen;
   }
 
   onStats(fn: (s: Stats) => void) {
@@ -324,6 +376,7 @@ export class Life {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     this.cur = next;
     this.gen++;
+    this.stepHooks.forEach((fn) => fn(this.gen));
     if (this.gen % 15 === 0) this.sample();
   }
 
@@ -348,6 +401,7 @@ export class Life {
     gl.uniform1f(u('uLens'), this.mouse.lens);
     gl.uniform1f(u('uLensR'), 120 * this.dpr);
     gl.uniform1f(u('uIntensity'), this.intensity);
+    gl.uniform1f(u('uProbe'), this.probeY < 0 ? -1 : this.probeY * this.dpr);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 

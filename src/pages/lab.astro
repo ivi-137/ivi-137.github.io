@@ -1,0 +1,89 @@
+---
+import Base from '../layouts/Base.astro';
+import { LIBRARY } from '../lib/life/rle';
+
+const PRESETS = [
+  ['B3/S23', 'Conway'],
+  ['B36/S23', 'HighLife'],
+  ['B2/S', 'Seeds'],
+  ['B3678/S34678', 'Day & Night'],
+  ['B4678/S35678', 'Anneal'],
+  ['B3/S12345', 'Maze'],
+  ['B1357/S1357', 'Replicator'],
+  ['B35678/S5678', 'Diamoeba'],
+  ['B368/S245', 'Morley'],
+  ['B3/S012345678', 'Life without death'],
+  ['B36/S125', '2×2'],
+];
+---
+
+<Base title="Lab" description="A rule explorer for every Life-like cellular automaton: 262,144 universes, one grid.">
+  <section class="lab" data-lab>
+    <header class="section-head section-head--page lab__head">
+      <p class="kicker mono" data-decode>instrument · rule explorer</p>
+      <h1 class="section-head__title">The <em>lab</em></h1>
+      <p class="section-head__lede">
+        2<sup>18</sup> = 262,144 Life-like universes, one for every choice of birth and survival counts. Pick one, draw, and press play.
+      </p>
+    </header>
+
+    <div class="lab__grid">
+      <div class="lab__stage">
+        <canvas class="lab__board" data-lab-board aria-label="Automaton board: drag to draw cells"></canvas>
+        <div class="lab__transport mono">
+          <button type="button" class="button button--sm" data-lab-play>▶ run</button>
+          <button type="button" data-lab-step title="Advance one generation (.)">step</button>
+          <button type="button" data-lab-random>random</button>
+          <button type="button" data-lab-clear>clear</button>
+          <label class="lab__speed">speed <input type="range" min="1" max="60" value="15" data-lab-speed /></label>
+          <span class="lab__readout">gen <b data-lab-gen>0</b> · pop <b data-lab-pop>0</b></span>
+        </div>
+      </div>
+
+      <aside class="lab__panel sheet torn">
+        <fieldset class="lab__rule">
+          <legend class="mono">Rule</legend>
+          <div class="lab__bits" role="group" aria-label="Birth counts">
+            <span class="mono">B</span>
+            {[...Array(9).keys()].map((n) => <button type="button" class="bit" data-bit="b" data-n={n} aria-pressed="false">{n}</button>)}
+          </div>
+          <div class="lab__bits" role="group" aria-label="Survival counts">
+            <span class="mono">S</span>
+            {[...Array(9).keys()].map((n) => <button type="button" class="bit" data-bit="s" data-n={n} aria-pressed="false">{n}</button>)}
+          </div>
+          <div class="lab__row">
+            <input class="mono lab__code" data-lab-code value="B3/S23" aria-label="Rule code" spellcheck="false" />
+            <select class="mono" data-lab-preset aria-label="Preset rules">
+              <option value="">presets…</option>
+              {PRESETS.map(([code, name]) => <option value={code}>{name} · {code}</option>)}
+            </select>
+          </div>
+          <p class="lab__rulename mono" data-lab-rulename>Conway's Life</p>
+        </fieldset>
+
+        <fieldset>
+          <legend class="mono">Specimens</legend>
+          <div class="lab__lib">
+            {LIBRARY.map((p, i) => <button type="button" class="chip" data-lab-lib={i} title={p.note}>{p.name}</button>)}
+          </div>
+          <p class="lab__note" data-lab-note>Pick a specimen to drop it in the middle of the board.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend class="mono">RLE</legend>
+          <textarea class="mono lab__rle" data-lab-rle rows="4" spellcheck="false" placeholder="Paste RLE from LifeWiki or Golly, e.g. bo$2bo$3o!"></textarea>
+          <div class="lab__row">
+            <button type="button" class="chip" data-lab-import>load ↑</button>
+            <button type="button" class="chip" data-lab-export>export ↓</button>
+            <button type="button" class="chip" data-lab-share>copy share link</button>
+            <button type="button" class="chip" data-lab-png>save PNG</button>
+          </div>
+        </fieldset>
+      </aside>
+    </div>
+  </section>
+  <script>
+    import { mountLab } from '../lib/lab';
+    document.addEventListener('astro:page-load', mountLab);
+  </script>
+</Base>

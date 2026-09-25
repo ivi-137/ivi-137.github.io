@@ -1,0 +1,46 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Atlas" description="All 256 elementary cellular automata, hung like an exhibition: one row of cells, eight rules each, nothing else.">
+  <section class="atlas" data-atlas>
+    <header class="section-head section-head--page">
+      <p class="kicker mono" data-decode>exhibition · 256 works</p>
+      <h1 class="section-head__title">The <em>atlas</em></h1>
+      <p class="section-head__lede">
+        Every elementary cellular automaton, hung on one wall. Each is a single byte of rule, run forward from a single live cell. Time
+        flows down.
+      </p>
+      <div class="atlas__controls mono">
+        <button type="button" class="chip" data-atlas-seed>seed: one cell</button>
+        <button type="button" class="chip" data-atlas-families>showing all 256</button>
+        <span class="atlas__count" data-atlas-count></span>
+        <span class="atlas__legend"><i></i> annotated</span>
+      </div>
+    </header>
+
+    <div class="atlas__wall" data-atlas-wall></div>
+
+    <dialog class="atlas__view" data-atlas-view aria-labelledby="atlas-title">
+      <div class="sheet atlas__sheet">
+        <form method="dialog" class="atlas__close"><button aria-label="Close">×</button></form>
+        <p class="kicker mono"><span data-atlas-bits></span><span>wolfram code</span></p>
+        <h2 id="atlas-title" class="sheet__title" data-atlas-title>Rule</h2>
+        <canvas class="atlas__big" data-atlas-big aria-hidden="true"></canvas>
+        <div class="atlas__table" data-atlas-table aria-label="Rule table: each neighbourhood and the cell it produces"></div>
+        <p class="atlas__note" data-atlas-note></p>
+        <p class="mono atlas__fam-label">Family: mirror and colour-swap equivalents</p>
+        <div class="atlas__family" data-atlas-family></div>
+        <div class="atlas__nav mono">
+          <button type="button" class="chip" data-atlas-prev>← prev</button>
+          <button type="button" class="chip" data-atlas-rerun>rerun</button>
+          <button type="button" class="chip" data-atlas-next>next →</button>
+        </div>
+      </div>
+    </dialog>
+  </section>
+  <script>
+    import { mountAtlas } from '../lib/atlas';
+    document.addEventListener('astro:page-load', mountAtlas);
+  </script>
+</Base>

@@ -53,6 +53,7 @@ uniform vec2 uMouse;
 uniform float uLens;
 uniform float uLensR;
 uniform float uIntensity;
+uniform float uProbe;
 out vec4 o;
 
 const vec3 VOID   = vec3(0.039, 0.039, 0.043);
@@ -101,6 +102,9 @@ void main() {
   // lens rim + inner tint
   float rim = uLens * (smoothstep(1.6, 0.0, abs(r - uLensR)) * 0.55 + k * 0.05);
   col += ACID * rim * max(uIntensity, 0.5);
+
+  // sonification scanline: the row the synth is listening to
+  if (uProbe >= 0.0) col += ACID * 0.35 * smoothstep(1.5, 0.0, abs(frag.y - uProbe));
 
   vec2 n = gl_FragCoord.xy / uRes - 0.5;
   col *= 1.0 - dot(n, n) * 0.7;

@@ -1,6 +1,6 @@
 # gpojani.me
 
-Specimen archive of **ivi-137**: a blog about cellular automata, complex systems, computational complexity and machines not from here.
+Specimen archive of **Gianni Pojani**: a blog about cellular automata, complex systems, computational complexity and machines not from here.
 
 Built with [Astro](https://astro.build). The background is a Game of Life that runs as a WebGL2 shader on the reader's GPU. Motion is GSAP, math is KaTeX, and each post gets an Open Graph image generated at build time.
 
@@ -30,6 +30,50 @@ draft: false       # true = only visible in `npm run dev`
 - **Images:** put them next to the post or in `public/`, and reference them with normal Markdown.
 - **Publishing:** set `draft: false` and push to `main`. GitHub Actions builds and deploys in about a minute.
 
+### Live figures in posts
+
+Plain HTML in any Markdown post becomes an interactive figure:
+
+```html
+<div data-automaton="110" data-caption="Rule 110 from one cell"></div>
+<div data-automaton="30" data-seed="random"></div>
+<div data-life="bo$2bo$3o!" data-rule="B3/S23" data-size="48x28" data-autoplay data-caption="A glider"></div>
+```
+
+`data-life` takes RLE (copy it from LifeWiki or Golly, or export it from the Lab). Posts also get a table of contents, heading anchors, code copy buttons, a BibTeX/APA "Cite this" block, related posts, backlinks and a discussion thread automatically. Add `concepts: [...]` to the front matter to place a post in the Network graph.
+
+## Features
+
+| | |
+|---|---|
+| **Live channel** | Real-time chat room (press **C**). Cloudflare Worker + Durable Object in `chat/` |
+| **Discussions** | Per-post threads via Giscus, stored as GitHub Discussions on this repo |
+| **Terminal** | Press **~**: `ls`, `cd`, `cat`, `grep`, `open`, `tree`, `rule 110`, `life rule B36/S23`, `seed hi`, `neofetch`, `man` |
+| **Search** | Press **/** or **⌘K**. Index built at build time (`/search.json`) |
+| **Lab** `/lab/` | Any Life-like rule, pattern library, RLE import/export, share links, PNG export |
+| **Atlas** `/atlas/` | All 256 elementary automata, symmetry families, rule tables |
+| **Network** `/network/` | Force-directed graph of posts, concepts and classes |
+| **Sound** | Press **M**: a scanline sonifies the colony (births → pentatonic notes) |
+| **Shortcuts** | **?** for the sheet; **J/K** next/previous post; **G** then **H/Z/L/A/N** to jump |
+| **Offline** | Installable PWA; pages you've read work offline |
+| **Print** | Posts print as clean paper, with URLs expanded |
+
+## The live channel (chat)
+
+The chat backend lives in `chat/` and deploys separately to Cloudflare (free tier):
+
+```bash
+cd chat
+npm install
+npx wrangler login        # once, opens your browser
+npx wrangler deploy       # prints https://gpojani-chat.<you>.workers.dev
+npx wrangler secret put ADMIN_TOKEN   # optional: lets you wipe history
+```
+
+Then in GitHub: **Settings → Secrets and variables → Actions → Variables → New variable**, name `PUBLIC_CHAT_URL`, value the workers.dev URL. The next deploy switches the channel on. To clear history: `curl -X DELETE -H "Authorization: Bearer $TOKEN" https://gpojani-chat.<you>.workers.dev/history`.
+
+Locally, `npm run dev` in `chat/` (port 8787) and `npm run dev` at the root: the site connects to the local worker automatically.
+
 ## How it works
 
 | Piece | Where |
@@ -40,7 +84,9 @@ draft: false       # true = only visible in `npm run dev`
 | Collage choreography, torn paper, glyph decoding, zoo filter | `src/lib/collage.ts` |
 | Complexity-class taxonomy | `src/lib/classes.ts` |
 | Social cards (satori → resvg) | `src/lib/og.ts`, `src/pages/og/` |
-| Everything visual | `src/styles/global.css` |
+| Terminal, search, shortcuts, sound | `src/lib/ui/`, `src/lib/life/sound.ts` |
+| Lab, Atlas, Network, post embeds | `src/lib/lab.ts`, `atlas.ts`, `network.ts`, `embeds.ts` |
+| Everything visual | `src/styles/global.css`, `src/styles/instruments.css` |
 
 Keyboard shortcuts on the site: **P** pause, **R** reseed, **1–4** switch rule (Conway, HighLife, Day & Night, Anneal). Click to drop a glider, shift-click for a Gosper gun, drag to paint.
 

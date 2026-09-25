@@ -6,20 +6,54 @@ import Stamp from '../components/Stamp.astro';
 import { classById } from '../lib/classes';
 import { catalogue, postUrl, readingMinutes, type Post } from '../lib/posts';
 import { ruleFor } from '../lib/sigil';
+import { SITE } from '../lib/site';
+import Discussion from '../components/Discussion.astro';
+import type { MarkdownHeading } from 'astro';
 
 interface Props {
   post: Post;
   prev?: Post;
   next?: Post;
+  headings?: MarkdownHeading[];
+  related?: Post[];
+  backlinks?: Post[];
 }
-const { post, prev, next } = Astro.props;
+const { post, prev, next, headings = [], related = [], backlinks = [] } = Astro.props;
 const { title, description, date, class: cls, rule } = post.data;
 const c = classById(cls);
 const sigilRule = ruleFor(title, rule);
+const toc = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+const url = new URL(postUrl(post), Astro.site).href;
+const year = date.getUTCFullYear();
+const monthName = date.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+const bibKey = `${SITE.authorFamily.toLowerCase()}${year}${post.id.split('-')[0]}`;
+const bibtex = `@misc{${bibKey},
+  author       = {${SITE.authorFamily}, ${SITE.authorGiven}},
+  title        = {{${title}}},
+  year         = {${year}},
+  month        = {${date.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toLowerCase()}},
+  howpublished = {\\url{${url}}},
+  note         = {${SITE.title}, Transmission ${catalogue(post.number).replace('№ ', 'no. ')}}
+}`;
+const apa = `${SITE.authorFamily}, ${SITE.authorGiven[0]}. (${year}, ${monthName} ${date.getUTCDate()}). ${title}. ${SITE.title}. ${url}`;
 ---
 
 <Base title={title} description={description} article={{ published: date }} image={`/og/${post.id}.png`} bodyClass="is-post">
   <div class="progress" aria-hidden="true"><span data-progress></span></div>
+  {
+    toc.length > 1 && (
+      <nav class="toc mono" aria-label="On this page" data-toc>
+        <p class="toc__title">contents</p>
+        <ol>
+          {toc.map((h) => (
+            <li class={`toc__d${h.depth}`}>
+              <a href={`#${h.slug}`}>{h.text}</a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+    )
+  }
   <article class="sheet-wrap post" data-class={cls}>
     <div class="sheet torn" data-tear="9">
       <Sigil class="post__sigil" seed={title} rule={rule} cols={240} rows={60} animate="always" ink="acid" />
@@ -40,6 +74,45 @@ const sigilRule = ruleFor(title, rule);
         <slot />
       </div>
       <footer class="post__foot">
+        {
+          (related.length > 0 || backlinks.length > 0) && (
+            <div class="post__links">
+              {related.length > 0 && (
+                <div>
+                  <p class="post__links-title mono">Related transmissions</p>
+                  <ul>
+                    {related.map((r) => (
+                      <li>
+                        <a href={postUrl(r)}>{r.data.title}</a> <span class="mono">{r.data.class}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {backlinks.length > 0 && (
+                <div>
+                  <p class="post__links-title mono">Linked from</p>
+                  <ul>
+                    {backlinks.map((r) => (
+                      <li>
+                        <a href={postUrl(r)}>{r.data.title}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )
+        }
+        <details class="cite">
+          <summary class="mono">Cite this transmission</summary>
+          <div class="cite__body">
+            <p class="mono cite__label">BibTeX <button type="button" class="chip" data-copy="bibtex">copy</button></p>
+            <pre data-copy-src="bibtex">{bibtex}</pre>
+            <p class="mono cite__label">APA <button type="button" class="chip" data-copy="apa">copy</button></p>
+            <pre data-copy-src="apa">{apa}</pre>
+          </div>
+        </details>
         <p class="post__class mono">
           Filed under <a href={`/archive/#${c.id}`}>{c.id}</a>: {c.blurb}
         </p>
@@ -66,4 +139,9 @@ const sigilRule = ruleFor(title, rule);
       </footer>
     </div>
   </article>
+  <div class="sheet-wrap sheet-wrap--plain">
+    <div class="sheet torn discussion-sheet">
+      <Discussion term={postUrl(post)} />
+    </div>
+  </div>
 </Base>

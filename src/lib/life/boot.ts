@@ -6,7 +6,7 @@ import { Life, type Mode } from './engine';
  * colony via <body data-life-mode data-life-seed>.
  */
 
-const INTERACTIVE = 'a, button, input, textarea, select, label, summary, [data-no-life], .sheet, .card, .hud, .cut--card';
+const INTERACTIVE = 'a, button, input, textarea, select, label, summary, dialog, [data-no-life], .sheet, .card, .hud, .cut--card, .chat, .overlays, [data-lab], [data-atlas], [data-network], .toc, .legend';
 
 let life: Life | null = null;
 
@@ -30,6 +30,9 @@ function start() {
     return;
   }
   document.documentElement.classList.add('has-life');
+  // shared handle for the terminal, sound, lab links and easter eggs
+  (window as any).__life = life;
+  window.dispatchEvent(new CustomEvent('life:ready', { detail: life }));
   wireInput(life);
   wireHud(life);
   const l = life;
@@ -98,6 +101,8 @@ function wireHud(l: Life) {
   $('rule').addEventListener('click', () => l.cycleRule());
   pause.addEventListener('click', () => l.toggle());
   $('reseed').addEventListener('click', () => l.seed());
+  $('sound').addEventListener('click', () => window.dispatchEvent(new Event('sound:toggle')));
+  addEventListener('sound:change', (e) => $('sound').setAttribute('aria-pressed', String((e as CustomEvent).detail)));
 }
 
 start();

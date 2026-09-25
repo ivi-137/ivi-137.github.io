@@ -13,6 +13,8 @@ const posts = defineCollection({
     class: z.enum(CLASS_IDS).default('P'),
     /** Pin the sigil to a specific elementary CA rule (0–255). Otherwise derived from the title. */
     rule: z.number().int().min(0).max(255).optional(),
+    /** Ideas this post touches; they become nodes in the knowledge graph. */
+    concepts: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
   }),
 });

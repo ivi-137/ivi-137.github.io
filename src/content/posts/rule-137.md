@@ -1,7 +1,8 @@
 ---
 title: "Rule 137: eight bits that compute everything"
 date: 2026-09-25
-description: The rule this site is named after is a mirror image of Rule 110, and Rule 110 is a universal computer.
+description: The emblem of this site is a mirror image of Rule 110, and Rule 110 is a universal computer.
+concepts: [elementary automata, universality, Rule 110, halting problem, Wolfram classes]
 class: RE
 rule: 137
 ---
@@ -14,7 +15,9 @@ Here is Rule 137:
 |---|---|---|---|---|---|---|---|---|
 | becomes       |  1  |  0  |  0  |  0  |  1  |  0  |  0  |  1  |
 
-Read the bottom row as binary: `10001001` = 137. That's the whole rule.
+Read the bottom row as binary: `10001001` = 137. That's the whole rule. Here it is running from a single cell. Change the number to try any of the other 255 rules:
+
+<div data-automaton="137" data-caption="Rule 137 from a single live cell. Time runs downward."></div>
 
 ## The mirror
 
@@ -24,7 +27,11 @@ $$
 f_{137}(p, q, r) \;=\; \overline{f_{110}(\bar p, \bar q, \bar r)}.
 $$
 
-The two rules describe the same universe with the colours swapped. Rule 110 itself fits in one line of Boolean logic, where $$p, q, r$$ are left, centre and right:
+The two rules describe the same universe with the colours swapped. Compare Rule 110 from random noise with Rule 137 above:
+
+<div data-automaton="110" data-seed="random" data-caption="Rule 110 from random noise: gliders crossing a periodic background."></div>
+
+ Rule 110 itself fits in one line of Boolean logic, where $$p, q, r$$ are left, centre and right:
 
 $$
 q' = (q \oplus r) \,\lor\, (q \land \lnot p).
@@ -34,7 +41,7 @@ $$
 
 In the 1980s Wolfram sorted elementary automata into four behavioural classes: die out, repeat, turn to noise, or *something else*. That last class, Class IV, makes long-lived structures that move and collide. Rule 110 was its poster child, and he conjectured it could compute.
 
-Matthew Cook proved it, and the proof was published in 2004. Gliders drifting through Rule 110's periodic background can be arranged to emulate a *cyclic tag system*, and cyclic tag systems can emulate any Turing machine. So an eight-bit rule table, applied to an infinite row of bits, can in principle run any program you can write.
+Matthew Cook proved it, and the proof was published in 2004. [Gliders](/posts/gliders-are-messages/) drifting through Rule 110's periodic background can be arranged to emulate a *cyclic tag system*, and cyclic tag systems can emulate any Turing machine. So an eight-bit rule table, applied to an infinite row of bits, can in principle run any program you can write.
 
 Since Rule 137 is the same system in a mirror, it inherits all of that.
 

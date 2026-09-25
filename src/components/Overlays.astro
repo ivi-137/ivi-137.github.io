@@ -1,0 +1,71 @@
+---
+/**
+ * Persistent overlay layer: search palette, terminal, keyboard help, toasts.
+ * Lives outside <main> and survives view transitions, so the terminal keeps
+ * its scrollback and history as you navigate.
+ */
+---
+
+<div class="overlays" transition:persist="overlays">
+  <dialog class="palette" data-palette aria-label="Search and commands">
+    <form method="dialog" class="palette__form" onsubmit="return false">
+      <span class="palette__glyph mono" aria-hidden="true">⌖</span>
+      <input
+        class="palette__input"
+        data-palette-input
+        type="search"
+        placeholder="Search transmissions, or jump anywhere…"
+        autocomplete="off"
+        spellcheck="false"
+        aria-controls="palette-results"
+        aria-autocomplete="list"
+      />
+      <kbd class="mono">esc</kbd>
+    </form>
+    <ul id="palette-results" class="palette__results" data-palette-results role="listbox"></ul>
+    <p class="palette__foot mono"><span>↑↓ move · ↵ open</span><span>~ terminal · ? shortcuts</span></p>
+  </dialog>
+
+  <dialog class="term" data-term aria-label="Terminal">
+    <div class="term__bar mono">
+      <span><i></i><i></i><i></i></span>
+      <span data-term-title>gsh — gianni@gpojani</span>
+      <button type="button" data-term-close aria-label="Close terminal">×</button>
+    </div>
+    <div class="term__screen mono" data-term-screen>
+      <div data-term-out aria-live="polite"></div>
+      <label class="term__line">
+        <span class="term__prompt" data-term-prompt></span>
+        <input data-term-input autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Command" />
+      </label>
+    </div>
+  </dialog>
+
+  <dialog class="help" data-help aria-labelledby="help-title">
+    <div class="sheet torn help__sheet">
+      <p class="kicker mono">manual · keyboard</p>
+      <h2 id="help-title" class="help__title">Shortcuts</h2>
+      <div class="help__cols">
+        <dl>
+          <dt><kbd>/</kbd> <kbd>⌘K</kbd></dt><dd>search &amp; jump</dd>
+          <dt><kbd>~</kbd></dt><dd>terminal</dd>
+          <dt><kbd>C</kbd></dt><dd>live channel (chat)</dd>
+          <dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>next / previous transmission</dd>
+          <dt><kbd>G</kbd> then <kbd>H</kbd><kbd>Z</kbd><kbd>L</kbd><kbd>A</kbd><kbd>N</kbd></dt><dd>home · zoo · lab · atlas · network</dd>
+          <dt><kbd>?</kbd></dt><dd>this sheet</dd>
+        </dl>
+        <dl>
+          <dt><kbd>P</kbd></dt><dd>pause / run the colony</dd>
+          <dt><kbd>R</kbd></dt><dd>reseed</dd>
+          <dt><kbd>1</kbd>–<kbd>4</kbd></dt><dd>Conway · HighLife · Day &amp; Night · Anneal</dd>
+          <dt><kbd>M</kbd></dt><dd>listen to the colony</dd>
+          <dt>click · shift-click · drag</dt><dd>glider · glider gun · paint</dd>
+          <dt>↑↑↓↓←→←→BA</dt><dd>first contact</dd>
+        </dl>
+      </div>
+      <form method="dialog"><button class="button">Close</button></form>
+    </div>
+  </dialog>
+
+  <div class="toasts" data-toasts aria-live="polite"></div>
+</div>

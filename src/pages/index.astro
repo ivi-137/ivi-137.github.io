@@ -25,7 +25,7 @@ const TILTS = [-1.4, 1.1, -0.6, 1.7, -1.2, 0.7, -1.9, 1.3, -0.4];
       <p class="cut cut--strip mono" data-depth="0.35" data-decode data-decode-delay="0.9">{SITE.tagline}</p>
 
       <div class="cut cut--card torn" data-depth="0.5">
-        <p class="mono cut--card__head"><span>Specimen</span><span>ivi-137</span></p>
+        <p class="mono cut--card__head"><span>Specimen</span><span>Gianni Pojani</span></p>
         <p>
           Rule 137 is Rule 110 with black and white swapped: an automaton defined by eight bits that can compute <em>anything computable</em>.
         </p>
@@ -60,6 +60,35 @@ const TILTS = [-1.4, 1.1, -0.6, 1.7, -1.2, 0.7, -1.9, 1.3, -0.4];
         </p>
       )
     }
+  </section>
+
+  <section class="instruments" aria-labelledby="inst-title">
+    <header class="section-head">
+      <h2 id="inst-title" class="section-head__title">The <em>instruments</em></h2>
+      <p class="section-head__aside mono">press ? anywhere for the manual</p>
+    </header>
+    <div class="instruments__grid">
+      <a class="instrument torn" href="/lab/" style="--tilt:-1.2deg">
+        <span class="instrument__glyph mono" aria-hidden="true">B3/S23</span>
+        <b>Lab</b>
+        <span>Any of 262,144 Life-like rules. Draw, run, import RLE, share a link.</span>
+      </a>
+      <a class="instrument torn" href="/atlas/" style="--tilt:0.9deg">
+        <span class="instrument__glyph mono" aria-hidden="true">0–255</span>
+        <b>Atlas</b>
+        <span>All 256 elementary automata on one wall, with their symmetry families.</span>
+      </a>
+      <a class="instrument torn" href="/network/" style="--tilt:-0.5deg">
+        <span class="instrument__glyph mono" aria-hidden="true">◇—◇</span>
+        <b>Network</b>
+        <span>The archive as a graph of transmissions and the ideas they share.</span>
+      </a>
+      <button type="button" class="instrument torn" data-open-term style="--tilt:1.4deg">
+        <span class="instrument__glyph mono" aria-hidden="true">~$</span>
+        <b>Terminal</b>
+        <span>A shell over the archive: ls, cat, grep, rule 110, neofetch. Press ~.</span>
+      </button>
+    </div>
   </section>
 
   <section class="zoo-teaser" aria-labelledby="zoo-title">

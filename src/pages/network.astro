@@ -1,0 +1,43 @@
+---
+import Base from '../layouts/Base.astro';
+import { getPosts } from '../lib/posts';
+import { buildGraph } from '../lib/graph';
+
+const graph = buildGraph(await getPosts());
+---
+
+<Base title="Network" description="The archive as a network: transmissions, the concepts they share, and the classes they live in.">
+  <section class="network" data-network>
+    <header class="section-head section-head--page network__head">
+      <p class="kicker mono" data-decode>instrument · knowledge graph</p>
+      <h1 class="section-head__title">The <em>network</em></h1>
+      <p class="section-head__lede">
+        Transmissions (paper), the ideas they touch (acid) and the classes they live in (rings). Drag things around. It's a
+        physical simulation too.
+      </p>
+    </header>
+    <div class="network__stage" data-network-stage>
+      <svg class="network__svg" data-network-svg role="img" aria-label="Knowledge graph of posts and concepts"></svg>
+      <p class="network__hover mono" data-network-hover aria-live="polite"></p>
+    </div>
+    <details class="network__list mono">
+      <summary>Same graph, as a list</summary>
+      <ul>
+        {graph.nodes.filter((n) => n.kind === 'concept').map((c) => (
+          <li>
+            <b>{c.label}</b>:{' '}
+            {graph.links
+              .filter((l) => l.target === c.id)
+              .map((l) => graph.nodes.find((n) => n.id === l.source)!)
+              .map((p, i) => (<>{i > 0 && ', '}<a href={p.url}>{p.label}</a></>))}
+          </li>
+        ))}
+      </ul>
+    </details>
+  </section>
+  <script type="application/json" id="network-data" set:html={JSON.stringify(graph)} />
+  <script>
+    import { mountNetwork } from '../lib/network';
+    document.addEventListener('astro:page-load', mountNetwork);
+  </script>
+</Base>

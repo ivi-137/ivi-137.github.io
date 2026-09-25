@@ -3,8 +3,11 @@ import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import Hud from '../components/Hud.astro';
+import Overlays from '../components/Overlays.astro';
+import Chat from '../components/Chat.astro';
 import { SITE } from '../lib/site';
 import '../styles/global.css';
+import '../styles/instruments.css';
 
 interface Props {
   title?: string;
@@ -46,6 +49,8 @@ const ogImage = new URL(image, Astro.site);
     <link rel="icon" href="/glider.svg" type="image/svg+xml" />
     <link rel="alternate" type="application/rss+xml" title={SITE.title} href="/rss.xml" />
     <link rel="sitemap" href="/sitemap-index.xml" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -65,9 +70,18 @@ const ogImage = new URL(image, Astro.site);
     </main>
     <Footer />
     <Hud />
+    <Overlays />
+    <Chat />
     <script>
       import '../lib/life/boot';
       import '../lib/collage';
+      import { mountShortcuts } from '../lib/ui/shortcuts';
+      import { mountChat } from '../lib/ui/chat';
+      mountShortcuts();
+      mountChat();
+      if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
+        addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+      }
     </script>
   </body>
 </html>

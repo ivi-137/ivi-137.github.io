@@ -2,6 +2,7 @@
 title: Hello, colony
 date: 2026-09-20
 description: First transmission. What this notebook is for, and how to read it.
+concepts: [emergence, complex systems, Game of Life, complexity classes]
 class: P
 ---
 
