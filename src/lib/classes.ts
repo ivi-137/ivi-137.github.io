@@ -59,6 +59,14 @@ export const INSTRUMENTS: Array<{ id: string; title: string; url: string; class:
     why: 'Evaluating a Boolean circuit is P-complete. This is the gate such circuits are built from.',
   },
   {
+    id: 'drums',
+    title: 'Tamburo 8: an automaton drum machine',
+    url: '/drums/',
+    class: 'P',
+    glyph: '♩ ×8',
+    why: 'An eight-cell automaton has only 2⁸ states, so every evolving groove falls into a cycle that is found in polynomial time.',
+  },
+  {
     id: 'network',
     title: 'Network of transmissions and ideas',
     url: '/network/',

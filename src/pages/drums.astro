@@ -1,0 +1,162 @@
+---
+import Base from '../layouts/Base.astro';
+import Stamp from '../components/Stamp.astro';
+import Knob from '../components/Knob.astro';
+import { VOICES } from '../lib/drums/voices';
+import { DEFAULT, STEPS } from '../lib/drums/engine';
+import { fnv1a } from '../lib/sigil';
+
+/** A touch plate: an irregular closed blob, different for every pad, smoothed with quadratic curves. */
+function plate(seed: string) {
+  let h = fnv1a(seed) || 1;
+  const rnd = () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909)) >>> 0) / 4294967296;
+  const n = 9;
+  const pts = [...Array(n).keys()].map((i) => {
+    const a = (i / n) * Math.PI * 2 + rnd() * 0.3;
+    const r = 34 + rnd() * 12;
+    return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r * 0.92];
+  });
+  const mid = (p: number[], q: number[]) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+  let d = `M${mid(pts[n - 1], pts[0]).map((v) => v.toFixed(1)).join(' ')}`;
+  for (let i = 0; i < n; i++) {
+    const p = pts[i], m = mid(p, pts[(i + 1) % n]);
+    d += ` Q${p[0].toFixed(1)} ${p[1].toFixed(1)} ${m[0].toFixed(1)} ${m[1].toFixed(1)}`;
+  }
+  return d + 'Z';
+}
+
+/** A hand-drawn trace, wobbling like ink on paper. */
+function trace(seed: string, len = 800) {
+  let h = fnv1a(seed) || 1;
+  const rnd = () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909)) >>> 0) / 4294967296;
+  let d = 'M0 10';
+  for (let x = 40; x <= len; x += 40) d += ` Q${x - 20} ${(4 + rnd() * 12).toFixed(1)} ${x} ${(7 + rnd() * 6).toFixed(1)}`;
+  return d;
+}
+
+const RULES = [30, 45, 54, 60, 90, 105, 110, 137, 150, 184];
+---
+
+<Base title="Tamburo 8" description="An eight-step automaton drum machine: synthesized voices, cellular-automaton grooves, tape echo. After Ciat-Lonbarde and Giorgio Sancristoforo.">
+  <section class="drums" data-drums>
+    <header class="section-head section-head--page drums__head">
+      <p class="kicker mono" data-decode>instrument · rhythm studio</p>
+      <h1 class="section-head__title">Tamburo <em>8</em></h1>
+      <p class="section-head__lede">
+        Six voices, eight steps, no samples. Switch on a voice's automaton and its groove rewrites itself every bar by an
+        elementary rule. The machine keeps playing; it just doesn't keep playing the same thing.
+      </p>
+      <Stamp id="P" />
+    </header>
+
+    <div class="tamburo" data-tamburo>
+      <div class="tamburo__cheek" aria-hidden="true"></div>
+      <div class="tamburo__face">
+        <div class="tamburo__top">
+          <div class="tamburo__brand">
+            <span class="tamburo__logo">Tamburo·8</span>
+            <span class="mono">automaton rhythm studio · gpojani</span>
+          </div>
+          <button type="button" class="tamburo__play" data-drum-play aria-pressed="false" aria-label="Play (space)">
+            <svg viewBox="0 0 100 100" aria-hidden="true"><path d={plate('play-plate')} /></svg>
+            <span class="mono" data-drum-play-label>play</span>
+          </button>
+          <Knob bind="global.bpm" label="tempo" min={40} max={220} step={1} value={DEFAULT.global.bpm} size="lg" format="bpm" />
+          <Knob bind="global.swing" label="swing" min={0} max={0.6} value={DEFAULT.global.swing} />
+          <canvas class="tamburo__scope" data-drum-scope aria-hidden="true"></canvas>
+        </div>
+
+        <div class="tamburo__leds" aria-hidden="true">
+          <span></span>
+          {[...Array(STEPS).keys()].map((i) => <i data-led={i}>{i + 1}</i>)}
+        </div>
+
+        <div class="tamburo__rows">
+          {
+            VOICES.map((v, r) => {
+              const t = DEFAULT.tracks[r];
+              return (
+                <div class="trk" data-track={r}>
+                  <svg class="trk__trace" viewBox="0 0 800 20" preserveAspectRatio="none" aria-hidden="true">
+                    <path d={trace(`trace-${v.id}`)} />
+                  </svg>
+                  <button type="button" class="trk__name" data-drum-hit={r} title={`Audition ${v.en} (key ${r + 1})`}>
+                    <b>{v.name}</b>
+                    <span class="mono">{v.en}</span>
+                  </button>
+                  <div class="trk__pads" role="group" aria-label={`${v.name} steps`}>
+                    {[...Array(STEPS).keys()].map((s) => (
+                      <button type="button" class="pad" data-pad={`${r}.${s}`} aria-pressed={t.steps[s] ? 'true' : 'false'} aria-label={`${v.name}, step ${s + 1}`}>
+                        <svg viewBox="0 0 100 100" aria-hidden="true">
+                          <path d={plate(`${v.id}-${s}`)} />
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                  <div class="trk__knobs">
+                    <Knob bind={`track.${r}.tune`} label="tune" value={t.tune} size="sm" />
+                    <Knob bind={`track.${r}.decay`} label="decay" value={t.decay} size="sm" />
+                    <Knob bind={`track.${r}.level`} label="level" value={t.level} size="sm" />
+                    <Knob bind={`track.${r}.chance`} label="chance" value={t.chance} size="sm" />
+                    <Knob bind={`track.${r}.roll`} label="roll" min={0} max={3} step={1} value={t.roll} size="sm" format="roll" />
+                  </div>
+                  <div class="trk__ca mono">
+                    <button type="button" class="trk__toggle" data-drum-ca={r} aria-pressed={t.ca ? 'true' : 'false'} title="Rewrite this row every bar with an elementary automaton">
+                      CA
+                    </button>
+                    <select data-drum-rule={r} aria-label={`${v.name} automaton rule`}>
+                      {RULES.map((n) => <option value={n} selected={n === t.rule}>{n}</option>)}
+                    </select>
+                    <button type="button" class="trk__toggle trk__toggle--mute" data-drum-mute={r} aria-pressed={t.mute ? 'true' : 'false'}>M</button>
+                  </div>
+                </div>
+              );
+            })
+          }
+        </div>
+
+        <div class="tamburo__studio">
+          <span class="tamburo__section mono">studio</span>
+          <Knob bind="global.drive" label="drive" value={DEFAULT.global.drive} />
+          <Knob bind="global.tone" label="tone" value={DEFAULT.global.tone} />
+          <Knob bind="global.echo" label="echo" value={DEFAULT.global.echo} />
+          <Knob bind="global.time" label="time" value={DEFAULT.global.time} />
+          <Knob bind="global.wow" label="wow" value={DEFAULT.global.wow} />
+          <div class="tamburo__actions mono">
+            <button type="button" class="chip" data-drum-random title="Seed every row from Rule 30">rule 30 dice</button>
+            <button type="button" class="chip" data-drum-clear>clear</button>
+            <button type="button" class="chip" data-drum-share>copy share link</button>
+            <button type="button" class="chip" data-drum-feed aria-pressed="false" title="Every kick drops a glider into the background colony">feed the colony</button>
+          </div>
+        </div>
+      </div>
+      <div class="tamburo__cheek" aria-hidden="true"></div>
+    </div>
+
+    <article class="unveiled__chapter">
+      <p class="unveiled__num mono">how to play</p>
+      <div class="unveiled__text">
+        <p>
+          Press <kbd>space</kbd> or the brass plate to start. Touch a plate to light a step. Keys <kbd>1</kbd>–<kbd>6</kbd>
+          audition the voices. <b>chance</b> makes a lit step sometimes stay silent, and <b>roll</b> splits it into up to four
+          decaying hits. Switch on <b>CA</b> and the row becomes an elementary cellular automaton on a ring of eight cells: at every
+          bar line its rule rewrites it. With only 2<sup>8</sup> possible rows, every automaton groove must eventually repeat, and
+          finding its cycle takes polynomial time. That's why the stamp says <a href="/archive/#P">P</a>.
+        </p>
+        <p>
+          The studio strip is a small tape machine: <b>drive</b> saturates, <b>tone</b> closes a lowpass, and <b>echo</b> feeds a
+          delay whose speed wobbles under two slow oscillators (<b>wow</b> and flutter), darkening with every repeat.
+        </p>
+        <p class="mono logic__provenance">
+          In homage to Peter Blasser's Ciat-Lonbarde instruments (touch plates, paper circuits, rhythms that drift rather than
+          loop) and to Giorgio Sancristoforo's software studios, which bring the electronic studio's oscillators, filters and tape
+          into the computer. Nothing here is affiliated with either.
+        </p>
+      </div>
+    </article>
+  </section>
+  <script>
+    import { mountDrums } from '../lib/drums/ui';
+    document.addEventListener('astro:page-load', mountDrums);
+  </script>
+</Base>

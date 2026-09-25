@@ -1,0 +1,42 @@
+---
+/**
+ * An engraved studio knob. Drag vertically, scroll, or use the arrow keys.
+ * `bind` names the state field it drives, e.g. "global.bpm" or "track.2.tune".
+ */
+interface Props {
+  bind: string;
+  label: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  value: number;
+  size?: 'sm' | 'md' | 'lg';
+  format?: 'pct' | 'int' | 'bpm' | 'roll';
+}
+const { bind, label, min = 0, max = 1, step = 0.01, value, size = 'md', format = 'pct' } = Astro.props;
+const ticks = [...Array(11).keys()].map((i) => -135 + i * 27);
+---
+
+<div
+  class={`knob knob--${size}`}
+  role="slider"
+  tabindex="0"
+  aria-label={label}
+  aria-valuemin={min}
+  aria-valuemax={max}
+  aria-valuenow={value}
+  data-knob={bind}
+  data-min={min}
+  data-max={max}
+  data-step={step}
+  data-format={format}
+>
+  <svg viewBox="-50 -50 100 100" aria-hidden="true">
+    {ticks.map((a) => <line class="knob__tick" x1="0" y1="-44" x2="0" y2="-38" transform={`rotate(${a})`} />)}
+    <circle class="knob__skirt" r="34" />
+    <circle class="knob__cap" r="26" />
+    <line class="knob__pointer" x1="0" y1="-8" x2="0" y2="-30" />
+  </svg>
+  <span class="knob__label mono">{label}</span>
+  <span class="knob__value mono" data-knob-value></span>
+</div>

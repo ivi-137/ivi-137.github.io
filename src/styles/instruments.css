@@ -1757,3 +1757,425 @@ main,
   width: 100%;
   min-width: 0;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Tamburo 8: wood cheeks, paper face, brass touch plates, engraved knobs
+   ══════════════════════════════════════════════════════════════════════════ */
+.drums {
+  --brass: #c9a24a;
+  --brass-hi: #ecd28a;
+  --brass-lo: #7a5c1c;
+  --wood: #6b3f1d;
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 0 var(--gutter) 10vh;
+}
+.drums__head {
+  position: relative;
+}
+.drums__head > .stamp {
+  position: absolute;
+  right: 0;
+  top: 22vh;
+  rotate: 8deg;
+}
+.tamburo {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 26px;
+  filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.75));
+  user-select: none;
+}
+.tamburo__cheek {
+  border-radius: 10px;
+  background:
+    repeating-linear-gradient(92deg, rgba(0, 0, 0, 0.18) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(88deg, rgba(255, 220, 170, 0.08) 0 1px, transparent 1px 13px),
+    linear-gradient(180deg, #7d4a22, var(--wood) 40%, #4e2c12);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4), inset 3px 0 6px rgba(255, 210, 160, 0.15);
+}
+.tamburo__face {
+  position: relative;
+  padding: 18px clamp(12px, 2.4vw, 30px) 22px;
+  color: var(--ink);
+  background: var(--paper);
+  background-image: var(--fibres);
+  overflow-x: auto;
+}
+.tamburo__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 26px;
+  padding-bottom: 14px;
+  border-bottom: 1.5px solid var(--ink);
+}
+.tamburo__brand {
+  display: grid;
+  gap: 2px;
+  margin-right: auto;
+}
+.tamburo__logo {
+  font: italic 400 2.4rem/1 var(--f-display);
+  letter-spacing: -0.01em;
+}
+.tamburo__brand .mono {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.tamburo__play {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.tamburo__play svg,
+.pad svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.tamburo__play path {
+  fill: var(--brass);
+  stroke: var(--ink);
+  stroke-width: 2;
+  filter: drop-shadow(0 3px 0 var(--brass-lo));
+}
+.tamburo__play span {
+  position: relative;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.tamburo__play[aria-pressed='true'] path {
+  fill: var(--acid);
+}
+.tamburo__scope {
+  width: min(260px, 100%);
+  height: 70px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  background:
+    linear-gradient(rgba(22, 20, 15, 0.08) 1px, transparent 1px) 0 0 / 100% 17.5px,
+    linear-gradient(90deg, rgba(22, 20, 15, 0.08) 1px, transparent 1px) 0 0 / 26px 100%,
+    var(--paper-2);
+}
+
+/* knobs */
+.knob {
+  --a: -135deg;
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 64px;
+  cursor: ns-resize;
+  touch-action: none;
+  outline: none;
+}
+.knob--lg {
+  width: 84px;
+}
+.knob--sm {
+  width: 44px;
+}
+.knob svg {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: visible;
+}
+.knob__tick {
+  stroke: var(--ink);
+  stroke-width: 2.2;
+}
+.knob__skirt {
+  fill: var(--ink);
+}
+.knob__cap {
+  fill: var(--paper);
+  stroke: rgba(22, 20, 15, 0.35);
+  stroke-width: 1;
+}
+.knob__pointer {
+  stroke: var(--c-exp);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.knob:focus-visible .knob__skirt,
+.knob.is-turning .knob__skirt {
+  fill: var(--cobalt);
+}
+.knob__label {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.knob__value {
+  font-size: 10px;
+  color: var(--ink-2);
+  min-height: 1em;
+}
+.knob--sm .knob__label {
+  font-size: 8.5px;
+}
+
+/* step LEDs */
+.tamburo__leds,
+.trk {
+  display: grid;
+  grid-template-columns: 7.5rem repeat(8, minmax(44px, 1fr)) auto auto;
+  align-items: center;
+  column-gap: 8px;
+  min-width: 980px;
+}
+.tamburo__leds {
+  margin: 14px 0 4px;
+  grid-template-columns: 7.5rem repeat(8, minmax(44px, 1fr)) 1fr;
+}
+.tamburo__leds i {
+  justify-self: center;
+  width: 26px;
+  height: 14px;
+  font: 600 9px/14px var(--f-mono);
+  text-align: center;
+  font-style: normal;
+  color: var(--ink-2);
+  border: 1.5px solid var(--ink);
+  border-radius: 7px;
+  background: var(--paper-2);
+  transition: background 0.05s;
+}
+.tamburo__leds i.is-on {
+  background: var(--verm);
+  color: var(--paper);
+  box-shadow: 0 0 12px var(--verm);
+}
+
+/* tracks */
+.tamburo__rows {
+  display: grid;
+  gap: 4px;
+}
+.trk {
+  position: relative;
+  padding: 6px 0;
+}
+.trk__trace {
+  position: absolute;
+  left: 7.5rem;
+  right: 330px;
+  top: 50%;
+  height: 20px;
+  translate: 0 -50%;
+  width: calc(100% - 7.5rem - 330px);
+  pointer-events: none;
+}
+.trk__trace path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.4;
+  opacity: 0.45;
+  vector-effect: non-scaling-stroke;
+}
+.trk__name {
+  display: grid;
+  justify-items: start;
+  gap: 1px;
+  padding: 4px 0;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.trk__name b {
+  font: italic 400 1.45rem/1 var(--f-display);
+}
+.trk__name span {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.trk__name:hover b {
+  color: var(--c-exp);
+}
+.trk__pads {
+  display: contents;
+}
+.pad {
+  position: relative;
+  justify-self: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.pad path {
+  fill: var(--paper-2);
+  stroke: var(--ink);
+  stroke-width: 2.2;
+  transition: fill 0.08s;
+}
+.pad[aria-pressed='true'] path {
+  fill: var(--brass);
+  filter: drop-shadow(0 2px 0 var(--brass-lo));
+}
+.pad.is-col path {
+  stroke: var(--verm);
+  stroke-width: 3.2;
+}
+.pad.is-hit path {
+  animation: plate-hit 0.22s ease-out;
+}
+@keyframes plate-hit {
+  0% {
+    fill: var(--acid);
+  }
+}
+.pad:hover path {
+  stroke-width: 3;
+}
+.pad:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 2px;
+}
+.trk__knobs {
+  display: flex;
+  gap: 4px;
+  padding-left: 12px;
+  border-left: 1.5px dashed rgba(22, 20, 15, 0.35);
+}
+.trk__ca {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+}
+.trk__toggle {
+  width: 30px;
+  height: 26px;
+  font: 600 10px var(--f-mono);
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--paper-2);
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+}
+.trk__toggle[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--acid);
+}
+.trk__toggle--mute[aria-pressed='true'] {
+  color: var(--verm);
+}
+.trk__ca select {
+  font: 11px var(--f-mono);
+  padding: 4px;
+  color: var(--ink);
+  background: var(--paper-2);
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+}
+
+/* studio strip */
+.tamburo__studio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 22px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1.5px solid var(--ink);
+}
+.tamburo__section {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+  color: var(--ink-2);
+}
+.tamburo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+.tamburo .chip {
+  color: var(--ink);
+}
+.tamburo .chip[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--acid);
+}
+@media (max-width: 760px) {
+  .drums__head > .stamp {
+    position: static;
+    display: inline-flex;
+    margin-top: 1rem;
+    rotate: -4deg;
+  }
+  .tamburo {
+    grid-template-columns: 10px minmax(0, 1fr) 10px;
+  }
+}
+
+/* Tamburo on narrow screens: name, then the eight plates across, then the knobs */
+@media (max-width: 1100px) {
+  .tamburo__leds,
+  .trk {
+    min-width: 0;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    column-gap: 4px;
+  }
+  .tamburo__leds > span {
+    display: none;
+  }
+  .trk {
+    row-gap: 6px;
+    padding: 10px 0 14px;
+    border-bottom: 1px dashed rgba(22, 20, 15, 0.3);
+  }
+  .trk__name {
+    grid-column: 1 / -1;
+    grid-template-columns: auto auto;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .pad {
+    width: 100%;
+    max-width: 52px;
+    height: auto;
+    aspect-ratio: 1;
+  }
+  .trk__knobs,
+  .trk__ca {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    border-left: 0;
+    padding-left: 0;
+  }
+  .trk__knobs {
+    justify-content: space-between;
+  }
+  .trk__trace {
+    display: none;
+  }
+  .tamburo__leds i {
+    width: 100%;
+    max-width: 26px;
+  }
+}

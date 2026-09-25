@@ -58,6 +58,7 @@ Plain HTML in any Markdown post becomes an interactive figure:
 | **Continuous CA** (Lab tabs) | Lenia and SmoothLife on WebGPU compute shaders (WGSL), WebGL2 float-texture fallback |
 | **Homeostat** (⟲ in the HUD) | Second-order loop: your input entropy (H_you) sets the colony's target variety (Ashby's Law); tempo, perturbation and vividness are the actuators |
 | **Taxonomy for tools** | Every instrument is filed P / NP / PSPACE / EXP / RE with the complexity fact that puts it there (`src/lib/classes.ts`) |
+| **Tamburo 8** `/drums/` | 8-step, 6-voice synthesized drum machine; rows can evolve by elementary CA rules each bar; chance, ratchets, tape echo with wow/flutter; share links |
 | **Sound** | Press **M**: a scanline sonifies the colony (births → pentatonic notes) |
 | **Shortcuts** | **?** for the sheet; **J/K** next/previous post; **G** then **H/Z/L/A/N** to jump |
 | **Offline** | Installable PWA; pages you've read work offline |
