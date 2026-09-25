@@ -1,0 +1,25 @@
+---
+import Base from './Base.astro';
+
+interface Props {
+  frontmatter?: { title: string; description?: string; kicker?: string };
+  title?: string;
+  description?: string;
+  kicker?: string;
+}
+const fm = Astro.props.frontmatter ?? Astro.props;
+---
+
+<Base title={fm.title} description={fm.description}>
+  <article class="sheet-wrap">
+    <div class="sheet torn">
+      <header class="sheet__head">
+        <p class="kicker mono" data-decode>{fm.kicker ?? 'document'}</p>
+        <h1 class="sheet__title">{fm.title}</h1>
+      </header>
+      <div class="prose">
+        <slot />
+      </div>
+    </div>
+  </article>
+</Base>

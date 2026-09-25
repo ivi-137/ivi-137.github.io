@@ -1,0 +1,19 @@
+---
+import { SITE } from '../lib/site';
+---
+
+<footer class="colophon">
+  <div class="colophon__row">
+    <p class="colophon__claim">
+      Everything moving behind this page is a cellular automaton, computed on your GPU as you read. Nothing here is a video.
+    </p>
+    <ul class="colophon__links mono">
+      <li><a href="/rss.xml">RSS</a></li>
+      <li><a href={`https://github.com/${SITE.github}`}>GitHub</a></li>
+      <li><a href="/archive/">Zoo</a></li>
+    </ul>
+  </div>
+  <p class="colophon__fine mono">
+    © {new Date().getFullYear()} {SITE.author} · Rule 137 ≅ Rule 110 · does this page halt? undecidable
+  </p>
+</footer>

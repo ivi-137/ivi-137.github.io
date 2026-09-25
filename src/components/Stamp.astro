@@ -1,0 +1,15 @@
+---
+import { classById, type ClassId } from '../lib/classes';
+
+interface Props {
+  id: ClassId;
+  link?: boolean;
+}
+const { id, link = true } = Astro.props;
+const c = classById(id);
+const Tag = link ? 'a' : 'span';
+---
+
+<Tag class={`stamp stamp--${id.toLowerCase()}`} href={link ? `/archive/#${id}` : undefined} title={c.blurb}>
+  <span class="stamp__id">{c.id}</span><span class="stamp__label">{c.label}</span>
+</Tag>

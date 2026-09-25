@@ -1,0 +1,21 @@
+---
+import { SITE } from '../lib/site';
+import Sigil from './Sigil.astro';
+
+const path = Astro.url.pathname;
+const links = [
+  { href: '/archive/', label: 'Zoo' },
+  { href: '/about/', label: 'About' },
+  { href: '/rss.xml', label: 'RSS' },
+];
+---
+
+<header class="masthead">
+  <a class="brand" href="/" aria-label={`${SITE.title}, home`}>
+    <Sigil class="brand__sigil" seed="ivi-137" rule={137} cols={40} rows={14} animate="always" ink="acid" persist="brand-sigil" />
+    <span class="brand__name">{SITE.title}</span>
+  </a>
+  <nav class="nav" aria-label="Primary">
+    {links.map((l) => <a href={l.href} aria-current={path.startsWith(l.href) ? 'page' : undefined}>{l.label}</a>)}
+  </nav>
+</header>

@@ -1,0 +1,69 @@
+---
+import 'katex/dist/katex.min.css';
+import Base from './Base.astro';
+import Sigil from '../components/Sigil.astro';
+import Stamp from '../components/Stamp.astro';
+import { classById } from '../lib/classes';
+import { catalogue, postUrl, readingMinutes, type Post } from '../lib/posts';
+import { ruleFor } from '../lib/sigil';
+
+interface Props {
+  post: Post;
+  prev?: Post;
+  next?: Post;
+}
+const { post, prev, next } = Astro.props;
+const { title, description, date, class: cls, rule } = post.data;
+const c = classById(cls);
+const sigilRule = ruleFor(title, rule);
+---
+
+<Base title={title} description={description} article={{ published: date }} image={`/og/${post.id}.png`} bodyClass="is-post">
+  <div class="progress" aria-hidden="true"><span data-progress></span></div>
+  <article class="sheet-wrap post" data-class={cls}>
+    <div class="sheet torn" data-tear="9">
+      <Sigil class="post__sigil" seed={title} rule={rule} cols={240} rows={60} animate="always" ink="acid" />
+      <header class="sheet__head">
+        <p class="kicker mono">
+          <span>Transmission {catalogue(post.number)}</span>
+          <time datetime={date.toISOString()}>
+            {date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })}
+          </time>
+          <span>{readingMinutes(post.body)} min</span>
+          <span title="The elementary cellular automaton drawn above">sigil · rule {sigilRule}</span>
+        </p>
+        <h1 class="sheet__title" transition:name={`title-${post.id}`}>{title}</h1>
+        <p class="sheet__dek">{description}</p>
+        <Stamp id={cls} />
+      </header>
+      <div class="prose">
+        <slot />
+      </div>
+      <footer class="post__foot">
+        <p class="post__class mono">
+          Filed under <a href={`/archive/#${c.id}`}>{c.id}</a>: {c.blurb}
+        </p>
+        <nav class="pager" aria-label="More transmissions">
+          {
+            prev ? (
+              <a class="pager__prev" href={postUrl(prev)}>
+                <span class="mono">← earlier</span>
+                {prev.data.title}
+              </a>
+            ) : (
+              <span />
+            )
+          }
+          {
+            next && (
+              <a class="pager__next" href={postUrl(next)}>
+                <span class="mono">later →</span>
+                {next.data.title}
+              </a>
+            )
+          }
+        </nav>
+      </footer>
+    </div>
+  </article>
+</Base>

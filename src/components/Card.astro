@@ -1,0 +1,28 @@
+---
+import Sigil from './Sigil.astro';
+import Stamp from './Stamp.astro';
+import { catalogue, postUrl, type Post } from '../lib/posts';
+
+interface Props {
+  post: Post;
+  tilt?: number;
+  feature?: boolean;
+}
+const { post, tilt = 0, feature = false } = Astro.props;
+const { title, description, date, class: cls, rule } = post.data;
+---
+
+<article class:list={['card', { 'card--feature': feature }]} data-class={cls} style={`--tilt:${tilt}deg`}>
+  <a class="card__link torn" href={postUrl(post)}>
+    <Sigil class="card__sigil" seed={title} rule={rule} cols={feature ? 180 : 96} rows={feature ? 44 : 30} animate="hover" />
+    <div class="card__body">
+      <p class="card__meta mono">
+        <span>{catalogue(post.number)}</span>
+        <time datetime={date.toISOString()}>{date.toISOString().slice(0, 10).replaceAll('-', '.')}</time>
+      </p>
+      <h3 class="card__title" transition:name={`title-${post.id}`}>{title}</h3>
+      <p class="card__excerpt">{description}</p>
+    </div>
+  </a>
+  <Stamp id={cls} />
+</article>

@@ -1,0 +1,78 @@
+---
+import Base from '../layouts/Base.astro';
+import Card from '../components/Card.astro';
+import Zoo from '../components/Zoo.astro';
+import { SITE } from '../lib/site';
+import { getPosts } from '../lib/posts';
+
+const posts = await getPosts();
+const latest = posts.slice(0, 9);
+const TILTS = [-1.4, 1.1, -0.6, 1.7, -1.2, 0.7, -1.9, 1.3, -0.4];
+---
+
+<Base lifeMode="hero" lifeSeed="137" bodyClass="home">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero__collage" data-parallax>
+      <div class="cut cut--disc" data-depth="0.6" aria-hidden="true"></div>
+      <div class="cut cut--bar" data-depth="0.25" aria-hidden="true"></div>
+
+      <h1 id="hero-title" class="hero__title" data-depth="0.1">
+        <span class="hero__word" aria-label={SITE.title}>
+          {[...SITE.title].map((ch, i) => <span class:list={['ch', { 'ch--em': i === 1 }]} aria-hidden="true">{ch}</span>)}
+        </span>
+      </h1>
+
+      <p class="cut cut--strip mono" data-depth="0.35" data-decode data-decode-delay="0.9">{SITE.tagline}</p>
+
+      <div class="cut cut--card torn" data-depth="0.5">
+        <p class="mono cut--card__head"><span>Specimen</span><span>ivi-137</span></p>
+        <p>
+          Rule 137 is Rule 110 with black and white swapped: an automaton defined by eight bits that can compute <em>anything computable</em>.
+        </p>
+        <p class="mono cut--card__foot"><a href="/posts/rule-137/">Class IV · Turing-complete →</a></p>
+      </div>
+    </div>
+
+    <p class="hero__hint mono" aria-hidden="true">
+      <span>click · glider</span>
+      <span>shift-click · glider gun</span>
+      <span>drag · paint</span>
+      <span>P · pause</span>
+      <span>1–4 · rules</span>
+    </p>
+    <a class="hero__down mono" href="#transmissions">transmissions ↓</a>
+  </section>
+
+  <section id="transmissions" class="transmissions" aria-labelledby="tx-title">
+    <header class="section-head">
+      <h2 id="tx-title" class="section-head__title">Latest <em>transmissions</em></h2>
+      <p class="section-head__aside mono">{posts.length} received · decoding ongoing</p>
+    </header>
+    <div class="collage-grid">
+      {latest.map((post, i) => <Card post={post} tilt={TILTS[i % TILTS.length]} feature={i === 0} />)}
+    </div>
+    {
+      posts.length > latest.length && (
+        <p class="more">
+          <a class="button" href="/archive/">
+            All {posts.length} transmissions →
+          </a>
+        </p>
+      )
+    }
+  </section>
+
+  <section class="zoo-teaser" aria-labelledby="zoo-title">
+    <div class="zoo-teaser__text">
+      <p class="kicker mono" data-decode>taxonomy</p>
+      <h2 id="zoo-title" class="section-head__title">The complexity <em>zoo</em></h2>
+      <p>
+        Posts here aren't sorted by tag. They're sorted by how hard they are to think through, using the nested classes of
+        computational complexity theory. Start in <b>P</b> if you want something quick. <b>RE</b> is where the questions may
+        never halt.
+      </p>
+      <p><a class="button" href="/archive/">Enter the zoo →</a></p>
+    </div>
+    <Zoo posts={posts} />
+  </section>
+</Base>

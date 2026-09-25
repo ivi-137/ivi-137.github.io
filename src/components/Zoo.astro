@@ -1,0 +1,44 @@
+---
+/**
+ * Nested-class diagram (P ⊆ NP ⊆ PSPACE ⊆ EXP ⊊ RE), bottom-aligned like the
+ * textbook figure. Each ring links to (or, on the archive, filters by) its class.
+ */
+import { CLASSES } from '../lib/classes';
+import type { Post } from '../lib/posts';
+
+interface Props {
+  posts: Post[];
+  interactive?: boolean;
+  caption?: string;
+}
+const { posts, interactive = false, caption } = Astro.props;
+
+const rings = CLASSES.map((c, i) => {
+  const rx = 70 + i * 55;
+  const ry = 45 + i * 35;
+  const cy = 392 - ry;
+  return { ...c, rx, ry, cy, ly: i === 0 ? cy + 6 : cy - ry + 26, count: posts.filter((p) => p.data.class === c.id).length };
+}).reverse();
+---
+
+<figure class:list={['zoo', { 'zoo--interactive': interactive }]}>
+  <svg class="zoo__svg" viewBox="0 0 600 400" role="group" aria-label="Complexity zoo: posts by class">
+    {
+      rings.map((r) => (
+        <a
+          class={`zoo__ring zoo__ring--${r.id.toLowerCase()}`}
+          href={`/archive/#${r.id}`}
+          data-zoo={r.id}
+          aria-label={`${r.id}, ${r.label}: ${r.count} posts`}
+        >
+          <ellipse cx="300" cy={r.cy} rx={r.rx} ry={r.ry} />
+          <text x="300" y={r.ly} text-anchor="middle">
+            <tspan class="zoo__name">{r.id}</tspan>
+            <tspan class="zoo__count" dx="8">{r.count}</tspan>
+          </text>
+        </a>
+      ))
+    }
+  </svg>
+  {caption && <figcaption class="mono">{caption}</figcaption>}
+</figure>

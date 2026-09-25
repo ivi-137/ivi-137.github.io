@@ -1,0 +1,15 @@
+<aside class="hud mono" data-hud hidden aria-label="Automaton instruments" transition:persist="hud">
+  <div class="hud__readout">
+    <span><b>GEN</b> <i data-hud-gen>000000</i></span>
+    <span><b>POP</b> <i data-hud-pop>0</i></span>
+    <span title="Density: fraction of live cells in view"><b>ρ</b> <i data-hud-rho>0</i></span>
+    <span title="Block entropy: Shannon entropy of 2×2 neighbourhoods, normalised. 0 = order, 1 = noise."
+      ><b>H</b> <i data-hud-h>0</i><span class="hud__meter" aria-hidden="true"></span></span
+    >
+  </div>
+  <div class="hud__controls">
+    <button type="button" data-hud-rule>B3/S23</button>
+    <button type="button" data-hud-pause aria-label="Pause automaton" title="Pause / run (P)">❚❚</button>
+    <button type="button" data-hud-reseed aria-label="Reseed" title="Reseed (R)">↻</button>
+  </div>
+</aside>

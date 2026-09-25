@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro';
+import Zoo from '../components/Zoo.astro';
+import Stamp from '../components/Stamp.astro';
+import Sigil from '../components/Sigil.astro';
+import { CLASSES } from '../lib/classes';
+import { catalogue, getPosts, postUrl } from '../lib/posts';
+
+const posts = await getPosts();
+---
+
+<Base title="The Complexity Zoo" description="Every transmission, filed by computational complexity class.">
+  <section class="zoo-page">
+    <header class="section-head section-head--page">
+      <p class="kicker mono" data-decode>archive · taxonomy</p>
+      <h1 class="section-head__title">The complexity <em>zoo</em></h1>
+      <p class="section-head__lede">Every transmission, filed by how hard it is to think through. Click a ring to filter.</p>
+    </header>
+
+    <div class="zoo-page__grid">
+      <Zoo posts={posts} interactive caption="P ⊆ NP ⊆ PSPACE ⊆ EXP ⊊ RE. Proving the first ⊆ strict (or not) is worth $1,000,000." />
+      <dl class="legend">
+        {
+          CLASSES.map((c) => (
+            <div class="legend__item" data-zoo-legend={c.id}>
+              <dt>
+                <Stamp id={c.id} link={false} />
+              </dt>
+              <dd>{c.blurb}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+
+    <div class="filterbar mono" role="status" aria-live="polite">
+      <span data-filter-label>Showing all {posts.length}</span>
+      <button type="button" class="linkish" data-filter-clear hidden>clear filter ×</button>
+    </div>
+
+    <ol class="ledger">
+      {
+        posts.map((post) => (
+          <li class="ledger__row" data-class={post.data.class}>
+            <span class="ledger__num mono">{catalogue(post.number)}</span>
+            <time class="ledger__date mono" datetime={post.data.date.toISOString()}>
+              {post.data.date.toISOString().slice(0, 10).replaceAll('-', '.')}
+            </time>
+            <a class="ledger__title" href={postUrl(post)} transition:name={`title-${post.id}`}>
+              {post.data.title}
+            </a>
+            <Sigil class="ledger__sigil" seed={post.data.title} rule={post.data.rule} cols={32} rows={7} ink="acid" />
+            <span class="ledger__class">
+              <Stamp id={post.data.class} link={false} />
+            </span>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+</Base>

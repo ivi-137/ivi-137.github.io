@@ -1,0 +1,36 @@
+---
+import { ruleFor } from '../lib/sigil';
+
+interface Props {
+  seed: string;
+  rule?: number;
+  cols?: number;
+  rows?: number;
+  animate?: 'none' | 'hover' | 'always';
+  ink?: 'ink' | 'acid' | 'paper';
+  class?: string;
+  persist?: string;
+}
+const { seed, rule, cols = 96, rows = 40, animate = 'none', ink = 'ink', class: cls = '', persist } = Astro.props;
+const used = ruleFor(seed, rule);
+const attrs = {
+  'data-sigil': '',
+  'data-seed': seed,
+  'data-rule': used,
+  'data-cols': cols,
+  'data-rows': rows,
+  'data-animate': animate,
+  'data-ink': ink,
+  width: cols * 4,
+  height: rows * 4,
+  'aria-hidden': 'true' as const,
+};
+---
+
+{
+  persist ? (
+    <canvas class:list={['sigil', cls]} {...attrs} transition:persist={persist} />
+  ) : (
+    <canvas class:list={['sigil', cls]} {...attrs} />
+  )
+}
