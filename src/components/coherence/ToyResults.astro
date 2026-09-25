@@ -7,7 +7,7 @@ import summary from '../../../research/coherence/results/summary.json';
 import hazards from '../../../research/coherence/results/hazards.json';
 
 interface Props {
-  chart: 'bars' | 'bylen' | 'hazard' | 'rising' | 'attention' | 'monitors' | 'cost';
+  chart: 'bars' | 'bylen' | 'hazard' | 'rising' | 'attention' | 'monitors' | 'cost' | 'placement';
   caption?: string;
 }
 const { chart, caption } = Astro.props;
@@ -24,7 +24,19 @@ const NAME: Record<string, string> = {
   base_frame: 'baseline + frame',
   ledger_frame: 'Ledger + frame',
   ledger_frame_evict: 'Ledger + frame, examples dropped',
+  ledger_pre: 'Ledger read before attention',
+  ledger_top: 'Ledger read in the top layer only',
+  ledger_film: 'Ledger as modulation',
+  ledger_logit: 'Ledger on the logits only',
 };
+const PLACES: [string, string][] = [
+  ['ledger_joint', 'before: in the context'],
+  ['ledger_pre', 'inside, before attention'],
+  ['ledger', 'inside, after attention'],
+  ['ledger_top', 'inside, top layer only'],
+  ['ledger_film', 'inside, as modulation'],
+  ['ledger_logit', 'after: logits only'],
+];
 const COLOR: Record<string, string> = {
   base: 'var(--c-exp)',
   base_aux: 'var(--violet)',
@@ -79,7 +91,32 @@ const baseCost = V.base?.macs_per_token;
 ---
 
 {
-  chart === 'cost' ? (
+  chart === 'placement' ? (
+    <table class="cx-table">
+      <thead>
+        <tr>
+          <th>where</th>
+          <th>coherent</th>
+          <th>why-section</th>
+          <th>sources last</th>
+          <th>length</th>
+          <th>Ledger operations per token</th>
+        </tr>
+      </thead>
+      <tbody>
+        {PLACES.filter(([v]) => V[v]).map(([v, where]) => (
+          <tr>
+            <td>{where}</td>
+            <td>{pct(V[v].all.coherent.mean)}{V[v].seeds > 1 ? <small> ({pct(V[v].all.coherent.min)}–{pct(V[v].all.coherent.max)})</small> : null}</td>
+            <td>{pct(V[v].all.why.mean)}</td>
+            <td>{pct(V[v].all.sources.mean)}</td>
+            <td>{pct(V[v].all.length.mean)}</td>
+            <td>{kmacs(V[v].macs_per_token.ledger)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ) : chart === 'cost' ? (
     <table class="cx-table">
       <thead>
         <tr>

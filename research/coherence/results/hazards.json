@@ -1,39 +1,39 @@
 {
  "base": {
   "font": {
-   "breaks": 25,
-   "opportunities": 2827,
-   "hazard": 0.008843296781039971,
+   "breaks": 43,
+   "opportunities": 5712,
+   "hazard": 0.007528011204481793,
    "ci": [
-    0.005997138630984743,
-    0.013022505562459354
+    0.0055938248684009595,
+    0.010124175434476575
    ]
   },
   "heading": {
-   "breaks": 5,
-   "opportunities": 1083,
-   "hazard": 0.0046168051708217915,
+   "breaks": 7,
+   "opportunities": 2130,
+   "hazard": 0.0032863849765258214,
    "ci": [
-    0.0019735578614048007,
-    0.01076206065006918
+    0.0015928159144840159,
+    0.006768442015814089
    ]
   },
   "math": {
-   "breaks": 17,
-   "opportunities": 388,
-   "hazard": 0.04381443298969072,
+   "breaks": 32,
+   "opportunities": 808,
+   "hazard": 0.039603960396039604,
    "ci": [
-    0.02753265675387526,
-    0.0690410607891319
+    0.028191048758622987,
+    0.05537402107766034
    ]
   },
   "coherent": {
-   "k": 232,
-   "n": 300,
-   "rate": 0.7733333333333333,
+   "k": 483,
+   "n": 600,
+   "rate": 0.805,
    "ci": [
-    0.7226736931316665,
-    0.8170812318029047
+    0.7713984417486244,
+    0.8347207789211673
    ]
   },
   "font_by_paragraph": [
@@ -41,32 +41,32 @@
     "from": 1,
     "to": 1,
     "hazard": 0.0,
-    "at_risk": 300,
+    "at_risk": 600,
     "breaks": 0
    },
    {
     "from": 2,
     "to": 4,
-    "hazard": 0.006888633754305396,
-    "at_risk": 871,
-    "breaks": 6
+    "hazard": 0.005145797598627788,
+    "at_risk": 1749,
+    "breaks": 9
    },
    {
     "from": 5,
     "to": 8,
-    "hazard": 0.010380622837370242,
-    "at_risk": 867,
-    "breaks": 9
+    "hazard": 0.010850942318675044,
+    "at_risk": 1751,
+    "breaks": 19
    },
    {
     "from": 9,
     "to": 16,
-    "hazard": 0.01174934725848564,
-    "at_risk": 766,
-    "breaks": 9
+    "hazard": 0.008397932816537468,
+    "at_risk": 1548,
+    "breaks": 13
    }
   ],
-  "seeds": 1
+  "seeds": 2
  },
  "base_aux": {
   "font": {
@@ -214,6 +214,231 @@
     "hazard": 0.004750593824228029,
     "at_risk": 842,
     "breaks": 4
+   }
+  ],
+  "seeds": 1
+ },
+ "ledger_frame": {
+  "font": {
+   "breaks": 0,
+   "opportunities": 3006,
+   "hazard": 0.0,
+   "ci": [
+    0.0,
+    0.0012763462369581174
+   ]
+  },
+  "heading": {
+   "breaks": 0,
+   "opportunities": 1069,
+   "hazard": 0.0,
+   "ci": [
+    0.0,
+    0.003580770917160558
+   ]
+  },
+  "math": {
+   "breaks": 0,
+   "opportunities": 451,
+   "hazard": 0.0,
+   "ci": [
+    0.0,
+    0.008446017250840732
+   ]
+  },
+  "coherent": {
+   "k": 285,
+   "n": 300,
+   "rate": 0.95,
+   "ci": [
+    0.9191522802928904,
+    0.9694686327091473
+   ]
+  },
+  "vs_base": {
+   "pairs": 300,
+   "only_this": 44,
+   "only_base": 10,
+   "p": 3.385685953372075e-06
+  },
+  "font_by_paragraph": [
+   {
+    "from": 1,
+    "to": 1,
+    "hazard": 0.0,
+    "at_risk": 300,
+    "breaks": 0
+   },
+   {
+    "from": 2,
+    "to": 4,
+    "hazard": 0.0,
+    "at_risk": 900,
+    "breaks": 0
+   },
+   {
+    "from": 5,
+    "to": 8,
+    "hazard": 0.0,
+    "at_risk": 902,
+    "breaks": 0
+   },
+   {
+    "from": 9,
+    "to": 16,
+    "hazard": 0.0,
+    "at_risk": 902,
+    "breaks": 0
+   }
+  ],
+  "seeds": 1
+ },
+ "ledger_frame_evict": {
+  "font": {
+   "breaks": 0,
+   "opportunities": 3007,
+   "hazard": 0.0,
+   "ci": [
+    0.0,
+    0.0012759223201911384
+   ]
+  },
+  "heading": {
+   "breaks": 0,
+   "opportunities": 1076,
+   "hazard": 0.0,
+   "ci": [
+    0.0,
+    0.0035575588123295124
+   ]
+  },
+  "math": {
+   "breaks": 0,
+   "opportunities": 422,
+   "hazard": 0.0,
+   "ci": [
+    0.0,
+    0.009021194735319423
+   ]
+  },
+  "coherent": {
+   "k": 281,
+   "n": 300,
+   "rate": 0.9366666666666666,
+   "ci": [
+    0.9032079605174259,
+    0.9590834439512181
+   ]
+  },
+  "vs_base": {
+   "pairs": 300,
+   "only_this": 59,
+   "only_base": 10,
+   "p": 1.3765197153783534e-09
+  },
+  "font_by_paragraph": [
+   {
+    "from": 1,
+    "to": 1,
+    "hazard": 0.0,
+    "at_risk": 300,
+    "breaks": 0
+   },
+   {
+    "from": 2,
+    "to": 4,
+    "hazard": 0.0,
+    "at_risk": 900,
+    "breaks": 0
+   },
+   {
+    "from": 5,
+    "to": 8,
+    "hazard": 0.0,
+    "at_risk": 904,
+    "breaks": 0
+   },
+   {
+    "from": 9,
+    "to": 16,
+    "hazard": 0.0,
+    "at_risk": 903,
+    "breaks": 0
+   }
+  ],
+  "seeds": 1
+ },
+ "ledger_joint": {
+  "font": {
+   "breaks": 21,
+   "opportunities": 2908,
+   "hazard": 0.007221458046767538,
+   "ci": [
+    0.004728152660317819,
+    0.011015011390913538
+   ]
+  },
+  "heading": {
+   "breaks": 4,
+   "opportunities": 1100,
+   "hazard": 0.0036363636363636364,
+   "ci": [
+    0.0014149690050072015,
+    0.009312657132656027
+   ]
+  },
+  "math": {
+   "breaks": 10,
+   "opportunities": 443,
+   "hazard": 0.022573363431151242,
+   "ci": [
+    0.012306587081470756,
+    0.04104923296751305
+   ]
+  },
+  "coherent": {
+   "k": 222,
+   "n": 300,
+   "rate": 0.74,
+   "ci": [
+    0.6875509670609357,
+    0.7863801865401512
+   ]
+  },
+  "vs_base": {
+   "pairs": 300,
+   "only_this": 31,
+   "only_base": 41,
+   "p": 0.28878428041410487
+  },
+  "font_by_paragraph": [
+   {
+    "from": 1,
+    "to": 1,
+    "hazard": 0.0,
+    "at_risk": 300,
+    "breaks": 0
+   },
+   {
+    "from": 2,
+    "to": 4,
+    "hazard": 0.004484304932735426,
+    "at_risk": 892,
+    "breaks": 4
+   },
+   {
+    "from": 5,
+    "to": 8,
+    "hazard": 0.009122006841505131,
+    "at_risk": 877,
+    "breaks": 8
+   },
+   {
+    "from": 9,
+    "to": 16,
+    "hazard": 0.01076555023923445,
+    "at_risk": 836,
+    "breaks": 9
    }
   ],
   "seeds": 1

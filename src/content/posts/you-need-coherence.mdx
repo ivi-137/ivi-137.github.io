@@ -15,7 +15,7 @@ import FrameDiagram from '../../components/coherence/FrameDiagram.astro';
 
 Ask a language model to read this notebook and write the next entry. It will get the topic right and the voice roughly right. Then, often somewhere around the fourth paragraph, a formula will appear between single dollar signs, although every formula here sits between two. A heading will arrive in Title Case. "Behaviour" will lose its u. And the post will stop one section early, without the sources that close this one. None of this is hard. Each is a promise the earlier posts made, and each gets broken anyway.
 
-This post is about that failure. I'll call the property it breaks *coherence*: a text is coherent when it keeps the commitments its context has made, from the first token to the last. The argument goes in seven steps:
+This post is about that failure. I'll call the property it breaks *coherence*: a text is coherent when it keeps the commitments its context has made, from the first token to the last. The argument goes in eight steps:
 
 1. **The machine.** The Transformer of "Attention is all you need", with its mathematics.
 2. **The evidence.** What published measurements say about how often models lose the thread.
@@ -23,7 +23,8 @@ This post is about that failure. I'll call the property it breaks *coherence*: a
 4. **Three mechanisms.** Dilution, compounding and premature stopping, each with a short proof.
 5. **An architecture.** The *Ledger*: a small block that can be inserted into a trained transformer without changing what it computes on the day it is inserted.
 6. **Symmetry.** Many conventions are choices among interchangeable variants. Group theory turns keeping them into something that cannot fail after one reading, and lets the model forget its examples.
-7. **An experiment.** A controlled toy, trained from scratch several times over, small enough to run live on this page.
+7. **Placement.** Where in the transformer each kind of obligation should be enforced: before, inside, after, or across.
+8. **An experiment.** A controlled toy, trained from scratch several times over, small enough to run live on this page.
 
 Every measurement below is either quoted from a paper in the reading list at the end or produced by code that lives in this site's repository, under `research/coherence/`.
 
@@ -333,6 +334,35 @@ Two things become cheaper. First, once the clerk and the frame have read the exa
 
 There are limits. The group must act on the units the model writes: "colour" and "color" can be tokenised differently, and lower-casing a heading is not invertible, so not every convention is a permutation of tokens. And examples that carry content, such as voice, topic and facts, cannot be dropped wholesale; only their conventions can be factored out. Obligations with no symmetry, like "end with sources" or "write nine paragraphs", stay with the Ledger.
 
+## Where coherence belongs
+
+So far the Ledger has been read by attention in the upper layers, and the frame acts on the output. Is that the right place? A transformer offers several, and they are not equivalent.
+
+Start from the residual stream. Elhage and colleagues describe a transformer as a shared channel that every attention layer and feed-forward layer reads from and adds to; the logits read its final sum. So anything written into the stream at any depth reaches the output directly. What depends on the depth is what the rest of the network can do with it. From this, the options sort themselves.
+
+**Before: in the context.** Write the obligations as tokens in the prompt, as instructions and prefixes do. They then compete in the same softmax as everything else, which is the setting of Lemma 1, and with rotary positions they also sit ever further back: Su and colleagues showed that rotary attention decays with relative distance. The obligations are penalised twice, for the size of the crowd and for their distance from it. The shared-softmax variant of the Ledger is this placement.
+
+**Inside, before attention.** Add the Ledger's read to the stream just before a layer's attention. Queries and keys are computed from the stream, so attention in that same layer can use what is owed to decide what to look up: "sources are still owed" can become "find how the examples wrote their sources".
+
+**Inside, after attention.** Add the read after attention, as the Ledger has done so far. The feed-forward layer and the layers above can use it, but the attention of that layer has already chosen.
+
+**Inside, as modulation.** Skip attention altogether: let the ledger scale and shift the normalised stream, zero at insertion. Peebles and Xie compared these same options for conditioning diffusion transformers: tokens in the context, cross-attention, and zero-initialised adaptive layer norm. The last gave the best images at the lowest cost, and in-context tokens the worst.
+
+**After: at the output.** Bias the logits, gate $$\langle\text{eos}\rangle$$, or restrict the alphabet. This can veto or choose among tokens, and it is exact, but it cannot make the network retrieve or plan anything.
+
+**Across: along the sequence.** Attention is a way of looking things up; it keeps no state, and everything it knows about the past it must recompute at every step. The obligations of this post are regular languages, and the natural carrier of a regular language is a finite state updated as the text goes by. The Ledger's status is exactly that: a small recurrence along the positions, beside the attention rather than inside it.
+
+These give a rule. Act on an obligation at the lowest place where it can be both checked and acted on, and no lower:
+
+| obligation | where it breaks | where to act |
+|---|---|---|
+| a choice among interchangeable variants | one output token | after: restrict the alphabet (the frame) |
+| an eventuality or a count | the decision to stop | across: a status, and after: a gate on stopping |
+| an order, or anything that needs content retrieved | what is looked up next | inside, before attention |
+| voice, topic, facts | everywhere | inside, by ordinary attention |
+
+The experiment below tests the inside placements against each other, against the context, and against the output alone.
+
 ## An experiment
 
 A claim about architecture should be tested where everything else is held still. Frontier models can't be retrained here, so I built the smallest world that has the problem.
@@ -357,7 +387,9 @@ Nine variants, identical except for the parts under test: a 3-layer decoder with
 8. **Ledger + frame**: both.
 9. **Ledger + frame, examples dropped**: as 8, but written tokens may not attend to the example posts; only the clerk and the frame read them, so their keys and values can be discarded before writing begins.
 
-The baseline, the labelled baseline, the Ledger, the shared-softmax Ledger and the two Ledgers with a frame were each trained with three seeds; the other three variants with two. Each trained model wrote 300 posts, one for each of the same 300 prompts (two example posts each; 5 requested lengths, 60 authors each), sampled at temperature 1 so that the numbers describe the model's own distribution rather than a decoding trick.
+Four more variants move the Ledger and change nothing else: its read **before attention** in layers 2 and 3; its read in the **top layer only**; **modulation**, a zero-initialised scale and shift of every normalisation above the clerk, computed from the status of all slots; and **logits only**, a zero-initialised bias on the output computed the same way. Every one of them computes exactly the baseline's function at insertion (checked to 12 decimals), so any difference comes from training.
+
+The baseline, the labelled baseline, the Ledger, the shared-softmax Ledger and the two Ledgers with a frame were each trained with three seeds; every other variant with two. Each trained model wrote 300 posts, one for each of the same 300 prompts (two example posts each; 5 requested lengths, 60 authors each), sampled at temperature 1 so that the numbers describe the model's own distribution rather than a decoding trick.
 
 ### Results
 
@@ -366,6 +398,8 @@ The baseline, the labelled baseline, the Ledger, the shared-softmax Ledger and t
 <ToyResults chart="monitors" />
 
 <ToyResults chart="cost" />
+
+<ToyResults chart="placement" />
 
 <ToyResults chart="bylen" caption="Share of coherent posts against the number of paragraphs requested." />
 
@@ -428,6 +462,9 @@ Checking whether a draft keeps a set of obligations takes one pass of a few smal
 - Ken M. Nakanishi, "Scalable-Softmax Is Superior for Attention," arXiv:2501.19399 (2025).
 - Guangxuan Xiao, Yuandong Tian, Beidi Chen, Song Han, Mike Lewis, "Efficient Streaming Language Models with Attention Sinks," *ICLR* (2024).
 - Federico Barbero et al., "Transformers Need Glasses! Information Over-Squashing in Language Tasks," *NeurIPS* (2024).
+- Nelson Elhage et al., "A Mathematical Framework for Transformer Circuits," *Transformer Circuits Thread* (2021).
+- William Peebles, Saining Xie, "Scalable Diffusion Models with Transformers," *ICCV* (2023).
+- Jianlin Su et al., "RoFormer: Enhanced Transformer with Rotary Position Embedding," *Neurocomputing* 568 (2024).
 - Nouha Dziri et al., "Faith and Fate: Limits of Transformers on Compositionality," *NeurIPS* (2023).
 - Aman Madaan et al., "Self-Refine: Iterative Refinement with Self-Feedback," *NeurIPS* (2023).
 - Subbarao Kambhampati et al., "Position: LLMs Can't Plan, But Can Help Planning in LLM-Modulo Frameworks," *ICML* (2024).
