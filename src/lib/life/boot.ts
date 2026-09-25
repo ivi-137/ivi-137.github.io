@@ -7,7 +7,7 @@ import { Homeostat, type Reading } from './homeostat';
  * colony via <body data-life-mode data-life-seed>.
  */
 
-const INTERACTIVE = 'a, button, input, textarea, select, label, summary, dialog, [data-no-life], .sheet, .card, .hud, .cut--card, .chat, .overlays, [data-lab], [data-atlas], [data-network], [data-tamburo], [data-orfeo], .boons, [data-melencolia], [data-logic], [data-unveiled] canvas, .toc, .legend';
+const INTERACTIVE = 'a, button, input, textarea, select, label, summary, dialog, [data-no-life], .sheet, .card, .hud, .cut--card, .chat, .overlays, [data-lab], [data-atlas], [data-network], [data-tamburo], [data-stochos], [data-orfeo], .boons, [data-melencolia], [data-logic], [data-unveiled] canvas, .toc, .legend';
 
 let life: Life | null = null;
 

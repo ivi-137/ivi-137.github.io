@@ -1,0 +1,29 @@
+// node scripts/check-stochos.mts — checks the Stochos mathematics against known results
+import { sieve, euclid, fibonacciWord, logistic, CUBE_GROUP, nomosSequence, caStep } from '../src/lib/stochos/math.ts';
+import { smf } from '../src/lib/stochos/smf.ts';
+let fail = 0;
+const eq = (l: string, got: unknown, want: unknown) => {
+  const ok = JSON.stringify(got) === JSON.stringify(want);
+  if (!ok) fail++;
+  console.log(`${ok ? '✓' : '✗'} ${l}: ${JSON.stringify(got)}${ok ? '' : ` expected ${JSON.stringify(want)}`}`);
+};
+const on = (b: boolean[]) => b.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);
+eq('sieve major scale', on(sieve('12@0|12@2|12@4|12@5|12@7|12@9|12@11', 12)), [0, 2, 4, 5, 7, 9, 11]);
+eq('sieve 3@0 & ~4@0 over 12', on(sieve('3@0&~4@0', 12)), [3, 6, 9]);
+eq('sieve parentheses', on(sieve('(2@0|3@0)&~6@0', 12)), [2, 3, 4, 8, 9, 10]);
+eq('euclid tresillo', euclid(3, 8).map(Number).join(''), '10010010');
+eq('Fibonacci word', fibonacciWord(13).map(Number).join(''), '1011010110110');
+eq('cube rotation group has 24 elements', CUBE_GROUP.length, 24);
+eq('each element is a permutation of 8 vertices', CUBE_GROUP.every((p) => [...p].sort().join() === '0,1,2,3,4,5,6,7'), true);
+const key = (p: number[]) => p.join();
+const closed = CUBE_GROUP.every((a) => CUBE_GROUP.every((b) => CUBE_GROUP.some((c) => key(c) === key(a.map((_, i) => a[b[i]])))));
+eq('group is closed under composition', closed, true);
+eq('Nomos sequence stays in the group', nomosSequence(30).every((p) => CUBE_GROUP.some((c) => key(c) === key(p))), true);
+eq('logistic r=2.8 converges to 1−1/r', Math.abs(logistic(1, 2.8)[0] - (1 - 1 / 2.8)) < 1e-6, true);
+eq('logistic r=3.2 has period 2', (() => { const x = logistic(4, 3.2); return Math.abs(x[0] - x[2]) < 1e-6 && Math.abs(x[0] - x[1]) > 0.1; })(), true);
+eq('rule 90 on a ring', caStep([false, false, true, false, false], 90).map(Number).join(''), '01010');
+const bytes = smf([[{ tick: 0, data: [0x90, 60, 100] }, { tick: 96, data: [0x80, 60, 0] }]], 96, 120);
+eq('SMF header', [...bytes.slice(0, 14)], [77, 84, 104, 100, 0, 0, 0, 6, 0, 1, 0, 2, 0, 96]);
+eq('SMF track chunk tag', String.fromCharCode(...bytes.slice(14, 18)), 'MTrk');
+console.log(fail ? `${fail} FAILED` : 'all checks passed');
+process.exit(fail ? 1 : 0);

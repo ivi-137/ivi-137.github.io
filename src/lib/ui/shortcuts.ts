@@ -9,7 +9,7 @@ const typing = (t: EventTarget | null) => {
   return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 };
 
-const GOTO: Record<string, string> = { h: '/', z: '/archive/', l: '/lab/', a: '/atlas/', n: '/network/', b: '/about/', u: '/unveiled/', x: '/logic/', d: '/drums/', s: '/synth/', v: '/vocoder/' };
+const GOTO: Record<string, string> = { h: '/', z: '/archive/', l: '/lab/', a: '/atlas/', n: '/network/', b: '/about/', u: '/unveiled/', x: '/logic/', d: '/drums/', q: '/sequencer/', s: '/synth/', v: '/vocoder/' };
 const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 
 let sound: Sonifier | null = null;

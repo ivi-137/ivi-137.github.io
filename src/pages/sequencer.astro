@@ -1,0 +1,189 @@
+---
+import Base from '../layouts/Base.astro';
+import Stamp from '../components/Stamp.astro';
+import { DISTS } from '../lib/stochos/math';
+const LANES = [['vel', 'velocity'], ['len', 'length'], ['prob', 'chance'], ['cond', 'condition'], ['micro', 'micro-timing'], ['cc', 'CC lock']];
+---
+
+<Base title="Stochos 64" description="A 64–128 step, eight-track MIDI sequencer with song mode, drawn like Xenakis's UPIC and driven by sieves, stochastic laws, group theory and cellular automata.">
+  <section class="stochos" data-stochos>
+    <header class="section-head section-head--page stochos__head">
+      <p class="kicker mono" data-decode>instrument · stochastic sequencer · MIDI</p>
+      <h1 class="section-head__title">Stochos <em>64</em></h1>
+      <p class="section-head__lede">
+        Eight tracks of up to 128 steps, a song arranger, and MIDI out to anything on your desktop. You draw on graph paper, as
+        on Xenakis's UPIC; the generators are the mathematics of <i>Formalized Music</i>.
+      </p>
+      <Stamp id="EXP" />
+    </header>
+
+    <div class="planche">
+      <!-- transport -->
+      <div class="st-bar mono">
+        <button type="button" class="st-play" data-play aria-pressed="false">▶ play</button>
+        <label>tempo <input type="number" min="30" max="300" data-bind="bpm" /></label>
+        <label>swing <input type="range" min="0" max="0.6" step="0.01" data-bind="swing" /></label>
+        <label>pattern length
+          <select data-bind="master">{[16, 32, 48, 64, 96, 128].map((n) => <option value={n}>{n}</option>)}</select>
+        </label>
+        <button type="button" class="chip" data-fill title="Hold, or hold F: FILL conditions play">fill</button>
+        <button type="button" class="chip" data-toggle="songMode">song mode</button>
+        <span class="st-bar__sep"></span>
+        <button type="button" class="chip" data-midi>connect MIDI</button>
+        <select data-midi-out hidden aria-label="MIDI output"></select>
+        <select data-midi-in hidden aria-label="MIDI input"></select>
+        <button type="button" class="chip" data-opt="clockOut" aria-pressed="true" title="Send MIDI clock and start/stop">clock out</button>
+        <button type="button" class="chip" data-opt="extClock" aria-pressed="false" title="Follow incoming MIDI clock">follow clock</button>
+        <button type="button" class="chip" data-opt="preview" aria-pressed="true" title="Hear a simple preview voice in the browser">preview sound</button>
+      </div>
+
+      <div class="st-main">
+        <!-- tracks -->
+        <ol class="st-tracks" data-tracks></ol>
+
+        <!-- UPIC page -->
+        <figure class="st-page">
+          <figcaption class="mono"><span>Fig. 1 · page</span><span data-page-info></span></figcaption>
+          <canvas data-page aria-label="Graph-paper score: time runs right, pitch up. Draw to write notes."></canvas>
+          <div class="st-lanes mono" role="tablist">
+            {LANES.map(([id, label], i) => <button type="button" role="tab" data-lane={id} aria-selected={i === 0 ? 'true' : 'false'}>{label}</button>)}
+            <span class="st-hint">drag to paint · click a condition to cycle it</span>
+          </div>
+          <canvas class="st-lanecv" data-lanecv aria-label="Parameter lane for the selected track"></canvas>
+          <p class="st-help mono">
+            draw: set notes along the stroke (UPIC) · shift-draw: erase · alt-draw: straight line (a Metastaseis glissando) · keys 1–8 track · space play · F fill · ctrl-Z undo
+          </p>
+        </figure>
+
+        <!-- generators -->
+        <aside class="st-gen" aria-label="Generators">
+          <p class="st-gen__title mono">Formalized music · generators for the selected track</p>
+          <details open>
+            <summary><b>Sieve</b> <span class="mono">Xenakis 1990</span></summary>
+            <p class="formula">S = (m₁@r₁ ∪ m₂@r₂ …) ∩ ¬(…)</p>
+            <input class="mono" data-g="sieveExpr" value="(8@0|8@3|8@6)|(5@2&~4@0)" spellcheck="false" aria-label="Rhythm sieve" />
+            <button type="button" class="chip" data-gen="sieve">write gates</button>
+            <input class="mono" data-g="pitchSieve" value="12@0|12@2|12@3|12@7|12@9" spellcheck="false" aria-label="Pitch sieve" />
+            <button type="button" class="chip" data-gen="pitchSieve">set pitch sieve</button>
+          </details>
+          <details>
+            <summary><b>Poisson cloud</b> <span class="mono">Achorripsis 1957</span></summary>
+            <p class="formula">P(k) = λᵏ e<sup>−λ</sup> / k! · pitch ~ law</p>
+            <label>λ per 16 <input type="range" min="0.5" max="16" step="0.5" value="5" data-g="lambda" /></label>
+            <label>law <select data-g="dist">{DISTS.map((d) => <option>{d}</option>)}</select></label>
+            <label>centre <input type="range" min="24" max="96" step="1" value="60" data-g="center" /></label>
+            <label>spread <input type="range" min="0" max="24" step="1" value="7" data-g="spread" /></label>
+            <button type="button" class="chip" data-gen="cloud">sow the cloud</button>
+          </details>
+          <details>
+            <summary><b>Brownian walk</b> <span class="mono">Mikka 1971</span></summary>
+            <p class="formula">xₙ₊₁ = xₙ + σ·N(0,1), elastic barriers</p>
+            <label>σ <input type="range" min="0.2" max="6" step="0.1" value="1.6" data-g="sigma" /></label>
+            <label>low <input type="range" min="24" max="96" value="48" data-g="lo" /></label>
+            <label>high <input type="range" min="24" max="108" value="72" data-g="hi" /></label>
+            <button type="button" class="chip" data-gen="walk">walk the pitches</button>
+          </details>
+          <details>
+            <summary><b>Euclid · golden word</b> <span class="mono">Toussaint 2005 · Sturm</span></summary>
+            <p class="formula">onset iff ⌊ik/n⌋ ≠ ⌊(i−1)k/n⌋ · sₖ = ⌊(k+2)/φ⌋−⌊(k+1)/φ⌋</p>
+            <label>hits <input type="range" min="0" max="32" value="5" data-g="k" /></label>
+            <label>rotate <input type="range" min="0" max="31" value="0" data-g="rot" /></label>
+            <button type="button" class="chip" data-gen="euclid">euclid</button>
+            <button type="button" class="chip" data-gen="fib">Fibonacci word</button>
+          </details>
+          <details>
+            <summary><b>Logistic map</b> <span class="mono">May 1976</span></summary>
+            <p class="formula">xₙ₊₁ = r·xₙ(1−xₙ)</p>
+            <label>r <input type="range" min="2.5" max="4" step="0.01" value="3.7" data-g="r" /></label>
+            <button type="button" class="chip" data-gen="logVel">velocities</button>
+            <button type="button" class="chip" data-gen="logProb">chances</button>
+          </details>
+          <details>
+            <summary><b>Markov chain</b> <span class="mono">Analogique 1959</span></summary>
+            <p class="formula">P(xₙ₊₁ | xₙ) learnt from the track</p>
+            <button type="button" class="chip" data-gen="markov">remix pitches</button>
+            <button type="button" class="chip" data-toggle="markovSong">stochastic song order</button>
+          </details>
+          <details>
+            <summary><b>Automaton · group</b> <span class="mono">Horos 1986 · Nomos Alpha 1966</span></summary>
+            <p class="formula">gates ← rule(gates) each loop · gₙ = gₙ₋₁∘gₙ₋₂ in the cube group</p>
+            <label>CA rule (0 off) <input type="number" min="0" max="255" value="0" data-g="caRule" /></label>
+            <button type="button" class="chip" data-gen="ca">set on track</button>
+            <button type="button" class="chip" data-toggle="nomos">Nomos: rotate tracks</button>
+          </details>
+          <p class="st-gen__foot mono">
+            <button type="button" class="chip" data-act="undo">undo</button>
+            <button type="button" class="chip" data-act="clearTrack">clear track</button>
+            <button type="button" class="chip" data-act="rec" aria-pressed="false" title="Notes from MIDI in or the keyboard fill steps in order">● step record</button>
+          </p>
+        </aside>
+      </div>
+
+      <!-- patterns + song -->
+      <div class="st-lower">
+        <section class="st-bank">
+          <p class="mono st-label">Patterns</p>
+          <div class="st-bank__grid" data-bank>
+            {[...Array(16).keys()].map((i) => <button type="button" data-pat={i}>{String(i + 1).padStart(2, '0')}</button>)}
+          </div>
+          <p class="mono st-row">
+            <button type="button" class="chip" data-act="copy">copy</button>
+            <button type="button" class="chip" data-act="paste">paste</button>
+            <button type="button" class="chip" data-act="clearPat">clear</button>
+          </p>
+        </section>
+        <section class="st-song">
+          <p class="mono st-label">Song · <span data-song-info></span></p>
+          <table class="mono">
+            <thead><tr><th>#</th><th>pattern</th><th>×</th><th>mutes (tracks 1–8)</th><th>transpose</th><th>tempo</th><th></th></tr></thead>
+            <tbody data-song></tbody>
+          </table>
+          <p class="mono st-row">
+            <button type="button" class="chip" data-act="addRow">+ row</button>
+            <button type="button" class="chip" data-act="export">export .mid</button>
+            <button type="button" class="chip" data-act="save">save .json</button>
+            <label class="chip">load .json<input type="file" accept="application/json" data-load hidden /></label>
+          </p>
+        </section>
+      </div>
+      <p class="st-titleblock mono"><span>STOCHOS 64</span><span>planche 1</span><span>éch. 1 : 1</span><span data-status>stopped</span></p>
+    </div>
+
+    <article class="unveiled__chapter">
+      <p class="unveiled__num mono">notice</p>
+      <div class="unveiled__text">
+        <p>
+          <b>To your desktop.</b> Press <i>connect MIDI</i> and pick an output. On Windows, create a virtual port with loopMIDI
+          and select it in your DAW; on macOS, enable the IAC Driver in Audio MIDI Setup. Each track sends on its own channel
+          (1–8, change it in the track list) with MIDI clock and start/stop, so drum machines and DAWs follow the tempo. With
+          <i>follow clock</i> on, Stochos slaves to incoming clock instead. <i>export .mid</i> writes the whole song as a Standard
+          MIDI File, one track per lane.
+        </p>
+        <p>
+          <b>The sequencer.</b> Each track has its own length and speed (polymeter), and every step holds velocity, length,
+          chance, a trig condition (1:2, 3:4, FILL, PRE, 1ST…), micro-timing and a CC value. Sixteen patterns; the song is a list
+          of rows with repeats, track mutes, transposition and tempo.
+        </p>
+        <p>
+          <b>The mathematics.</b> Rhythms from <i>sieves</i>, Xenakis's residue-class algebra (<i>Perspectives of New Music</i>
+          28/1, 1990). Clouds of notes whose density follows a Poisson law and whose pitches follow Gaussian, Cauchy, logistic,
+          exponential or arcsine laws (<i>Formalized Music</i>, ch. I, as in <i>Achorripsis</i> and <i>Pithoprakta</i>). Melodic
+          random walks with elastic barriers (<i>Mikka</i>). Markov chains learnt from your own material, and a song order that
+          wanders by the song's own transition statistics (<i>Analogique A et B</i>). The rotation group of the cube, 24
+          permutations of the 8 tracks, stepped by Xenakis's recurrence gₙ = gₙ₋₁∘gₙ₋₂ (<i>Nomos Alpha</i>). Cellular automata
+          rewriting a track's gates each loop (<i>Horos</i>). Euclidean rhythms (Toussaint, 2005), the Fibonacci word, and the
+          logistic map (May, <i>Nature</i> 261, 1976). The algebra is checked in <span class="mono">scripts/check-stochos.mts</span>.
+        </p>
+        <p>
+          The stamp says <a href="/archive/#EXP">EXP</a>: a single pattern holds 2<sup>1024</sup> gate configurations, and
+          searching them by brute force takes exponential time. The generators exist so that nobody has to.
+        </p>
+        <p class="mono logic__provenance">After Iannis Xenakis's UPIC, his graph-paper sketches and <i>Formalized Music</i>, and the Elektron sequencer's trig conditions and song mode. Not affiliated with either.</p>
+      </div>
+    </article>
+  </section>
+  <script>
+    import { mountStochos } from '../lib/stochos/ui';
+    document.addEventListener('astro:page-load', mountStochos);
+  </script>
+</Base>
