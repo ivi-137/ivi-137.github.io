@@ -304,7 +304,7 @@ A network that learns this relation from data must learn it separately for every
 In physics, a gauge is a choice of reference frame that the laws do not depend on, and fixing it removes the redundancy. The same move works here. Choose a canonical style $$c$$ (the first member of each family). Read the author's style $$\hat s$$ from the examples, and let $$\hat g$$ be a group element with $$\hat g \cdot c = \hat s$$; in the toy, a product of three transpositions, which is its own inverse. Then:
 
 1. move the context into the canonical frame, $$x \mapsto \rho(\hat g)^{-1} x$$;
-2. let the transformer write, with its output restricted to the canonical member of every family, so that its alphabet is the set of orbits $$V/G$$ (96 tokens become 84);
+2. let the transformer, trained the same way in the canonical frame, write with its output restricted to the canonical member of every family, so that its alphabet is the set of orbits $$V/G$$ (96 tokens become 84);
 3. map the text back, $$y = \rho(\hat g)\, y_c$$.
 
 <FrameDiagram />
@@ -317,9 +317,9 @@ $$
 
 with equality whenever the family occurs at all.
 
-After the frame is read, the hazard is zero, and the compounding of Proposition 2 no longer applies.
-
 *Proof.* The only member of family $$i$$ the network can emit is $$c_i$$, and step 3 maps it to $$\rho(\hat g)\,c_i = \hat s_i$$ wherever it appears. So every occurrence matches the author if $$\hat s_i = s_i$$, and none does otherwise. ∎
+
+Once the frame is read, the hazard of these invariants is zero at every later step, and the compounding of Proposition 2 no longer applies to them: the whole risk sits in one reading, made before the first word is written.
 
 **Proposition 5 (reading the frame).** Suppose the examples contain $$m$$ tokens of family $$i$$, each equal to the author's member independently with probability $$1 - \eta$$, where $$\eta < \tfrac12$$. Then the most frequent member is the author's with probability at least $$1 - e^{-2m(1/2 - \eta)^2}$$.
 
@@ -377,11 +377,11 @@ The baseline, the labelled baseline, the Ledger, the shared-softmax Ledger and t
 
 ### Try it
 
-<div data-ledger-demo data-src="/coherence" data-caption="Both models, seed 0, running in your browser on the weights trained above. The same prompt goes to both; red marks a token a monitor caught. Under the Ledger, the slots it filled from the example posts, and what each still owes."></div>
+<div data-ledger-demo data-src="/coherence" data-caption="The baseline and the Ledger with a frame, seed 0 of each, running in your browser on the weights trained above. The same prompt goes to both; red marks a token a monitor caught. The second model reads the example posts once, through its frame and clerk, and never attends to them while it writes; under it, the frame it counted and what each slot still owes."></div>
 
 ## Putting it in a real model
 
-The recipe for a pretrained model follows the toy's. Freeze the model. Insert the clerk a third of the way up and reads in the layers above, with $$K$$ between 16 and 32 and every gate at zero, so that on the first step nothing has changed. Train the new parameters, optionally with low-rank adapters on the old ones, on instruction and imitation data that comes with programmatic monitors: the verifiable instructions of IFEval, and style monitors extracted from the examples themselves, like the ones in the audit below. Match slots to monitors per example by bipartite matching, as DETR does for objects, since there are more kinds of obligation than slots. At inference the cost is a few $$K \times d$$ products per layer and token, and the key-value cache is untouched.
+The recipe for a pretrained model follows the toy's. First the symmetry: declare the families of interchangeable variants the model writes (delimiters, quotation marks, list markers, spelling pairs that tokenise alike), read the frame by counting them in the examples, and restrict the output to one member per family. This part needs no training at all. Then the Ledger: freeze the model, insert the clerk a third of the way up and reads in the layers above, with $$K$$ between 16 and 32 and every gate at zero, so that on the first step nothing has changed. Train the new parameters, optionally with low-rank adapters on the old ones, on instruction and imitation data that comes with programmatic monitors: the verifiable instructions of IFEval, and style monitors extracted from the examples themselves, like the ones in the audit below. Match slots to monitors per example by bipartite matching, as DETR does for objects, since there are more kinds of obligation than slots. At inference the cost is a few $$K \times d$$ products per layer and token, and the key-value cache is untouched.
 
 The Ledger also makes a model easier to question, which speaks to one of Chomsky's objections. The slots can be read out: what the clerk thinks is owed, and what the model believes it has paid.
 
