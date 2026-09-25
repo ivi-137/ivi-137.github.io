@@ -7,4 +7,4 @@ chat/node_modules/
 chat/.wrangler/
 research/coherence/runs/
 __pycache__/
-!research/coherence/logs/*.log
+research/coherence/logs/
