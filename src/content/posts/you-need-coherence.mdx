@@ -22,6 +22,7 @@ The contributions, each with its evidence:
 2. **The Ledger.** Typed slots filled once from the prompt, a state per slot updated by every written token, a read with its own softmax, and a gate on the end-of-text token. It computes exactly the original function when inserted. In the experiment it lifts coherent posts from 80.5% to 90.0% ($$p = 5.5 \times 10^{-8}$$) and the right length from 38.5% to 98.5%, and the same slots inside the ordinary softmax give nothing (74.0%).
 3. **Gauge fixing.** When conventions are orbits of a group acting on the vocabulary, reading the author's frame once and writing in a canonical frame makes them hold at every length with probability at least $$1 - \sum_i e^{-2 m_i (1/2 - \eta_i)^2}$$ (Theorem 1). In the experiment, not one of 4,526 opportunities to break them was taken, and the model could stop attending to its examples: 64% fewer keys per written token.
 4. **Where it belongs.** Each part answers one failure, and each failure happens in one place in the network; placement follows, and a screen of six placements agrees with one correction.
+5. **A retrofit.** IFEval's instructions are already written in the three shapes, 23 of its 25 types. Slots placed in a pretrained model's own softmax cannot be inserted neutrally and still learn, while a separate read can (Proposition 7). A tested retrofit to SmolLM2-135M, with its predictions stated before the runs.
 
 The experiment is a toy trained on four CPU cores, and I say so wherever it matters. The mathematics carries the argument; the toy checks that the mechanisms do what the mathematics says.
 
@@ -517,9 +518,56 @@ Slots in the context did no better than no slots at all (20% against 17%), as Co
 
 ## Putting it in a real model
 
-The recipe for a pretrained model follows the toy's. First the symmetry: declare the families of interchangeable variants the model writes (delimiters, quotation marks, list markers, spelling pairs that tokenise alike), read the frame by counting them in the examples, and restrict the output to one member per family. This part needs no training at all. Then the Ledger: freeze the model, insert the clerk a third of the way up and reads in the layers above, with $$K$$ between 16 and 32 and every gate at zero, so that on the first step nothing has changed. Train the new parameters, optionally with low-rank adapters on the old ones, on instruction and imitation data that comes with programmatic monitors: the verifiable instructions of IFEval, and style monitors extracted from the examples themselves, like the ones in the audit below. Match slots to monitors per example by bipartite matching, as DETR does for objects, since there are more kinds of obligation than slots. At inference the cost is a few $$K \times d$$ products per layer and token, and the key-value cache is untouched.
+The toy leaves open the question that matters: does any of this help a model that already speaks? I have built the test on SmolLM2-135M-Instruct, a pretrained instruction model with 30 layers and a context of 8,192 tokens, measured on IFEval, the standard benchmark of verifiable instructions. The code is public and tested. The runs are not done yet, so this section gives the design and, before any number exists, what the theory predicts.
 
-The theory makes predictions that such a test should check. The shared-softmax version should degrade as the context grows, and the separate one should not (Corollary 1). With a Ledger, the hazard of a sparse invariant should stop rising with length (Proposition 2). For conventions that are genuine permutations of the vocabulary, the violation rate should be independent of length and equal to the rate at which the frame is misread (Theorem 1). And dropping the examples should cost nothing on obligations the Ledger and the frame carry, while saving attention in proportion to the length of the examples.
+### IFEval is already written in the three shapes
+
+Every IFEval instruction type but two is one of the obligations of the toy.
+
+<div class="cx-text">
+
+| shape | IFEval types | instances |
+|---|---|---|
+| invariant, $$\mathbf{G}p$$ | no comma, forbidden words, all lowercase, all capitals, response language, JSON, wrapped in quotes | 268 |
+| eventuality, $$\mathbf{F}q$$ | postscript, title, constrained answer, two responses, repeat the request, end phrase | 164 |
+| count, $$\#p$$ | keywords present, keyword frequency, words, sentences, paragraphs, bullets, highlighted sections, sections, placeholders, capitalised words | 357 |
+| not supported | letter frequency (letters live inside tokens), first word of the n-th paragraph | 45 |
+
+</div>
+
+So each type gets one slot of its shape, and nothing has to be matched to anything. The monitors are already written, too: the state's training labels are IFEval's own checkers run on every prefix of a response. For a count, the label marks the token at which a prefix first gains a counted unit; for an eventuality, the token at which it first pays. On a test set of texts these labels agree with the official checkers at every threshold.
+
+### Why the read must be separate, again
+
+A module added to a model that already works should start as a no-op and learn from there. The Ledger does: its read enters through $$\tanh(g)$$ with $$g = 0$$, so at insertion the model is unchanged, yet the gradient with respect to $$g$$ is the read itself, and training moves it at once. The obvious alternative is to add the same slots as extra keys and values in the model's own attention, which is what memory tokens and prefix tuning do. It cannot do the same.
+
+**Proposition 7.** Let a frozen head output $$y = \sum_j a_j v_j$$ with $$a = \mathrm{softmax}(s)$$, and add slot values $$w_i$$ with scores $$\sigma_i$$ to the same softmax, with a share multiplier $$\lambda(\phi) \ge 0$$:
+
+$$
+y' = \frac{\sum_j e^{s_j} v_j + \lambda \sum_i e^{\sigma_i} w_i}{\sum_j e^{s_j} + \lambda \sum_i e^{\sigma_i}}.
+$$
+
+Then $$y' = y$$ on every input only if $$\lambda = 0$$ (unless every $$w_i$$ equals $$y$$ on every input), and if $$\lambda$$ is differentiable, every derivative of $$y'$$ with respect to the new parameters is zero there.
+
+*Proof.* $$y' - y = \lambda \sum_i e^{\sigma_i}(w_i - y) / (Z + \lambda Z_\sigma)$$, with $$Z$$ and $$Z_\sigma$$ the two sums of exponentials; it vanishes everywhere only if $$\lambda = 0$$ or every $$w_i = y$$. At $$\lambda(\phi_0) = 0$$ the nonnegative function $$\lambda$$ is at its minimum, so its gradient is zero, and so is that of $$y'$$ with respect to $$\phi$$; every term involving the slots' own parameters carries the factor $$\lambda$$. ∎
+
+In words: a share of one budget cannot be negative, so a share that starts at exactly zero sits at the bottom of its range, where every gradient is flat. Inserted neutrally, slots in a shared softmax never learn; inserted open, they change the model before it has learned anything. It is Fact 1 once more, now deciding how a module can be added at all. In the retrofit, the shared-softmax control therefore starts barely open, with a share of $$10^{-4}$$, and can open or close from there.
+
+### The test
+
+The model stays frozen; only the new parameters learn. The clerk reads the output of layer 10, one learned query per slot; numbers written in the prompt reach it as values, and a pointer picks each count's target. The reads follow self-attention in layers 11 to 30, and the gate acts on the end-of-turn token. That is 3.96 million parameters, 2.9% of the model. Three controls isolate the claims: LoRA adapters with exactly as many parameters, trained on the same data (is it the architecture or the data?); the same slots and state inside the model's own softmax (is it the separate budget?); and the Ledger without its gate. The training prompts are plain writing tasks with one to three instructions, worded by IFEval's own instruction classes but never its test prompts. The targets are the frozen model's own answers: the first of four samples that passes every checker, or else the best one repaired by exact edits, such as lowercasing it or adding the missing postscript, and kept only if it then passes. The evaluation is the official IFEval on its 541 prompts, and then the same prompts followed by 1,000 to 6,000 tokens of unrelated text, which is Lemma 1's experiment on a real model.
+
+### Predictions, before the numbers
+
+1. The Ledger raises IFEval's strict accuracy over the frozen model. Whether it beats LoRA on short prompts is open: both learn from the same data.
+2. Its gains are largest on eventualities and counts, the obligations its state tracks.
+3. As the unrelated text grows to 6,000 tokens, the frozen model, LoRA and the shared-softmax slots lose accuracy, and the Ledger loses less. This is the test that could sink the argument.
+4. The shared-softmax slots never beat the Ledger, and fall further behind as the context grows.
+5. Without its gate, the Ledger loses most on obligations that must be paid before the end: postscripts, end phrases, minimum counts.
+
+If the third prediction fails, then either dilution is not what limits a 135-million-parameter model on IFEval, or the retrofit does not carry the state, and the next version of this post will say which. The code, its 259 tests and the commands are in [research/ledger-smollm](https://github.com/ivi-137/ivi-137.github.io/tree/main/research/ledger-smollm).
+
+IFEval has no example posts to imitate, so gauge fixing waits for an imitation benchmark. The recipe carries over unchanged: declare the families of interchangeable variants the model writes (delimiters, quotation marks, list markers, spelling pairs that tokenise alike), read the frame by counting them in the examples, and restrict the output to one member per family. That part needs no training at all.
 
 ## What is proved, what is measured, what is open
 
@@ -541,14 +589,15 @@ With a small budget, the weight of the argument has to sit on the mathematics. H
 | symmetric conventions hold at every length (Theorem 1) | yes | consistent: zero breaks at every requested length |
 | the Ledger and the frame make posts more coherent | no | 90.0% against 80.5% (two seeds, $$p = 5.5 \times 10^{-8}$$); 95.0% with the frame (one seed) |
 | where in the network each part belongs | argued | screened, one seed |
-| any of this for a real language model | no | open |
+| slots in a model's own softmax cannot be inserted neutrally and learn; a separate read can (Proposition 7) | yes | the retrofit's controls are built around it |
+| any of this for a real language model | no | a tested retrofit to SmolLM2-135M; results pending |
 
 </div>
 
 The toy is tiny, its prose is noise, and its style has five dimensions where a real blog has hundreds. Its labels come free from the generator; a real system has to extract them, and extraction errors are a new way to fail. Its symmetry is exact and declared in advance; real conventions are only approximately permutations of tokens. The experiments that should come next, in order:
 
 1. The same toy with more seeds and longer training, and the ablations the budget left out: the Ledger without its gate, the Ledger without monitor labels, and the frame without a Ledger.
-2. The retrofit described above, on a pretrained open model, with the IFEval checkers and style monitors extracted from examples, measured on IFEval, Multi-IF, IFScale and a blog-imitation set like Wang et al.'s.
+2. Running the retrofit above, three seeds and every control; then larger models, style monitors extracted from examples, and Multi-IF, IFScale and a blog-imitation set like Wang et al.'s.
 3. Contexts of 32,000 tokens and more, where Lemma 1 bites hardest and dropping the examples saves the most.
 4. Symmetries that are learned rather than declared, in the spirit of LexSym, for conventions that are only nearly permutations.
 
@@ -615,4 +664,8 @@ Checking whether a draft keeps a set of obligations takes one pass of a few smal
 - Jean-Baptiste Alayrac et al., "Flamingo: a Visual Language Model for Few-Shot Learning," *NeurIPS* (2022).
 - Vijay Viswanathan et al., "Checklists Are Better Than Reward Models For Aligning Language Models," *NeurIPS* (2025).
 - Nicolas Carion et al., "End-to-End Object Detection with Transformers" (DETR), *ECCV* (2020).
+- Loubna Ben Allal et al., "SmolLM2: When Smol Goes Big, Data-Centric Training of a Small Language Model," arXiv:2502.02737 (2025).
+- Edward J. Hu et al., "LoRA: Low-Rank Adaptation of Large Language Models," *ICLR* (2022).
+- Xiang Lisa Li, Percy Liang, "Prefix-Tuning: Optimizing Continuous Prompts for Generation," *ACL* (2021).
 - Code, data and trained weights for the experiment: `research/coherence/` in this site's repository.
+- Code and tests for the retrofit to SmolLM2: `research/ledger-smollm/` in the same repository.
