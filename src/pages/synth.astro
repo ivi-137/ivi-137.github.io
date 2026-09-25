@@ -58,14 +58,14 @@ const grid = [nodes];
 const tonnetzW = Math.max(...nodes.map((n) => n.x)) + 24;
 const tonnetzH = Math.max(...nodes.map((n) => n.y)) + 22;
 
-const moduleHue = { voce: 'var(--c-exp)', seq: 'var(--c-np)', mod: 'var(--c-pspace)', rollz: 'var(--c-p)', armonia: 'var(--ink)', board: 'var(--verm)', play: 'var(--cobalt)' };
+const moduleHue = { voce: 'var(--c-exp)', seq: 'var(--c-np)', mod: 'var(--c-pspace)', rulli: 'var(--c-p)', armonia: 'var(--ink)', board: 'var(--verm)', play: 'var(--cobalt)' };
 const keys = 'A W S E D F T G Y H U J K'.split(' ');
 const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 ---
 
 <Base
   title="Orfeo 32"
-  description="An underworld synthesizer with a 32-step sequencer: a complex oscillator through a low pass gate, fifteen harmony engines from the theory literature, and eight river pedals. After Buchla, Serge, Make Noise, Ciat-Lonbarde, Koma, Gieskes, Sancristoforo and Chase Bliss."
+  description="An underworld synthesizer with a 32-step sequencer: a complex oscillator through a low pass gate, fifteen harmony engines from the theory literature, eight river pedals and a recorder."
 >
   <section class="orfeo-page" data-orfeo-page>
     <header class="section-head section-head--page orfeo-page__head">
@@ -110,7 +110,7 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
             <button type="button" data-scope-mode="wave" aria-pressed="true">onda</button>
             <button type="button" data-scope-mode="spec" aria-pressed="false">spettro</button>
             <button type="button" data-scope-mode="xy" aria-pressed="false">XY</button>
-            <button type="button" data-scope-mode="trins" aria-pressed="false" title="After Gieskes' 3TrinsRGB video synthesizer">3trins</button>
+            <button type="button" data-scope-mode="trins" aria-pressed="false" title="Three oscillators scanning a raster, one per colour">raster</button>
           </div>
         </div>
       </div>
@@ -140,7 +140,7 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
       <section class="mod mod--voce" style={`--hue:${moduleHue.voce}`} aria-labelledby="m-voce">
         <header class="mod__head">
           <h2 id="m-voce" class="mod__title">Voce</h2>
-          <span class="mod__sub mono">complex oscillator after Buchla 259 · Make Noise DPO · wave multiplier after Serge · low pass gate after Buchla 292</span>
+          <span class="mod__sub mono">complex oscillator · wavefolder · multimode filter · low pass gate</span>
         </header>
         <div class="mod__body mod__body--voce">
           <fieldset class="bay">
@@ -170,7 +170,7 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
             <K id="src.damp" />
             <K id="src.field" />
             <div class="bay__switches">
-              <button type="button" class="sw" data-mic aria-pressed="false" title="Route a microphone into the voice (after Koma's Field Kit)">microfono</button>
+              <button type="button" class="sw" data-mic aria-pressed="false" title="Route a microphone into the voice">microfono</button>
             </div>
           </fieldset>
           <fieldset class="bay">
@@ -205,7 +205,7 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
       <section class="mod mod--seq" style={`--hue:${moduleHue.seq}`} aria-labelledby="m-seq">
         <header class="mod__head">
           <h2 id="m-seq" class="mod__title">Sequenza <em>32</em></h2>
-          <span class="mod__sub mono">eight polymetric lanes after Koma's Komplex · cartesian paths after Make Noise René · step times after Buchla 248</span>
+          <span class="mod__sub mono">eight polymetric lanes · seven directions · a length for every step</span>
         </header>
         <div class="seq__rail mono">
           <div class="seq__tabs" role="tablist" aria-label="Lane">
@@ -315,7 +315,7 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
       <section class="mod mod--mod" style={`--hue:${moduleHue.mod}`} aria-labelledby="m-mod">
         <header class="mod__head">
           <h2 id="m-mod" class="mod__title">Modulazione</h2>
-          <span class="mod__sub mono">function generators after Make Noise Maths · uncertainty after Buchla 266 and Serge's Smooth &amp; Stepped · a shift register · banana patching</span>
+          <span class="mod__sub mono">two function generators · an LFO · fluctuating and stepped random · a shift register · patch cables</span>
         </header>
         <div class="mod__body mod__body--mod">
           <fieldset class="bay">
@@ -375,25 +375,25 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         </div>
       </section>
 
-      <!-- ═══════════════ rollz · gongue · fonologia ═══════════════ -->
-      <section class="mod mod--rollz" style={`--hue:${moduleHue.rollz}`} aria-labelledby="m-rollz">
+      <!-- ═══════════════ rulli · gong · fonologia ═══════════════ -->
+      <section class="mod mod--rulli" style={`--hue:${moduleHue.rulli}`} aria-labelledby="m-rulli">
         <header class="mod__head">
-          <h2 id="m-rollz" class="mod__title">Rollz · Gongue · Fonologia</h2>
-          <span class="mod__sub mono">pulse rollers and struck resonators after Ciat-Lonbarde · nine sine oscillators after the Studio di Fonologia (RAI Milano, 1955) and Sancristoforo's Berna</span>
+          <h2 id="m-rulli" class="mod__title">Rulli · Gong · Fonologia</h2>
+          <span class="mod__sub mono">five pulse rollers striking five resonant gongs · nine sine oscillators holding a drone</span>
         </header>
         <div class="mod__body">
           <fieldset class="bay">
-            <legend>rollz: divisioni della battuta</legend>
+            <legend>rulli: divisioni della battuta</legend>
             <K id="rz.d1" />
             <K id="rz.d2" />
             <K id="rz.d3" />
             <K id="rz.d4" />
             <K id="rz.d5" />
             <div class="rollers" data-rollers aria-hidden="true">{[0, 1, 2, 3, 4].map((i) => <i data-roller={i} />)}</div>
-            <div class="bay__switches"><button type="button" class="sw" data-switch="rz.on">rollz</button></div>
+            <div class="bay__switches"><button type="button" class="sw" data-switch="rz.on">rulli</button></div>
           </fieldset>
           <fieldset class="bay">
-            <legend>gongue</legend>
+            <legend>gong</legend>
             <K id="rz.level" />
             <K id="rz.decay" />
             <K id="rz.tone" />
@@ -505,7 +505,7 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
       <section class="mod mod--board" style={`--hue:${moduleHue.board}`} aria-labelledby="m-board">
         <header class="mod__head">
           <h2 id="m-board" class="mod__title">I fiumi</h2>
-          <span class="mod__sub mono">eight pedals after Chase Bliss: ramps, dip switches on the back, any order. Drag a pedal to move it through the chain.</span>
+          <span class="mod__sub mono">eight pedals: ramps, dip switches on the back, any order. Drag a pedal to move it through the chain.</span>
         </header>
         <div class="board" data-board>
           {
@@ -551,7 +551,6 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
                     <button type="button" class="pedal__move" data-move="1" aria-label={`Move ${pd.name} later`}>›</button>
                     <button type="button" class="pedal__flip mono" data-flip aria-pressed="false" title="Turn the pedal over: dip switches">dip</button>
                   </footer>
-                  <p class="pedal__after mono">after {pd.after}</p>
                 </div>
                 <div class="pedal__back" hidden>
                   <p class="mono">ramp these knobs</p>
@@ -583,7 +582,7 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
       <section class="mod mod--play" style={`--hue:${moduleHue.play}`} aria-labelledby="m-play">
         <header class="mod__head">
           <h2 id="m-play" class="mod__title">Oboli</h2>
-          <span class="mod__sub mono">touch plates after Buchla, Serge's TKB and Ciat-Lonbarde: press harder, or lower on the coin, for more · keys A–K · Z/X octave</span>
+          <span class="mod__sub mono">touch plates: press harder, or lower on the coin, for more · keys A–K · Z/X octave</span>
         </header>
         <div class="play">
           <div class="plates" data-plates>
@@ -657,8 +656,8 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
           gates takes a long time to repeat.
         </p>
         <p>
-          The voice is west coast: a complex oscillator whose modulator FMs, ring-modulates or syncs the carrier, then a
-          <b>wave multiplier</b> folding it, a multimode filter, and a <b>low pass gate</b> modelled on a vactrol (it opens in
+          The voice is a complex oscillator whose modulator FMs, ring-modulates or syncs the carrier, then a
+          <b>wavefolder</b>, a multimode filter, and a <b>low pass gate</b> modelled on a vactrol (it opens in
           milliseconds and closes slowly and unevenly). Sources can be added under it: a sub, four colours of noise including a
           drifting shortwave radio, a tangle of cross-coupled triangle cores, a plucked string, and your microphone.
         </p>
@@ -666,7 +665,7 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
           Drag from an <b>uscita</b> to an <b>ingresso</b> to patch a cable, then set its amount in the list. Seventeen sources
           include the contour, two function generators that can cycle, a synced LFO, fluctuating and stepped random with a
           probability distribution, a shift register that sometimes flips a bit, the two free lanes, the plates' pressure and XY,
-          the Rollz, and <b>colonia</b>: the block entropy of the Game of Life behind this page.
+          the rollers, and <b>colonia</b>: the block entropy of the Game of Life behind this page.
         </p>
         <p>
           <b>Armonia</b> chooses a chord every bar (or faster) by one of fifteen rules and sings it on the choir, or arpeggiates it.
@@ -713,15 +712,6 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
           <li><b>Euclide.</b> G. Toussaint, “The Euclidean Algorithm Generates Traditional Musical Rhythms”, Bridges, 2005.</li>
           <li><b>Tonnetz.</b> L. Euler, Tentamen novae theoriae musicae (1739); drawn here as neo-Riemannian theory draws it.</li>
         </ol>
-        <p class="mono logic__provenance">
-          In homage to Don Buchla (the 259 complex oscillator, the 292 low pass gate, the 266 Source of Uncertainty, the 248 MARF),
-          Serge Tcherepnin (the Wave Multiplier, Smooth &amp; Stepped, the touch keyboard), Make Noise (Maths, the DPO, René,
-          Morphagene), Peter Blasser's Ciat-Lonbarde (Rollz, Gongue, touch plates), Koma Elektronik (Komplex, Field Kit), Gijs
-          Gieskes (bent circuits, 3TrinsRGB), Giorgio Sancristoforo (Berna, Gleetchlab) and the nine oscillators Alfredo Lietti
-          built for the Studio di Fonologia in Milan; to Chase Bliss (Mood, Generation Loss, Thermae, Dark World, Lossy, Brothers,
-          Habit) for the pedals; and to Supergiant Games' Hades for its gods, their gifts and the rivers. Nothing here is affiliated with
-          any of them.
-        </p>
       </div>
     </article>
   </section>

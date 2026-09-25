@@ -1,5 +1,5 @@
 /**
- * Orfeo 32: the sequencer, the harmony runner and the Rollz.
+ * Orfeo 32: the sequencer, the harmony runner and the rollers.
  *
  * Clock. A look-ahead scheduler: a JS timer wakes every 25 ms and schedules
  * every sixteenth that falls within the next 120 ms on the AudioContext clock.
@@ -8,7 +8,7 @@
  *
  * Lanes. Eight lanes (gate, note, accent, probability, ratchet, T, M, duration)
  * each have their own length and clock divider, so they drift against each
- * other and realign (polymeter, as on Koma's Komplex). All lanes share one of
+ * other and realign (polymeter). All lanes share one of
  * seven play directions, including René-style cartesian motion on an 8×4 grid.
  *
  * At every loop of the gate lane: an elementary automaton may rewrite the
@@ -132,10 +132,10 @@ export class Sequencer {
       this.nextTime += dur;
       this.tick++;
     }
-    this.scheduleRollz(horizon);
+    this.scheduleRollers(horizon);
   }
 
-  /** This sixteenth's length: the duration lane (MARF), then swing on the off-beats. */
+  /** This sixteenth's length: the duration lane, then swing on the off-beats. */
   private tickDur() {
     const p = this.pattern;
     const i = this.laneIndex(p, 'time', false);
@@ -158,7 +158,7 @@ export class Sequencer {
         const k = c % per;
         return k < len ? k : per - k;
       }
-      case 'rene': {
+      case 'cart': {
         // cartesian: x runs every step, y every third step, on an 8×4 grid
         const x = c % 8,
           y = Math.floor(c / 3) % 4;
@@ -305,7 +305,7 @@ export class Sequencer {
       const vel = p.lanes.vel[idx.vel];
       let n = Math.round(p.lanes.ratch[idx.ratch]);
       if (heat > 0 && Math.random() < heat * 0.25) n = Math.min(4, n + 1);
-      // hold into the next step if it slides, as a 303 does
+      // hold into the next step if it slides, so the two notes join
       const nextSlide = p.lanes.gate[(idx.gate + 1) % Math.max(1, p.len.gate)] === 2;
       const gateLen = s.p['g.gate'];
       for (let r = 0; r < n; r++) {
@@ -327,8 +327,8 @@ export class Sequencer {
     this.onTick({ tick: this.tick, time: t, pattern: s.cur, idx, fired, midi: midiOut });
   }
 
-  /** Rollz: five pulse rollers dividing the bar 1–16 ways, striking five gongues (after Ciat-Lonbarde). */
-  private scheduleRollz(horizon: number) {
+  /** Rulli: five pulse rollers dividing the bar 1–16 ways, each striking its own gong. */
+  private scheduleRollers(horizon: number) {
     const s = this.state;
     if (!s.p['rz.on']) return;
     const bar = this.stepDur * 16;

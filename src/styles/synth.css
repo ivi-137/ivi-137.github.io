@@ -814,7 +814,7 @@
   color: var(--ink-2);
 }
 
-/* rollz: five balls rolling at five divisions of the bar */
+/* rulli: five balls rolling at five divisions of the bar */
 .rollers {
   display: grid;
   gap: 7px;

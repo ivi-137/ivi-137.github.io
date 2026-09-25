@@ -22,7 +22,7 @@ export const LANE_INFO: Record<LaneId, { n: string; hint: string; min: number; m
   ratch: { n: 'ribattuto', hint: 'ratchets: 1–4 hits inside the step', min: 1, max: 4, step: 1, def: 1 },
   timb: { n: 'corsia T', hint: 'per-step value, patch it anywhere (default: timbre)', min: 0, max: 1, step: 0.01, def: 0.5 },
   mod: { n: 'corsia M', hint: 'per-step value, patch it anywhere', min: 0, max: 1, step: 0.01, def: 0.5 },
-  time: { n: 'durata', hint: 'this step’s length, after Buchla’s 248 MARF', min: 0, max: 4, step: 1, def: 2 },
+  time: { n: 'durata', hint: 'how long this step lasts', min: 0, max: 4, step: 1, def: 2 },
 };
 /** The time lane's step lengths, in sixteenths. */
 export const TIME_MULT = [0.5, 0.75, 1, 1.5, 2];
@@ -33,7 +33,7 @@ export const DIRS = [
   { id: 'pend', n: 'pendolo', g: '⇄' },
   { id: 'drunk', n: 'ubriaco', g: '⤳' },
   { id: 'rand', n: 'caso', g: '⁂' },
-  { id: 'rene', n: 'René 8×4', g: '▦' },
+  { id: 'cart', n: 'cartesiano 8×4', g: '▦' },
   { id: 'knight', n: 'cavallo', g: '♞' },
 ] as const;
 
@@ -213,7 +213,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'asfodelo',
     n: 'Asfodelo',
-    blurb: 'West-coast bongos: FM at a 3.5 ratio, folded, struck through the LPG; Rollz roll 3 against 4 against 5.',
+    blurb: 'Struck bongos: FM at a 3.5 ratio, folded, pinged through the low pass gate; the rollers roll 3 against 4 against 5.',
     make(s) {
       set(s, { 'osc.shape': 0.05, 'osc.ratio': 0.62, 'osc.fm': 0.38, 'osc.fold': 0.45, 'lpg.decay': 0.25, 'env.fall': 0.2, 'env.curve': 0.75, 'rz.on': 1, 'rz.level': 0.55, 'g.bpm': 108, 'src.sub': 0 });
       s.patterns[0] = pattern(euclid(7, 16).map((x) => (x ? 'x' : '.')).join(''), [0, 4, 2, 7, 5, 9, 4, 11, 7, 2], { vel: [1, 0.5, 0.7, 0.4] });
@@ -250,7 +250,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'fonologia',
-    n: 'Fonologia 1955',
+    n: 'Nove oscillatori',
     blurb: 'Nine sine oscillators, a sine voice, Partch’s hexads in just intonation, tape loops that run backwards.',
     make(s) {
       set(s, { 'osc.shape': 0, 'osc.fm': 0.22, 'osc.ratio': 0.4, 'osc.harm': 0, 'osc.fold': 0, 'fo.level': 0.5, 'fo.spread': 0.25, 'fo.beat': 0.5, 'fo.follow': 1, 'fx.sti.speed': 0.2, 'fx.sti.mix': 0.5, 'env.hold': 1, 'env.rise': 0.3, 'g.bpm': 66 });
@@ -261,9 +261,9 @@ export const PRESETS: Preset[] = [
     },
   },
   {
-    id: 'plumbutter',
-    n: 'Plumbutter',
-    blurb: 'Cross-coupled triangle cores in a tangle, five gongues rolling 3:4:5:7, circuit bends between them.',
+    id: 'groviglio',
+    n: 'Groviglio',
+    blurb: 'Cross-coupled triangle cores in a tangle, five gongs rolling 3:4:5:7, circuit bends between them.',
     make(s) {
       set(s, { 'src.tangle': 0.7, 'src.chaos': 0.65, 'osc.level': 0.3, 'rz.on': 1, 'rz.d1': 3, 'rz.d2': 4, 'rz.d3': 5, 'rz.d4': 7, 'rz.d5': 0, 'rz.level': 0.7, 'rz.metal': 0.8, 'fa.trig': 2, 'g.bpm': 90 });
       s.cables = [
@@ -277,7 +277,7 @@ export const PRESETS: Preset[] = [
     },
   },
   {
-    id: 'gieskes',
+    id: 'piegato',
     n: 'Circuito piegato',
     blurb: 'Bent electronics: hard sync, shortwave radio, bits falling off, solder bridges, a codec losing packets.',
     make(s) {
@@ -317,9 +317,9 @@ export const PRESETS: Preset[] = [
     },
   },
   {
-    id: 'serge',
+    id: 'moltiplicatore',
     n: 'Moltiplicatore',
-    blurb: 'Serge-style: the wave multiplier worked by an LFO, stepped random on the pitch, René’s cartesian path.',
+    blurb: 'The wavefolder worked by an LFO, stepped random on the pitch, a cartesian path through the grid.',
     make(s) {
       set(s, { 'osc.shape': 0.33, 'osc.fold': 0.55, 'osc.sym': 0.3, 'lfo.rate': 0.35, 'lfo.shape': 1, 'unc.slew': 0.4, 'lpg.mode': 2, 'env.hold': 1, 'g.bpm': 100 });
       s.cables = [

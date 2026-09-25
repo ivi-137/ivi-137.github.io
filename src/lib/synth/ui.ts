@@ -215,7 +215,7 @@ export function mountOrfeo() {
       const id = b.dataset.switch!;
       const sp = spec(id);
       setParam(id, state.p[id] >= sp.max ? sp.min : state.p[id] + 1);
-      if (id === 'rz.on' && state.p[id]) status('Rollz rolling: five pulse trains dividing the bar');
+      if (id === 'rz.on' && state.p[id]) status('the rollers are rolling: five pulse trains dividing the bar');
     }),
   );
   segs.forEach((b) =>
@@ -1443,7 +1443,7 @@ export function mountOrfeo() {
       }
       sctx.stroke();
     } else {
-      // after Gieskes' 3TrinsRGB: three "oscillators" scan the raster, one per colour
+      // raster: three "oscillators" scan the picture, one per colour
       an.getFloatTimeDomainData(tbuf);
       const d = timg.data,
         N = tbuf.length;
@@ -1512,7 +1512,7 @@ export function mountOrfeo() {
       captureBtn.setAttribute('aria-pressed', String(mon.held === 1));
       grainsEl.textContent = String(mon.grains);
     }
-    // the Rollz, drawn as five balls rolling at their own division of the bar
+    // the rollers, drawn as five balls rolling at their own division of the bar
     const bar = (60 / state.p['g.bpm']) * 4;
     rollers.forEach((el, i) => {
       const d = state.p[`rz.d${i + 1}`];

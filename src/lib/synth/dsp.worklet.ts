@@ -3,9 +3,9 @@
  *
  * One AudioWorkletProcessor renders the whole instrument, sample by sample:
  *
- *   lead voice ─┐   complex oscillator (259/DPO) → wave multiplier (Serge) →
- *   choir ×8  ──┤   multimode SVF → low pass gate with a vactrol model (292)
- *   gongue ×5 ──┼─→ pedalboard (8 pedals, any order) → limiter → out
+ *   lead voice ─┐   complex oscillator → wavefolder →
+ *   choir ×8  ──┤   multimode SVF → low pass gate with a vactrol model
+ *   gong ×5   ──┼─→ pedalboard (8 pedals, any order) → limiter → out
  *   fonologia ──┘
  *
  * The panel never touches audio. It posts `(index, value)` parameter pairs,
@@ -140,7 +140,7 @@ class SVF {
   }
 }
 
-/** Coloured noise, including a shortwave "radio" (after Koma's Field Kit). */
+/** Coloured noise, including a drifting shortwave "radio". */
 class Noise {
   b0 = 0;
   b1 = 0;
@@ -194,7 +194,7 @@ class Noise {
 }
 
 /**
- * A Maths-style function generator: rise, fall, vari-response curve, optional
+ * A function generator: rise, fall, a curve from logarithmic to exponential, optional
  * cycling and sustain. Output 0..1, advanced at control rate.
  */
 class Slope {
@@ -229,7 +229,7 @@ class Slope {
 
 // ── voices ───────────────────────────────────────────────────────────────
 
-/** The lead: complex oscillator, sources, wave multiplier, SVF, LPG. */
+/** The lead: complex oscillator, sources, wavefolder, SVF, LPG. */
 class Lead {
   pa = 0; // osc A phase
   pb = 0; // modulator phase
@@ -366,7 +366,7 @@ class Lead {
       x += y * L.string;
     }
     if (L.field > 0) x += field * L.field * 2;
-    // wave multiplier: sine folding, 2× averaged to tame aliasing
+    // wavefolder: sine folding, 2× averaged to tame aliasing
     if (this.fold > 0.001) {
       const g = 1 + this.fold * 7;
       const xm = (x + this.xPrev) * 0.5;
@@ -416,7 +416,7 @@ class ChoirVoice {
   }
 }
 
-/** Gongue: a struck bank of four inharmonic resonators (after Ciat-Lonbarde). */
+/** Gong: a struck bank of four inharmonic resonators. */
 class Gong {
   c1 = new Float64Array(4);
   c2 = new Float64Array(4);
@@ -467,7 +467,7 @@ class Gong {
   }
 }
 
-/** Nine sine oscillators, after the Studio di Fonologia (RAI Milano, 1955). */
+/** Fonologia: nine sine oscillators holding a drone. */
 class Fonologia {
   ph = new Float64Array(9);
   amp = new Float64Array(9).fill(1);
@@ -507,7 +507,7 @@ abstract class Pedal {
   abstract run(l: number, r: number): void;
 }
 
-/** Caos: bit depth, sample-rate reduction, and random solder bridges (Gieskes). */
+/** Caos: bit depth, sample-rate reduction, and random solder bridges. */
 class Caos extends Pedal {
   hl = 0;
   hr = 0;
@@ -558,7 +558,7 @@ class Caos extends Pedal {
   }
 }
 
-/** Flegetonte: two drives, overdrive into fuzz (after Brothers). */
+/** Flegetonte: two drives, overdrive into fuzz. */
 class Flegetonte extends Pedal {
   lpL = 0;
   lpR = 0;
@@ -650,7 +650,7 @@ class FFT {
   }
 }
 
-/** Acheronte: an STFT that loses what a codec would lose (after Lossy). */
+/** Acheronte: an STFT that loses what a codec would lose. */
 class Acheronte extends Pedal {
   N = 1024;
   H = 256;
@@ -742,7 +742,7 @@ interface Grain {
   age: number;
   pan: number;
 }
-/** Mnemosine: a granular memory that can be scanned or frozen (after Habit, Morphagene, Gleetchlab). */
+/** Mnemosine: a granular memory that can be scanned or frozen. */
 class Mnemosine extends Pedal {
   bl = new Delay(SR * 6);
   br = new Delay(SR * 6);
@@ -793,7 +793,7 @@ class Mnemosine extends Pedal {
   }
 }
 
-/** Cerbero: three heads, each repeat pitch-shifted by its own interval (after Thermae). */
+/** Cerbero: three heads, each repeat pitch-shifted by its own interval. */
 class Cerbero extends Pedal {
   dl = new Delay(SR * 4.2);
   heads = [new Shifter(), new Shifter(), new Shifter()];
@@ -830,7 +830,7 @@ class Cerbero extends Pedal {
   }
 }
 
-/** Stige: an always-listening micro-looper with varispeed and slips (after Mood). */
+/** Stige: an always-listening micro-looper with varispeed and slips. */
 class Stige extends Pedal {
   bl = new Delay(SR * 12.5);
   br = new Delay(SR * 12.5);
@@ -895,7 +895,7 @@ class Stige extends Pedal {
   }
 }
 
-/** Cocito: an 8-line feedback delay network with a frozen lake and an octave reflection (after Dark World). */
+/** Cocito: an 8-line feedback delay network with a frozen lake and an octave reflection. */
 class Cocito extends Pedal {
   static MS = [31.7, 37.3, 41.9, 47.3, 53.1, 59.9, 67.3, 73.1];
   lines = Cocito.MS.map(() => new Delay(SR * 0.4));
@@ -969,7 +969,7 @@ class Cocito extends Pedal {
   }
 }
 
-/** Lete: tape that forgets: wow, flutter, saturation, lost bandwidth, hiss, dropouts (after Generation Loss). */
+/** Lete: tape that forgets: wow, flutter, saturation, lost bandwidth, hiss, dropouts. */
 class Lete extends Pedal {
   dl = new Delay(SR * 0.25);
   dr = new Delay(SR * 0.25);
@@ -1076,7 +1076,7 @@ class Orfeo extends AudioWorkletProcessor {
   x = 0.5;
   y = 0.5;
   colony = 0;
-  rollz = 0;
+  rulli = 0;
   follow = 0;
   lim = 1;
   monT = 0;
@@ -1160,13 +1160,13 @@ class Orfeo extends AudioWorkletProcessor {
         const base = expMap(P[I['rz.tone']], 60, 900);
         const ratios = [1, 1.335, 1.498, 1.782, 2.245];
         this.gongs[e.i].strike(base * ratios[e.i], P[I['rz.metal']], P[I['rz.decay']], e.vel);
-        this.rollz = 1;
+        this.rulli = 1;
         if (P[I['fa.trig']] === 2) this.fa.trig();
         if (P[I['fb.trig']] === 2) this.fb.trig();
         break;
       }
       case 's': {
-        // stepped random (Serge Smooth & Stepped / Buchla 266 stored random)
+        // stepped random: a new value sampled on every step
         this.stpTarget = this.randDist();
         // registro: a shift register that sometimes flips the bit it recycles
         const len = Math.round(P[I['reg.len']]);
@@ -1193,7 +1193,7 @@ class Orfeo extends AudioWorkletProcessor {
     }
   }
 
-  /** Buchla 266-style distribution: 0 = clustered at the centre, ½ = uniform, 1 = pushed to the edges. */
+  /** A shaped distribution: 0 = clustered at the centre, ½ = uniform, 1 = pushed to the edges. */
   randDist() {
     const d = this.P[I['unc.dist']];
     const u = rnd();
@@ -1242,7 +1242,7 @@ class Orfeo extends AudioWorkletProcessor {
     this.stp += (this.stpTarget - this.stp) * (slew < 0.01 ? 1 : 1 - Math.exp(-CR / (slew * slew * 0.5 * SR)));
     const regLen = Math.round(P[I['reg.len']]);
     const reg = (this.reg / ((1 << regLen) - 1)) * 2 - 1;
-    this.rollz *= Math.exp(-CR / (0.08 * SR));
+    this.rulli *= Math.exp(-CR / (0.08 * SR));
     const src = this.src;
     src[0] = env;
     src[1] = fa;
@@ -1257,7 +1257,7 @@ class Orfeo extends AudioWorkletProcessor {
     src[10] = this.press;
     src[11] = this.x;
     src[12] = this.y;
-    src[13] = this.rollz;
+    src[13] = this.rulli;
     src[14] = clamp((L.logF - Math.log2(55)) / 5);
     src[15] = clamp(this.follow * 3);
     src[16] = this.colony;
@@ -1312,7 +1312,7 @@ class Orfeo extends AudioWorkletProcessor {
     // choir
     this.choirLp = onePole(expMap(S[I['co.tone']], 250, 9000));
 
-    // pedals: effective knob values, with Chase Bliss-style ramps
+    // pedals: effective knob values, with ramps
     const barS = 4 * (60 / bpm);
     for (let n = 0; n < PEDALS.length; n++) {
       const def = PEDALS[n];
@@ -1438,7 +1438,7 @@ class Orfeo extends AudioWorkletProcessor {
         r += x * (1 + Math.min(0, c.pan));
       }
 
-      // gongue
+      // gong
       const gl = S[I['rz.level']];
       if (gl > 0) {
         for (let g = 0; g < 5; g++) {

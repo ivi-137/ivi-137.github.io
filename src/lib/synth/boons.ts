@@ -155,7 +155,7 @@ export const BOONS: Boon[] = [
     id: 'furia',
     gods: ['ares'],
     name: 'Furia',
-    text: 'More heat: every fold, ratchet and gongue burns hotter.',
+    text: 'More heat: every fold, ratchet and gong burns hotter.',
     apply(s, m) {
       return [bump(s, 'g.heat', 0.12 * m, 0, 1, 'calore')];
     },
@@ -199,12 +199,12 @@ export const BOONS: Boon[] = [
     id: 'luna',
     gods: ['artemide'],
     name: 'Luna piena',
-    text: 'The gongues wake: Rollz rolling against each other, brighter metal.',
+    text: 'The gongs wake: five rollers rolling against each other, brighter metal.',
     apply(s, m, rng) {
       s.p['rz.on'] = 1;
       const k = 1 + Math.floor(rng() * 5);
       s.p[`rz.d${k}`] = [3, 5, 7, 9, 11][Math.floor(rng() * 5)];
-      return ['Rollz accesi', `rollo ${k} → ${s.p[`rz.d${k}`]}`, bump(s, 'rz.level', 0.1 * m, 0, 1, 'gongue'), bump(s, 'rz.metal', 0.1 * m, 0, 1, 'metallo')];
+      return ['rulli accesi', `rullo ${k} → ${s.p[`rz.d${k}`]}`, bump(s, 'rz.level', 0.1 * m, 0, 1, 'gong'), bump(s, 'rz.metal', 0.1 * m, 0, 1, 'metallo')];
     },
   },
   {
@@ -320,12 +320,12 @@ export const BOONS: Boon[] = [
     id: 'caccia',
     gods: ['ares', 'artemide'],
     name: 'Caccia di sangue',
-    text: 'Hunting in the fire: the gongues roll under a Euclidean pulse, the drive burns.',
+    text: 'Hunting in the fire: the gongs roll under a Euclidean pulse, the drive burns.',
     apply(s, m, rng) {
       s.p['rz.on'] = 1;
       const e = euclid(3 + Math.floor(rng() * 3), 8);
       for (let i = 0; i < 32; i++) lit(s)[i] = e[i % 8];
-      return ['Rollz accesi', 'porte euclidee', on(s, 'fleg', 'Flegetonte'), bump(s, 'fx.fleg.a', 0.12 * m, 0, 1, 'spinta')];
+      return ['rulli accesi', 'porte euclidee', on(s, 'fleg', 'Flegetonte'), bump(s, 'fx.fleg.a', 0.12 * m, 0, 1, 'spinta')];
     },
   },
   {

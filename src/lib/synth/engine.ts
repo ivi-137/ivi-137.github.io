@@ -94,7 +94,7 @@ export class Engine {
     return performance.now() + (t - ctx.currentTime) * 1000;
   }
 
-  /** Route a microphone or line input into the voice ("campo", after Koma's Field Kit). */
+  /** Route a microphone or line input into the voice ("campo"). */
   async micOn() {
     if (!this.ctx || !this.node || this.mic) return;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
