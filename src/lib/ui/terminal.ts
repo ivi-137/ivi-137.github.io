@@ -315,8 +315,11 @@ const COMMANDS: Record<string, Cmd> = {
   emacs: { man: '', run: (_, o) => o.text('emacs: a fine operating system, lacking only a good cellular automaton. Try `life`.') },
   ping: { man: '', run: (_, o) => o.text(`pong from generation ${life()?.generation ?? 0}`) },
   hello: { man: '', run: (_, o) => o.text('hello, colony.') },
+  lyre: { man: '', run: (_, o) => o.text('Apollo gave Orpheus a lyre, and with it he talked his way past the ferryman. Yours is at /synth/: `open synth`.') },
+  charon: { man: '', run: (_, o) => o.text('Caronte wants an obol for the crossing. There are thirteen of them on /synth/, and any will do.') },
+  styx: { man: '', run: (_, o) => o.text('An oath sworn on the Styx cannot be taken back. On /synth/ Stige is a looper, so it can.') },
 };
-const HIDDEN = new Set(['sudo', 'rm', 'vim', 'emacs', 'ping', 'hello', 'less', 'find']);
+const HIDDEN = new Set(['sudo', 'rm', 'vim', 'emacs', 'ping', 'hello', 'less', 'find', 'lyre', 'charon', 'styx']);
 
 // ── UI ─────────────────────────────────────────────────────────────────────
 

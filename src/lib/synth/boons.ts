@@ -27,6 +27,7 @@ export const GODS: God[] = [
   { id: 'demetra', name: 'Demetra', domain: 'inverno', hue: '#cfe8ff' },
   { id: 'ermes', name: 'Ermes', domain: 'velocità', hue: '#ffb13d' },
   { id: 'caos', name: 'Caos', domain: 'il vuoto', hue: '#8f5bff' },
+  { id: 'apollo', name: 'Apollo', domain: 'la lira', hue: '#ffe36e' },
 ];
 export const god = (id: string) => GODS.find((g) => g.id === id)!;
 
@@ -35,6 +36,7 @@ export const RARITIES = [
   { id: 'raro', n: 'Raro', m: 1.5, w: 0.27 },
   { id: 'epico', n: 'Epico', m: 2, w: 0.13 },
   { id: 'eroico', n: 'Eroico', m: 2.6, w: 0.05 },
+  { id: 'leggendario', n: 'Leggendario', m: 3, w: 0 },
 ] as const;
 export type Rarity = (typeof RARITIES)[number];
 
@@ -339,6 +341,22 @@ export const BOONS: Boon[] = [
   },
 ];
 
+/** Apollo gave Orpheus his lyre. Roughly one offer in 37 carries it. */
+export const LYRE: Boon = {
+  id: 'lira',
+  gods: ['apollo'],
+  name: 'Lira di Apollo',
+  text: 'The gift that started the story. The nine oscillators wake, the colony writes your rhythm, and every note you play falls back into it.',
+  apply(s) {
+    s.p['fo.level'] = Math.max(s.p['fo.level'], 0.4);
+    s.p['fo.follow'] = 1;
+    s.colonyGates = true;
+    s.feed = true;
+    s.harm.on = true;
+    return ['Fonologia desta', 'la colonia scrive', 'nutri la colonia'];
+  },
+};
+
 export interface Offer {
   boon: Boon;
   rarity: Rarity;
@@ -367,5 +385,6 @@ export function offer(rng: () => number = Math.random): Offer[] {
     used.add(b.gods[0]);
     out.push({ boon: b, rarity: roll() });
   }
+  if (rng() < 1 / 37) out[0] = { boon: LYRE, rarity: RARITIES[4] };
   return out.sort(() => rng() - 0.5);
 }

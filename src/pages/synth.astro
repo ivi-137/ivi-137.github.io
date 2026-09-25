@@ -58,7 +58,7 @@ const grid = [nodes];
 const tonnetzW = Math.max(...nodes.map((n) => n.x)) + 24;
 const tonnetzH = Math.max(...nodes.map((n) => n.y)) + 22;
 
-const moduleHue = { voce: '#e8b04a', seq: '#ff6a1f', mod: '#9b6bff', rollz: '#7ddc6a', armonia: '#ff6fb1', board: '#d4213d', play: '#39d0e0' };
+const moduleHue = { voce: 'var(--c-exp)', seq: 'var(--c-np)', mod: 'var(--c-pspace)', rollz: 'var(--c-p)', armonia: 'var(--ink)', board: 'var(--verm)', play: 'var(--cobalt)' };
 const keys = 'A W S E D F T G Y H U J K'.split(' ');
 const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 ---
@@ -67,9 +67,6 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   title="Orfeo 32"
   description="An underworld synthesizer with a 32-step sequencer: a complex oscillator through a low pass gate, fifteen harmony engines from the theory literature, and eight river pedals. After Buchla, Serge, Make Noise, Ciat-Lonbarde, Koma, Gieskes, Sancristoforo and Chase Bliss."
 >
-  <Fragment slot="head">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&display=swap" />
-  </Fragment>
   <section class="orfeo-page" data-orfeo-page>
     <header class="section-head section-head--page orfeo-page__head">
       <p class="kicker mono" data-decode>instrument · underworld synthesizer</p>
@@ -84,7 +81,8 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     </header>
 
     <div class="orfeo" data-orfeo>
-      <canvas class="orfeo__embers" data-embers aria-hidden="true"></canvas>
+      <div class="orfeo__cheek" aria-hidden="true"></div>
+      <div class="orfeo__face">
 
       <!-- ═══════════════ pediment: brand, transport, scopes ═══════════════ -->
       <div class="frieze" aria-hidden="true"></div>
@@ -127,7 +125,7 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
             <optgroup label="tuoi" data-user-presets></optgroup>
           </select>
         </label>
-        <button type="button" class="btn btn--boon" data-boon title="Three gifts from three gods. Choose one.">✦ invoca un dono</button>
+        <button type="button" class="button button--sm btn--boon" data-boon title="Three gifts from three gods. Choose one.">✦ invoca un dono</button>
         <button type="button" class="btn" data-save>salva</button>
         <button type="button" class="btn" data-share>link</button>
         <button type="button" class="btn" data-export>esporta</button>
@@ -243,7 +241,7 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         <div class="seq__grid" data-grid role="grid" aria-label="32 steps">
           {
             [...Array(STEPS).keys()].map((i) => (
-              <div class:list={['step', { 'step--beat': i % 4 === 0 }]} data-step={i} role="gridcell">
+              <div class:list={['step', { 'step--beat': i % 4 === 0 }]} data-cell={i} role="gridcell">
                 <button type="button" class="step__gate" data-gate={i} aria-label={`Step ${i + 1}`} aria-pressed="false">
                   <svg viewBox="0 0 40 40" aria-hidden="true">
                     <path d="M20 3 L36 20 L20 37 L4 20 Z" />
@@ -637,10 +635,12 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         </ol>
       </section>
       <div class="frieze frieze--bottom" aria-hidden="true"></div>
+      </div>
+      <div class="orfeo__cheek" aria-hidden="true"></div>
     </div>
 
-    <dialog class="boons" data-boon-dialog aria-labelledby="boons-title">
-      <p class="boons__kicker mono">the gods offer</p>
+    <dialog class="boons torn" data-boon-dialog aria-labelledby="boons-title" data-tear="9">
+      <p class="kicker mono">the gods offer</p>
       <h2 id="boons-title" class="boons__title">Scegli un dono</h2>
       <div class="boons__cards" data-boon-cards></div>
       <form method="dialog"><button class="btn btn--quiet">rifiuta tutti</button></form>
@@ -691,7 +691,7 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
           Switch on <b>la colonia scrive</b> and at every loop one row of the living background is folded into thirty-two gates:
           the rhythm is whatever the automaton is doing under the panel. <b>Nutri la colonia</b> does the reverse: every note drops
           a glider into it. Each pattern slot carries a sigil grown from its contents, the way every post carries one grown from
-          its title.
+          its title. Not everything is in this manual; some things only happen if you look back.
         </p>
       </div>
     </article>
@@ -719,8 +719,8 @@ const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
           Morphagene), Peter Blasser's Ciat-Lonbarde (Rollz, Gongue, touch plates), Koma Elektronik (Komplex, Field Kit), Gijs
           Gieskes (bent circuits, 3TrinsRGB), Giorgio Sancristoforo (Berna, Gleetchlab) and the nine oscillators Alfredo Lietti
           built for the Studio di Fonologia in Milan; to Chase Bliss (Mood, Generation Loss, Thermae, Dark World, Lossy, Brothers,
-          Habit) for the pedals; and to Supergiant Games' Hades for the look of the underworld. Nothing here is affiliated with any of
-          them.
+          Habit) for the pedals; and to Supergiant Games' Hades for its gods, their gifts and the rivers. Nothing here is affiliated with
+          any of them.
         </p>
       </div>
     </article>

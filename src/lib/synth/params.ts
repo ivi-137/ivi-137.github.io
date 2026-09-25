@@ -228,14 +228,14 @@ export interface PedalDef {
 }
 
 export const PEDALS: PedalDef[] = [
-  { id: 'caos', name: 'Caos', river: 'the void before the gods', after: 'Gieskes circuit bending', knobs: ['bits', 'rate', 'bridge', 'mix'], dips: ['pol', 'rompi'], hue: '#b46cff' },
-  { id: 'fleg', name: 'Flegetonte', river: 'river of fire', after: 'Brothers', knobs: ['a', 'b', 'tone', 'mix'], dips: ['pol', 'parallelo'], hue: '#ff5a1f' },
-  { id: 'ach', name: 'Acheronte', river: 'river of woe', after: 'Lossy', knobs: ['loss', 'gap', 'band', 'mix'], dips: ['pol', 'congela'], hue: '#8fa3b8' },
-  { id: 'mne', name: 'Mnemosine', river: 'pool of memory', after: 'Habit · Morphagene', knobs: ['size', 'dens', 'pitch', 'scan', 'mix'], dips: ['pol', 'congela'], hue: '#5fe3c0' },
-  { id: 'cer', name: 'Cerbero', river: 'the three-headed gate', after: 'Thermae', knobs: ['time', 'fb', 'heads', 'glide', 'mix'], dips: ['pol', 'ping-pong'], hue: '#e8b04a' },
-  { id: 'sti', name: 'Stige', river: 'river of oaths', after: 'Mood', knobs: ['len', 'speed', 'slip', 'mix'], dips: ['pol', 'auto', 'sovraincidi'], hue: '#d4213d' },
-  { id: 'coc', name: 'Cocito', river: 'frozen lake of lament', after: 'Dark World', knobs: ['size', 'dark', 'shim', 'mod', 'mix'], dips: ['pol', 'congela'], hue: '#7fd4ff' },
-  { id: 'lete', name: 'Lete', river: 'river of forgetting', after: 'Generation Loss', knobs: ['wow', 'flut', 'sat', 'gen', 'hiss', 'fail'], dips: ['pol', 'secco'], hue: '#c9c1a8' },
+  { id: 'caos', name: 'Caos', river: 'the void before the gods', after: 'Gieskes circuit bending', knobs: ['bits', 'rate', 'bridge', 'mix'], dips: ['pol', 'rompi'], hue: '#b9a2ff' },
+  { id: 'fleg', name: 'Flegetonte', river: 'river of fire', after: 'Brothers', knobs: ['a', 'b', 'tone', 'mix'], dips: ['pol', 'parallelo'], hue: '#ff7a52' },
+  { id: 'ach', name: 'Acheronte', river: 'river of woe', after: 'Lossy', knobs: ['loss', 'gap', 'band', 'mix'], dips: ['pol', 'congela'], hue: '#a9b4ff' },
+  { id: 'mne', name: 'Mnemosine', river: 'pool of memory', after: 'Habit · Morphagene', knobs: ['size', 'dens', 'pitch', 'scan', 'mix'], dips: ['pol', 'congela'], hue: '#c6ff3d' },
+  { id: 'cer', name: 'Cerbero', river: 'the three-headed gate', after: 'Thermae', knobs: ['time', 'fb', 'heads', 'glide', 'mix'], dips: ['pol', 'ping-pong'], hue: '#d9b25a' },
+  { id: 'sti', name: 'Stige', river: 'river of oaths', after: 'Mood', knobs: ['len', 'speed', 'slip', 'mix'], dips: ['pol', 'auto', 'sovraincidi'], hue: '#ff8f7a' },
+  { id: 'coc', name: 'Cocito', river: 'frozen lake of lament', after: 'Dark World', knobs: ['size', 'dark', 'shim', 'mod', 'mix'], dips: ['pol', 'congela'], hue: '#9fd8ff' },
+  { id: 'lete', name: 'Lete', river: 'river of forgetting', after: 'Generation Loss', knobs: ['wow', 'flut', 'sat', 'gen', 'hiss', 'fail'], dips: ['pol', 'secco'], hue: '#d9d0b8' },
 ];
 
 /** Per pedal: on/off, ramp rate, ramp mode and a bitmask of dips. */

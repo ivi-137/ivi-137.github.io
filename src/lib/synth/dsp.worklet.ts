@@ -1361,8 +1361,7 @@ class Orfeo extends AudioWorkletProcessor {
       oR = out[1] ?? out[0];
     if (!this.ready) return true;
     const inp = inputs[0]?.[0];
-    const P = this.P,
-      S = this.S;
+    const S = this.S;
     const L = this.lead;
     const n = oL.length;
     const q = this.queue;

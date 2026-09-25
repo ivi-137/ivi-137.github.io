@@ -12,8 +12,9 @@ import { offer, god, type Offer } from './boons';
 import { Sigil, ruleFor } from '../sigil';
 import { toast } from '../ui/nav';
 
-const GOLD: [number, number, number] = [232, 176, 74];
-const SRC_HUES = ['#ff6a1f', '#e8b04a', '#ffd84a', '#39d0e0', '#9b6bff', '#b476ff', '#7ddc6a', '#ff6fb1', '#f0d9a0', '#cfe8ff', '#ff3b3b', '#5fe3c0', '#7fb7ff', '#8fdc6a', '#ffb13d', '#e0283f', '#c6ff3d'];
+const INK: [number, number, number] = [22, 20, 15];
+// the site's inks: verm, cobalt, acid, violet, ghost, brass and the class inks
+const SRC_HUES = ['#ff4b1f', '#2f45ff', '#c6ff3d', '#9a6bff', '#7d8cff', '#c9a24a', '#2f6b00', '#d8360f', '#2336d6', '#6a2fcf', '#ff4b1f', '#c6ff3d', '#2f45ff', '#c9a24a', '#9a6bff', '#7d8cff', '#2f6b00'];
 const store = {
   get(k: string) {
     try {
@@ -125,6 +126,7 @@ export function mountOrfeo() {
     knobs.get(id)?.show?.();
     syncSwitches(id);
     if (id === 'g.heat') root.style.setProperty('--heat', String(v));
+    secrets.param(id, v);
     persist();
   }
   let learning: string | null = null;
@@ -249,7 +251,7 @@ export function mountOrfeo() {
 
   // ── the step grid ────────────────────────────────────────────────────────
   let lane: LaneId = 'gate';
-  const stepEls = $$('[data-step]');
+  const stepEls = $$('[data-cell]');
   const gateEls = $$<HTMLButtonElement>('[data-gate]');
   const barEls = $$('[data-bar]');
   const grid = $('[data-grid]');
@@ -387,6 +389,7 @@ export function mountOrfeo() {
     b.addEventListener('click', () => {
       snapshot();
       P().dir = Number(b.dataset.dir);
+      if (P().dir === 1) secrets.lookBack();
       drawGrid();
       persist();
     }),
@@ -541,7 +544,7 @@ export function mountOrfeo() {
     sigilKeys[i] = seed;
     patSigils[i]?.stop();
     const c = root.querySelector<HTMLCanvasElement>(`[data-pat-sigil="${i}"]`)!;
-    patSigils[i] = new Sigil(c, seed, ruleFor(seed), 24, 9, GOLD);
+    patSigils[i] = new Sigil(c, seed, ruleFor(seed), 24, 9, INK);
     patBtns[i].classList.toggle('pat--empty', seed === 'vuoto');
   }
   function animatePatternSigils() {
@@ -1328,6 +1331,7 @@ export function mountOrfeo() {
   seq.onNote = (midi, time) => state.feed && pendingNotes.push({ midi, time });
   seq.onLoop = () =>
     requestAnimationFrame(() => {
+      secrets.loop();
       drawGrid();
       drawPatterns();
       if (state.colonyGates) status(`the colony wrote: ${P().lanes.gate.slice(0, P().len.gate).map((g) => (g ? 'x' : '.')).join('')}`);
@@ -1381,8 +1385,14 @@ export function mountOrfeo() {
   function drawScope() {
     const w = (scope.width = scope.clientWidth * 2),
       h = (scope.height = scope.clientHeight * 2);
-    sctx.fillStyle = '#0b0709';
+    sctx.fillStyle = scopeMode === 'trins' ? '#0a0a0b' : '#ddd3bb';
     sctx.fillRect(0, 0, w, h);
+    if (scopeMode !== 'trins') {
+      sctx.strokeStyle = 'rgba(22,20,15,0.08)';
+      sctx.lineWidth = 1;
+      for (let x = 0; x < w; x += 26) sctx.strokeRect(x, -1, 26, h + 2);
+      for (let y = 0; y < h; y += 17.5) sctx.strokeRect(-1, y, w + 2, 17.5);
+    }
     if (!engine.ready) return;
     const an = engine.analyser;
     tbuf ??= new Float32Array(an.fftSize);
@@ -1395,10 +1405,8 @@ export function mountOrfeo() {
           start = i;
           break;
         }
-      sctx.strokeStyle = '#e8b04a';
-      sctx.shadowColor = '#ff6a1f';
-      sctx.shadowBlur = 8;
-      sctx.lineWidth = 2.4;
+      sctx.strokeStyle = '#16140f';
+      sctx.lineWidth = 2.2;
       sctx.beginPath();
       const n = tbuf.length / 2;
       for (let i = 0; i < n; i++) {
@@ -1407,7 +1415,6 @@ export function mountOrfeo() {
         i ? sctx.lineTo(x, y) : sctx.moveTo(x, y);
       }
       sctx.stroke();
-      sctx.shadowBlur = 0;
     } else if (scopeMode === 'spec') {
       fbuf ??= new Uint8Array(an.frequencyBinCount);
       an.getByteFrequencyData(fbuf);
@@ -1418,10 +1425,7 @@ export function mountOrfeo() {
         let v = 0;
         for (let k = lo; k < hi; k++) v = Math.max(v, fbuf[k]);
         const bh = (v / 255) * h;
-        const g = sctx.createLinearGradient(0, h, 0, h - bh);
-        g.addColorStop(0, '#b3122d');
-        g.addColorStop(1, '#ffb13d');
-        sctx.fillStyle = g;
+        sctx.fillStyle = b % 8 === 0 ? '#ff4b1f' : '#16140f';
         sctx.fillRect((b / bars) * w + 1, h - bh, w / bars - 2, bh);
       }
     } else if (scopeMode === 'xy') {
@@ -1429,7 +1433,7 @@ export function mountOrfeo() {
       rbuf ??= new Float32Array(engine.anR.fftSize);
       engine.anL.getFloatTimeDomainData(lbuf);
       engine.anR.getFloatTimeDomainData(rbuf);
-      sctx.strokeStyle = 'rgba(95,227,192,0.85)';
+      sctx.strokeStyle = '#2f45ff';
       sctx.lineWidth = 1.6;
       sctx.beginPath();
       for (let i = 0; i < lbuf.length; i++) {
@@ -1462,46 +1466,9 @@ export function mountOrfeo() {
     }
   }
 
-  // embers rising from the bottom of the panel
-  const embers = $<HTMLCanvasElement>('[data-embers]');
-  const ectx = embers.getContext('2d')!;
-  const sparks: Array<{ x: number; y: number; vx: number; vy: number; life: number; r: number; hue: number }> = [];
   let visible = true;
   const io = new IntersectionObserver((es) => (visible = es[0].isIntersecting));
   io.observe(root);
-  function drawEmbers(level: number) {
-    const w = root.clientWidth,
-      h = root.clientHeight;
-    if (embers.width !== w || embers.height !== h) {
-      embers.width = w;
-      embers.height = h;
-    }
-    ectx.clearRect(0, 0, w, h);
-    if (reduced) return;
-    const heat = state.p['g.heat'];
-    const rate = 0.25 + level * 18 + heat * 2;
-    const vr = root.getBoundingClientRect();
-    const bottom = Math.min(h, innerHeight - vr.top);
-    for (let k = 0; k < rate && sparks.length < 180; k++)
-      if (Math.random() < rate - k)
-        sparks.push({ x: Math.random() * w, y: bottom + 4, vx: (Math.random() - 0.5) * 0.4, vy: -(0.6 + Math.random() * 1.6 + level * 3), life: 1, r: 0.8 + Math.random() * 2.2, hue: Math.random() });
-    ectx.globalCompositeOperation = 'lighter';
-    for (let i = sparks.length - 1; i >= 0; i--) {
-      const s = sparks[i];
-      s.x += s.vx + Math.sin((s.y + s.hue * 100) / 40) * 0.3;
-      s.y += s.vy;
-      s.life -= 0.006 + Math.random() * 0.004;
-      if (s.life <= 0 || s.y < Math.max(0, -vr.top)) {
-        sparks.splice(i, 1);
-        continue;
-      }
-      ectx.fillStyle = s.hue < 0.7 ? `rgba(255,${110 + s.hue * 120},40,${s.life * 0.8})` : `rgba(255,220,120,${s.life})`;
-      ectx.beginPath();
-      ectx.arc(s.x, s.y, s.r * s.life, 0, Math.PI * 2);
-      ectx.fill();
-    }
-    ectx.globalCompositeOperation = 'source-over';
-  }
 
   let raf = 0;
   const frame = () => {
@@ -1554,7 +1521,6 @@ export function mountOrfeo() {
       el.classList.toggle('is-off', !(d > 0 && state.p['rz.on']));
     });
     drawScope();
-    drawEmbers(mon?.level ?? 0);
   };
   raf = requestAnimationFrame(frame);
 
@@ -1572,20 +1538,20 @@ export function mountOrfeo() {
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key.toLowerCase();
+    secrets.key(e.key);
     if (e.key === ' ' && !t.closest('button, [role=slider], [role=tab]')) {
       e.preventDefault();
       toggle();
     } else if (e.key === 'Escape') panic();
     else if (KEYS.includes(k) && k.length === 1) {
       e.preventDefault();
-      e.stopImmediatePropagation(); // don't also trigger the site's single-key shortcuts
+      if ('gjk'.includes(k)) e.stopImmediatePropagation(); // G (go to…), J, K (posts) are the site's too
       if (e.repeat || keyDown.has(k)) return;
       keyDown.add(k);
       const el = plates[KEYS.indexOf(k)];
       platePress(el, 0.6);
     } else if (k === 'z' || k === 'x') {
       e.preventDefault();
-      e.stopImmediatePropagation();
       plateOct = clamp(plateOct + (k === 'x' ? 1 : -1), -3, 3);
       octVal.textContent = String(plateOct);
     }
@@ -1598,6 +1564,91 @@ export function mountOrfeo() {
   };
   addEventListener('keydown', onKey, { capture: true });
   addEventListener('keyup', onKeyUp, { capture: true });
+
+  // ── secrets ─────────────────────────────────────────────────────────────
+  // Not in the manual. Some things only happen if you look back.
+  const secrets = (() => {
+    const done = new Set<string>();
+    const once = (k: string) => (done.has(k) ? false : (done.add(k), true));
+    const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+    let konami = 0;
+    let typed = '';
+    let restT = 0;
+    let loops = 0;
+    const scaleMidi = (deg: number) => seq.noteMidi(deg).midi;
+    return {
+      /** The site's Konami code wakes the colony; here the lyre answers it. */
+      async key(key: string) {
+        konami = key === KONAMI[konami] || key.toLowerCase() === KONAMI[konami] ? konami + 1 : key === KONAMI[0] ? 1 : 0;
+        if (konami === KONAMI.length) {
+          konami = 0;
+          if (!(await boot())) return;
+          const t0 = engine.now + 0.05;
+          engine.events([0, 2, 4, 7, 9, 11, 14, 16].map((d, i) => ({ k: 'c' as const, at: t0 + i * 0.09, hz: tuneHz(scaleMidi(d) + 12, state.root, state.tuning), vel: 0.8, dur: 1.6 - i * 0.1, kind: 1 as const })));
+          status('♪ the lyre answers the colony');
+        }
+        if (key.length === 1 && /[a-z]/i.test(key)) {
+          typed = (typed + key.toLowerCase()).slice(-12);
+          if (typed.endsWith('orfeo')) this.lament();
+        }
+      },
+      /** Type his name: the lament bass, a minor tetrachord falling from the tonic to the dominant. */
+      async lament() {
+        if (!(await boot())) return;
+        const r = state.root;
+        const bar = (60 / state.p['g.bpm']) * 4;
+        const t0 = engine.now + 0.1;
+        const bass = [0, -2, -4, -5].map((i) => 36 + r + i + 12);
+        const chords = [
+          [0, 3, 7],
+          [-2, 2, 7],
+          [-4, 0, 5],
+          [-5, -1, 2],
+        ];
+        const ev: Parameters<typeof engine.events>[0] = [];
+        bass.forEach((m, i) => {
+          ev.push({ k: 'n', at: t0 + i * bar * 0.5, hz: tuneHz(m, r, state.tuning), vel: 0.8, dur: bar * 0.48, slide: 0, t: 0.3, m: 0.5 });
+          for (const iv of chords[i]) ev.push({ k: 'c', at: t0 + i * bar * 0.5, hz: tuneHz(60 + r + iv, r, state.tuning), vel: 0.6, dur: bar * 0.5, kind: 0 });
+        });
+        engine.events(ev);
+        status('Lamento: the descending minor tetrachord, as in Monteverdi’s Lamento della ninfa (1638)');
+      },
+      /** Rest on 137 (or 110) bpm and the gates start to compute. */
+      param(id: string, v: number) {
+        if (id === 'g.bpm') {
+          clearTimeout(restT);
+          if (v === 137 || v === 110)
+            restT = window.setTimeout(() => {
+              if (state.p['g.bpm'] !== v) return;
+              P().ca = { on: true, rule: v };
+              drawGrid();
+              status(v === 137 ? 'Rule 137 ≅ Rule 110: eight bits that compute everything. The gates are computing now.' : 'Rule 110 at 110 bpm: the gates are Turing-complete now.');
+            }, 700);
+        }
+        if (id === 'g.heat' && v >= 0.999 && once('heat')) {
+          life()?.dropAt(innerWidth * (0.2 + Math.random() * 0.6), innerHeight * (0.2 + Math.random() * 0.6), 'gun');
+          status('calore massimo: even the colony has caught fire (a glider gun)');
+        }
+      },
+      /** Orpheus turned round at the last moment, and Eurydice went back to the shades. */
+      lookBack() {
+        if (!engine.ready || !state.harm.on || state.p['co.level'] < 0.05 || !once('look')) return;
+        engine.param('co.level', 0);
+        status('Orfeo si è voltato. Euridice torna tra le ombre.');
+        setTimeout(() => {
+          engine.param('co.level', state.p['co.level']);
+          status('…and the song goes on anyway.');
+        }, 7000);
+      },
+      /** Song mode through all eight chambers. */
+      loop() {
+        const all = new Set(state.chain).size === 8;
+        loops = all ? loops + 1 : 0;
+        if (all && loops >= state.chain.length && once('escape')) status('Eight chambers crossed. The surface is cold; the song goes back down.');
+      },
+    };
+  })();
+  if (new Date().getHours() === 0) status('mezzanotte: the gates are open');
 
   // ── everything at once ──────────────────────────────────────────────────
   function refreshAll() {
