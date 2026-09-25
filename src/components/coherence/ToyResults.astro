@@ -8,7 +8,7 @@ import hazards from '../../../research/coherence/results/hazards.json';
 import screen from '../../../research/coherence/results/screen/summary.json';
 
 interface Props {
-  chart: 'bars' | 'bylen' | 'hazard' | 'rising' | 'attention' | 'monitors' | 'cost' | 'placement';
+  chart: 'bars' | 'bylen' | 'hazard' | 'rising' | 'attention' | 'monitors' | 'cost' | 'placement' | 'productlaw';
   caption?: string;
 }
 const { chart, caption } = Astro.props;
@@ -113,7 +113,38 @@ const baseCost = V.base?.macs_per_token;
 ---
 
 {
-  chart === 'placement' ? (
+  chart === 'productlaw' ? (
+    <table class="cx-table">
+      <thead>
+        <tr>
+          <th>model</th>
+          <th>font</th>
+          <th>headings</th>
+          <th>maths</th>
+          <th>all three</th>
+        </tr>
+      </thead>
+      <tbody>
+        {['base', 'base_aux', 'ledger_joint', 'ledger'].filter((v) => HZ[v]?.product_law).map((v) => {
+          const pl = HZ[v].product_law;
+          const cell = (p: number, m: number) => (
+            <td>
+              {(100 * p).toFixed(1)} <small>/ {(100 * m).toFixed(1)}</small>
+            </td>
+          );
+          return (
+            <tr>
+              <td>{NAME[v]}</td>
+              {cell(pl.predicted.font, pl.measured.font)}
+              {cell(pl.predicted.heading, pl.measured.heading)}
+              {cell(pl.predicted.math, pl.measured.math)}
+              {cell(pl.joint_predicted, pl.joint_measured)}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  ) : chart === 'placement' ? (
     <table class="cx-table">
       <thead>
         <tr>

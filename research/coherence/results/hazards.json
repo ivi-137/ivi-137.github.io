@@ -36,6 +36,25 @@
     0.8347207789211673
    ]
   },
+  "product_law": {
+   "predicted": {
+    "font": 0.9283186627338972,
+    "heading": 0.9883631067194335,
+    "math": 0.9472940522587466
+   },
+   "measured": {
+    "font": 0.9283333333333333,
+    "heading": 0.9883333333333333,
+    "math": 0.9366666666666666
+   },
+   "joint_predicted": 0.8699889619319155,
+   "joint_measured": 0.865,
+   "per_post": {
+    "font": 9.918333333333333,
+    "heading": 3.56,
+    "math": 1.3716666666666666
+   }
+  },
   "font_by_paragraph": [
    {
     "from": 1,
@@ -110,6 +129,25 @@
    "only_this": 44,
    "only_base": 28,
    "p": 0.07636915467183139
+  },
+  "product_law": {
+   "predicted": {
+    "font": 0.9497505678263095,
+    "heading": 0.9900078592560728,
+    "math": 0.956782849525699
+   },
+   "measured": {
+    "font": 0.95,
+    "heading": 0.99,
+    "math": 0.9566666666666667
+   },
+   "joint_predicted": 0.9001067169023775,
+   "joint_measured": 0.9,
+   "per_post": {
+    "font": 9.866666666666667,
+    "heading": 3.526666666666667,
+    "math": 1.4333333333333333
+   }
   },
   "font_by_paragraph": [
    {
@@ -186,6 +224,25 @@
    "only_base": 27,
    "p": 5.46197809541596e-08
   },
+  "product_law": {
+   "predicted": {
+    "font": 0.9599877192193014,
+    "heading": 0.9916826933573194,
+    "math": 0.9784604960975462
+   },
+   "measured": {
+    "font": 0.96,
+    "heading": 0.9916666666666667,
+    "math": 0.9783333333333334
+   },
+   "joint_predicted": 0.9317358440875168,
+   "joint_measured": 0.9316666666666666,
+   "per_post": {
+    "font": 9.938333333333333,
+    "heading": 3.5183333333333335,
+    "math": 1.4433333333333334
+   }
+  },
   "font_by_paragraph": [
    {
     "from": 1,
@@ -260,6 +317,25 @@
    "only_this": 44,
    "only_base": 10,
    "p": 3.385685953372075e-06
+  },
+  "product_law": {
+   "predicted": {
+    "font": 1.0,
+    "heading": 1.0,
+    "math": 1.0
+   },
+   "measured": {
+    "font": 1.0,
+    "heading": 1.0,
+    "math": 1.0
+   },
+   "joint_predicted": 1.0,
+   "joint_measured": 1.0,
+   "per_post": {
+    "font": 10.02,
+    "heading": 3.5633333333333335,
+    "math": 1.5033333333333334
+   }
   },
   "font_by_paragraph": [
    {
@@ -336,6 +412,25 @@
    "only_base": 10,
    "p": 1.3765197153783534e-09
   },
+  "product_law": {
+   "predicted": {
+    "font": 1.0,
+    "heading": 1.0,
+    "math": 1.0
+   },
+   "measured": {
+    "font": 1.0,
+    "heading": 1.0,
+    "math": 1.0
+   },
+   "joint_predicted": 1.0,
+   "joint_measured": 1.0,
+   "per_post": {
+    "font": 10.023333333333333,
+    "heading": 3.5866666666666664,
+    "math": 1.4066666666666667
+   }
+  },
   "font_by_paragraph": [
    {
     "from": 1,
@@ -410,6 +505,25 @@
    "only_this": 31,
    "only_base": 41,
    "p": 0.28878428041410487
+  },
+  "product_law": {
+   "predicted": {
+    "font": 0.9305783638024405,
+    "heading": 0.9867155100596214,
+    "math": 0.9668443882611607
+   },
+   "measured": {
+    "font": 0.93,
+    "heading": 0.9866666666666667,
+    "math": 0.9666666666666667
+   },
+   "joint_predicted": 0.8883631898267548,
+   "joint_measured": 0.8866666666666667,
+   "per_post": {
+    "font": 9.993333333333334,
+    "heading": 3.6766666666666667,
+    "math": 1.4966666666666666
+   }
   },
   "font_by_paragraph": [
    {

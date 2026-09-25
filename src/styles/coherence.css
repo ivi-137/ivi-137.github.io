@@ -343,3 +343,22 @@
   font: italic 0.95rem var(--f-text);
   color: var(--ink-2);
 }
+
+/* ── tables of prose (the argument, the evidence, comparisons) ── */
+.prose .cx-text table {
+  min-width: 700px;
+  text-align: left;
+  font-size: 0.68em;
+  line-height: 1.45;
+}
+.prose .cx-text th {
+  text-align: left;
+  vertical-align: bottom;
+}
+.prose .cx-text td {
+  font-weight: 400;
+  vertical-align: top;
+}
+.prose .cx-text td:first-child {
+  font-weight: 600;
+}

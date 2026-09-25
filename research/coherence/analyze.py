@@ -110,6 +110,15 @@ def main():
                     pb += [r['coherent'] for r in bs[sd]]
             x, y, p = mcnemar(pa, pb)
             row['vs_base'] = {'pairs': len(pa), 'only_this': x, 'only_base': y, 'p': p}
+        # Proposition 2's product law, checked: from the per-opportunity hazards alone, predict the
+        # share of posts that keep each invariant, and (treating the three as independent) all three
+        tests = {'font': is_font, 'heading': is_head, 'math': is_mopen}
+        counts = {k: np.array([sum(1 for t in r['y'] if f(t)) for r in recs]) for k, f in tests.items()}
+        pred = {k: float(np.mean((1 - row[k]['hazard']) ** counts[k])) for k in tests}
+        meas = {k: float(np.mean([r['ok'][k] for r in recs])) for k in tests}
+        joint_p = float(np.mean(np.prod([(1 - row[k]['hazard']) ** counts[k] for k in tests], axis=0)))
+        joint_m = float(np.mean([all(r['ok'][k] for k in tests) for r in recs]))
+        row['product_law'] = {'predicted': pred, 'measured': meas, 'joint_predicted': joint_p, 'joint_measured': joint_m, 'per_post': {k: float(counts[k].mean()) for k in tests}}
         h, n, b = km_by_paragraph(recs)
         # pool paragraphs into thirds of a long post to steady the estimate
         bins = [(0, 1), (1, 4), (4, 8), (8, 16)]

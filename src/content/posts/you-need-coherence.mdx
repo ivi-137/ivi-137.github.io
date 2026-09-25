@@ -1,31 +1,44 @@
 ---
 title: You need coherence
 date: 2026-09-25T18:00:00Z
-description: A transformer can attend to everything in its context and still break the promises its text has made. Why that happens, how often, and a small ledger that keeps them.
-concepts: [transformers, attention, softmax, coherence, temporal logic, runtime verification, Chomsky hierarchy, NP]
+description: A transformer has memory but no state, so every promise its text has made must be re-derived at every step, through a budget shared with everything else. Why that breaks, and a small ledger that keeps the promises.
+concepts: [transformers, attention, softmax, coherence, temporal logic, runtime verification, Chomsky hierarchy, symmetry, NP]
 class: NP
 ---
 import '../../styles/coherence.css';
 import TransformerDiagram from '../../components/coherence/TransformerDiagram.astro';
 import LedgerDiagram from '../../components/coherence/LedgerDiagram.astro';
+import FrameDiagram from '../../components/coherence/FrameDiagram.astro';
 import ToyResults from '../../components/coherence/ToyResults.astro';
 import Audit from '../../components/coherence/Audit.astro';
-import FrameDiagram from '../../components/coherence/FrameDiagram.astro';
 
 Ask a language model to read this notebook and write the next entry. It will get the topic right and the voice roughly right. Then, often somewhere around the fourth paragraph, a formula will appear between single dollar signs, although every formula here sits between two. A heading will arrive in Title Case. "Behaviour" will lose its u. And the post will stop one section early, without the sources that close this one. None of this is hard. Each is a promise the earlier posts made, and each gets broken anyway.
 
-This post is about that failure. I'll call the property it breaks *coherence*: a text is coherent when it keeps the commitments its context has made, from the first token to the last. The argument goes in eight steps:
+I'll call the property that breaks *coherence*: a text is coherent when it keeps the obligations its context created, from the first token to the last. This post makes one argument about it. A transformer has memory but no state. It keeps every token it has seen, but it carries nothing forward from one step to the next except those tokens, so every obligation has to be re-derived, at every step, by attention. And attention pays for everything out of a single budget that sums to 1 and is shared with a context that grows by one token per step. Three failures follow, each provable: the obligation's share of attention *dilutes*, small per-step slips *compound* over a long text, and the decision to stop is made *blind* to what is still owed. The repair is to give obligations what the transformer lacks: a small state of their own, read through a budget of its own, connected to the decision to stop. I call it the *Ledger*. For one important class of obligations, those that pick one variant among interchangeable ones, group theory goes further: the state collapses to a single symmetry, read once, and those obligations can no longer fail at any length.
 
-1. **The machine.** The Transformer of "Attention is all you need", with its mathematics.
-2. **The evidence.** What published measurements say about how often models lose the thread.
-3. **A definition.** Coherence as a set of obligations in temporal logic, each checkable by a finite automaton.
-4. **Three mechanisms.** Dilution, compounding and premature stopping, each with a short proof.
-5. **An architecture.** The *Ledger*: a small block that can be inserted into a trained transformer without changing what it computes on the day it is inserted.
-6. **Symmetry.** Many conventions are choices among interchangeable variants. Group theory turns keeping them into something that cannot fail after one reading, and lets the model forget its examples.
-7. **Placement.** Where in the transformer each kind of obligation should be enforced: before, inside, after, or across.
-8. **An experiment.** A controlled toy, trained from scratch several times over, small enough to run live on this page.
+The contributions, each with its evidence:
 
-Every measurement below is either quoted from a paper in the reading list at the end or produced by code that lives in this site's repository, under `research/coherence/`.
+1. **A diagnosis.** Dilution (Lemma 1, and Corollary 1: holding an instruction's share needs a score edge that grows like $$\log n$$), compounding (Proposition 2: the chance of keeping every invariant falls exponentially with length) and blind stopping (Proposition 3: a closed form for ending with a debt unpaid). In a controlled experiment, the product law of Proposition 2 predicts how often posts keep all their invariants to within half a point.
+2. **The Ledger.** Typed slots filled once from the prompt, a state per slot updated by every written token, a read with its own softmax, and a gate on the end-of-text token. It computes exactly the original function when inserted. In the experiment it lifts coherent posts from 80.5% to 90.0% ($$p = 5.5 \times 10^{-8}$$) and the right length from 38.5% to 98.5%, and the same slots inside the ordinary softmax give nothing (74.0%).
+3. **Gauge fixing.** When conventions are orbits of a group acting on the vocabulary, reading the author's frame once and writing in a canonical frame makes them hold at every length with probability at least $$1 - \sum_i e^{-2 m_i (1/2 - \eta_i)^2}$$ (Theorem 1). In the experiment, not one of 4,526 opportunities to break them was taken, and the model could stop attending to its examples: 64% fewer keys per written token.
+4. **Where it belongs.** Each part answers one failure, and each failure happens in one place in the network; placement follows, and a screen of six placements agrees with one correction.
+
+The experiment is a toy trained on four CPU cores, and I say so wherever it matters. The mathematics carries the argument; the toy checks that the mechanisms do what the mathematics says.
+
+### The argument in one table
+
+<div class="cx-text">
+
+| what goes wrong | evidence | why (proved below) | repair | where | in the toy |
+|---|---|---|---|---|---|
+| an instruction fades as the text grows | RULER, NoLiMa, persona drift | dilution: Lemma 1, Corollary 1 | a read with its own softmax | inside the network | slots in the shared softmax 74.0%, in their own 90.0% |
+| a rule is kept for a while, then broken | IFEval, IFScale, style imitation | compounding: Proposition 2 | a state per obligation; for symmetric rules, gauge fixing | along the sequence; at the output | maths slip per formula 3.96% → 1.51% → 0 |
+| the text stops before a promise is paid | ALCE, the empty-output bias | blind stopping: Proposition 3 | a gate on stopping, tied to what is owed | at the output | sources kept 97.5% → 99.0% |
+| a requested count is missed | IFEval's length rules | nothing to count with | a counter in the state, read inside | along the sequence, inside | right length 38.5% → 98.5% |
+
+</div>
+
+The rest of the post fills in each column: the machine, the evidence, a precise definition, the three failures, the repair, its symmetric limit, its placement, and the experiment.
 
 ## The machine
 
@@ -101,9 +114,19 @@ $$
 
 and they write by sampling one token at a time and feeding it back in. Every rule the text has to follow must be recovered, at every step, by attention over a context that grows by one token each time.
 
+### Two facts the rest depends on
+
+**Fact 1: one budget.** Every row of attention is a probability distribution over all the tokens visible to it. Whatever a head gives to one token it takes from the others, and the number of others grows by one with every token written.
+
+**Fact 2: memory without state.** Between two steps, a decoder carries nothing forward except the tokens themselves, together with their keys and values, which are fixed views of those tokens. There is no small running summary, of the kind a finite automaton keeps, that the next step inherits. So anything the text has committed to, a font, a count, a debt of sources, must be found again at every step by attention over the whole context. The transformer's great strength, that any token can read any other directly, is also the reason it has to.
+
+Everything below is a consequence of these two facts, and the repair adds exactly what the second one says is missing.
+
 ## How often models lose the thread
 
-No single benchmark measures coherence as I've defined it. The nearest measurements come from three directions: instructions a program can check, long inputs, and imitation of a style.
+No single benchmark measures coherence as I have defined it. The nearest measurements come from three directions: instructions a program can check, long inputs, and imitation of a style.
+
+<div class="cx-text">
 
 | study | what was measured | what they found |
 |---|---|---|
@@ -119,37 +142,45 @@ No single benchmark measures coherence as I've defined it. The nearest measureme
 | Levy, Jacoby and Goldberg 2024 | the same reasoning questions, padded to different lengths | reasoning degraded at input lengths far below the models' technical maximum |
 | Wang et al. 2025 | imitating more than 400 everyday authors from a few samples, over 40,000 generations per model | style approximated in news and email; blogs and forums remained hard |
 
-Three patterns run through the table.
+</div>
 
-First, failures grow with the number of things to keep in mind: more instructions (IFScale), more turns (Multi-IF, Laban et al.), more context (RULER, NoLiMa, lost in the middle). Second, implicit constraints are harder than explicit ones. Instruction benchmarks state their rules. Imitation from examples does not, and the one large study of the case this post began with found blogs among the hardest domains. Third, these are not failures of knowledge. Laban et al. separate *aptitude*, which barely moved, from *reliability*, which collapsed. The models could do the task. They didn't do it consistently.
+The rows sort into the four lines of the table at the top. Failures that grow with the length of the context (RULER, NoLiMa, lost in the middle, persona drift, Levy et al.) are what dilution predicts. Failures that grow with the number of rules and turns (IFEval, Multi-IF, IFScale, Laban et al.) are what compounding predicts: every extra rule and every extra step is another chance to slip. Failures at the end, missing citations above all, are what blind stopping predicts. And the hardest case, imitation from examples, combines all three with a fourth difficulty: nobody states the rules, so they must first be read off the examples.
 
-Numbers from 2023 age fast, and newer models do better on every row. But each study found failures that grow with length, turns or the number of constraints, and a pattern that survives across models, labs and years points to a cause in the architecture rather than in any one model. The rest of this post looks for it.
+Two more observations shape the repair. Laban et al. separate *aptitude*, which barely moved, from *reliability*, which collapsed: the models could do the task, they just did not do it every time. That points at the mechanism, not the knowledge. And newer models do better on every row, but each study found failures that grow with length, turns or the number of rules, across models, labs and years. A pattern that stable points to the architecture.
 
 ## What coherence means
 
-### Grammatical is not coherent
+### Obligations
 
-In 1957 Noam Chomsky wrote a sentence to make a point about grammar: "Colorless green ideas sleep furiously." Every word is in its place, and the sentence means nothing. Being well formed and making sense are different properties.
-
-Coherence, in the sense I need, is a third property, closer to bookkeeping. A context makes promises about the text that follows it. The earlier posts in this notebook promise a way of writing formulas, a spelling, headings in sentence case, a closing section that explains the filing, and sources at the end. A request for "nine paragraphs" promises nine. Formally, a context $$c$$ induces a set of obligations $$\Phi(c) = \{\varphi_1, \dots, \varphi_k\}$$, and an output $$y$$ is coherent with $$c$$ when
+In 1957 Noam Chomsky wrote a sentence to make a point about grammar: "Colorless green ideas sleep furiously." Every word is in its place, and the sentence means nothing. Being well formed and making sense are different properties, and coherence, in the sense I need, is a third one, closer to bookkeeping. A context makes promises about the text that follows it. The earlier posts in this notebook promise a way of writing formulas, a spelling, headings in sentence case, a closing section that explains the filing, and sources at the end. A request for "nine paragraphs" promises nine. Formally, a context $$c$$ induces a set of obligations $$\Phi(c) = \{\varphi_1, \dots, \varphi_k\}$$, and an output $$y$$ is coherent with $$c$$ when
 
 $$
 y \models \varphi_i \quad \text{for every } \varphi_i \in \Phi(c).
 $$
 
-The obligations in a blog post come in a few shapes, and linear temporal logic has a name for most of them. Amir Pnueli introduced the logic for reasoning about programs in 1977; De Giacomo and Vardi gave it the semantics for finite traces in 2013, and a text is a finite trace. The last row is not a temporal operator, but counting up to a fixed bound is still something a finite automaton can do.
+The obligations come in a few shapes, and linear temporal logic names most of them. Amir Pnueli introduced the logic for reasoning about programs in 1977; De Giacomo and Vardi gave it its semantics on finite traces in 2013, and a text is a finite trace.
 
-| shape | formula | in this notebook |
-|---|---|---|
-| invariant | $$\mathbf{G}\,p$$, always $$p$$ | every formula uses the double-dollar delimiter |
-| eventuality | $$\mathbf{F}\,q$$, eventually $$q$$ | some section explains the complexity class |
-| order | $$\lnot r \;\mathbf{U}\; q$$, no $$r$$ until $$q$$ | that section comes before the sources |
-| last | $$\mathbf{F}\,r \land \mathbf{G}(r \to \mathbf{G}\,s)$$ | once the sources begin, only sources follow |
-| count | $$\#p = n$$, bounded | the requested number of paragraphs |
+<div class="cx-text">
 
-All of these can be checked while the text is being written. Bauer, Leucker and Schallhart (2011) give a three-valued verdict on a prefix $$u$$ of a run: $$\top$$ if every continuation of $$u$$ satisfies $$\varphi$$, $$\bot$$ if none does, and $$?$$ otherwise. A text also ends, and at its end every verdict is settled. So, while writing, an invariant can only move from $$?$$ to $$\bot$$ (one slip breaks it for good), and it is kept if the text ends unbroken. An eventuality can only move from $$?$$ to $$\top$$ (once paid, it stays paid), and it is broken if the text ends unpaid. Each of these obligations compiles to a small deterministic automaton that reads the output once.
+| shape | formula | in this notebook | how it fails |
+|---|---|---|---|
+| invariant | $$\mathbf{G}\,p$$, always $$p$$ | every formula uses the double-dollar delimiter | at any step: a slip, then compounding |
+| eventuality | $$\mathbf{F}\,q$$, eventually $$q$$ | some section explains the complexity class | only at the end: stopping unpaid |
+| order | $$\lnot r \;\mathbf{U}\; q$$, no $$r$$ until $$q$$ | that section comes before the sources | when the second arrives first |
+| last | $$\mathbf{F}\,r \land \mathbf{G}(r \to \mathbf{G}\,s)$$ | once the sources begin, only sources follow | as eventuality, then as invariant |
+| count | $$\#p = n$$, bounded | the requested number of paragraphs | at the end, if nothing counted |
 
-That puts coherence on the bottom rung of the hierarchy Chomsky set out in 1956 and 1959: these are regular languages, the ones a finite automaton recognises. You don't need a Turing machine to keep a promise. You need a finite automaton that doesn't forget. Keith Duggar has made the matching point about networks on Machine Learning Street Talk: a network of fixed size is a finite-state machine, not a Turing machine. So carrying a handful of obligations is well within what a transformer can represent, and there is a theorem that says exactly how well. Yang, Chiang and Angluin proved that transformers with hard attention (each position attends to exactly one other) and a strict causal mask recognise exactly the languages definable in linear temporal logic, the star-free languages; Yang and Chiang then compiled a temporal logic with counting into ordinary softmax transformers. Every obligation in this post can therefore be written as a transformer. What is in question is whether a trained one, with soft attention, carries it in practice. Delétang and colleagues trained 20,910 networks on 15 tasks grouped by the Chomsky hierarchy, and the hierarchy predicted which architectures could extend what they had learned to longer inputs. The networks that climbed highest were the ones given an explicit memory, a stack or a tape.
+</div>
+
+The last row is not a temporal operator, but counting to a fixed bound is still something a finite automaton can do. The last column is the point of the table: each shape fails through a different mechanism, and the next section proves one result per mechanism.
+
+All of these can be checked while the text is written. Bauer, Leucker and Schallhart (2011) give a three-valued verdict on a prefix $$u$$ of a run: $$\top$$ if every continuation satisfies $$\varphi$$, $$\bot$$ if none does, and $$?$$ otherwise. A text ends, and at its end every verdict is settled. So an invariant can only move from $$?$$ to $$\bot$$, and is kept if the text ends unbroken; an eventuality can only move from $$?$$ to $$\top$$, and is broken if the text ends unpaid. Each obligation compiles to a small deterministic automaton that reads the output once, keeping a few bits of state as it goes.
+
+### What a transformer can and cannot do with them
+
+These are regular languages, the bottom rung of the hierarchy Chomsky set out in 1956 and 1959. A finite automaton keeps them with a constant amount of state. Keith Duggar has made the matching point about networks on Machine Learning Street Talk: a network of fixed size is a finite-state machine, not a Turing machine. There is also a theorem that says exactly how well transformers fit. Yang, Chiang and Angluin proved that transformers with *hard* attention (each position attends to exactly one other) and a strict causal mask recognise exactly the languages definable in linear temporal logic; Yang and Chiang compiled a temporal logic with counting into ordinary softmax transformers. So every obligation above can be written as a transformer. And Delétang and colleagues, training 20,910 networks on 15 tasks grouped by the Chomsky hierarchy, found that what lets a network carry such structure to longer inputs is an explicit memory it can update, a stack or a tape.
+
+Put these together with Fact 2. The idealised transformer can express the obligations, but it has no state to keep them in, so it must re-express them at every step through attention. With hard attention that costs nothing: one position, found exactly. With the soft attention we actually train, each re-derivation is paid for from the shared budget of Fact 1. That is where the failures come from.
 
 ### Competence and performance
 
@@ -157,9 +188,7 @@ In *Aspects of the Theory of Syntax* (1965), Chomsky separated what a speaker kn
 
 > unaffected by such grammatically irrelevant conditions as memory limitations, distractions, shifts of attention and interest, and errors (random or characteristic) in applying his knowledge of the language in actual performance.
 
-The distinction fits incoherent models almost too well. Methods that ask a model to criticise and revise its own draft, such as Self-Refine (Madaan et al. 2023), improve the draft, which they could not do if the model couldn't see what was wrong. Checking is a competence the model has. Producing is a performance, and it is subject to exactly Chomsky's list: limited memory, distraction by whatever text is nearest, attention that drifts. The expressivity results above put the same split in mathematical form: hard attention, the idealised machine, can express every obligation exactly; soft attention, the machine we train, spreads its weight, and Lemma 1 below says by how much. Chomsky has been a severe critic of language models. He discussed them on Machine Learning Street Talk in 2022, and in the *New York Times* in 2023 he and his co-authors called ChatGPT "a lumbering statistical engine for pattern matching". This post doesn't need to settle that argument. It borrows his distinction because it says where to look: not at what the model knows, but at the machinery that carries what it knows through a long performance.
-
-Subbarao Kambhampati, also on Machine Learning Street Talk, draws a practical conclusion from the same asymmetry: let the model propose and let external verifiers check, in a loop he calls LLM-Modulo. The architecture below moves the verifiers inside. They teach the network during training, and a small state carries their verdicts while it writes.
+The expressivity results above are a competence statement; the three failures below are performance, and they fall under exactly Chomsky's headings: memory limitations (no state), distractions (the nearest text), shifts of attention (dilution). The same split shows in practice. Methods that ask a model to criticise and revise its own draft, such as Self-Refine (Madaan et al. 2023), improve the draft, which they could not do if the model could not see what was wrong. Checking is a competence the model has. Subbarao Kambhampati, on Machine Learning Street Talk, draws the practical conclusion: let the model propose and let external verifiers check, in a loop he calls LLM-Modulo. The Ledger moves the verifiers inside. They supervise the network during training, and a small state carries their verdicts while it writes. Chomsky has been a severe critic of language models; he discussed them on Machine Learning Street Talk in 2022, and in the *New York Times* in 2023 he and his co-authors called ChatGPT "a lumbering statistical engine for pattern matching". This post does not need to settle that argument. It borrows his distinction because it says where to look: not at what the model knows, but at the machinery that carries what it knows through a long performance.
 
 ## Three ways to lose the thread
 
@@ -173,17 +202,27 @@ $$
 
 *Proof.* The numerator is at most $$e^B$$ and each of the $$n$$ terms of the denominator is at least $$e^{-B}$$. ∎
 
-So the $$m$$ tokens of an instruction receive at most $$m e^{2B}/n$$ of a head's attention, and their contribution to its output is at most that fraction of the largest value vector. While the model writes, $$n = n_0 + t$$ grows by one with every token. With bounded scores, the most a fixed instruction can contribute therefore shrinks like $$1/(n_0 + t)$$. The lemma is an upper bound: a model can stay below it and still work, but it cannot keep a fixed instruction's share from fading unless its scores grow with $$n$$.
+So the $$m$$ tokens of an instruction receive at most $$m e^{2B}/n$$ of a head's attention, and their contribution to its output is at most that fraction of the largest value vector. While the model writes, $$n = n_0 + t$$ grows by one with every token. The lemma is an upper bound: a model can stay below it and still work, but it cannot hold a fixed instruction's share unless its scores grow. How fast they must grow is exact.
 
-The lemma is not new. Veličković and colleagues proved that softmax attention must disperse as inputs grow, and Nakanishi named the effect *attention fading* and proposed multiplying scores by $$s \log n$$, so that the edge grows with the crowd. Trained models do raise some scores, and they park spare attention on the first few tokens, the *attention sinks* found by Xiao and colleagues. Federico Barbero's "Transformers need glasses!", also discussed on Machine Learning Street Talk, shows a related collapse at the other end: distinct inputs can end with almost identical final representations, which the model then provably cannot tell apart. But a fixed budget shared by a growing crowd remains the default.
+**Corollary 1.** Let $$m$$ instruction tokens have score $$\Delta$$ above the other $$n - m$$ tokens, which share a common score. Their share of the head is at least $$c \in (0, 1)$$ if and only if
 
-<div data-dilution data-caption="The share of one head's attention that falls on an instruction of m tokens whose scores sit Δ above the rest, as the model writes. The Ledger's read (next section) is normalised over its own K slots, so its share does not depend on the length of the context at all."></div>
+$$
+\Delta \ \ge\ \log \frac{c}{1 - c} + \log \frac{n - m}{m}.
+$$
+
+*Proof.* The share is $$a = m e^{\Delta} / (m e^{\Delta} + n - m)$$. Rearranging $$a \ge c$$ gives $$e^{\Delta} \ge \frac{c}{1-c} \cdot \frac{n - m}{m}$$. ∎
+
+The edge an instruction needs grows like $$\log n$$. A network whose scores are bounded by $$B$$ has an edge of at most $$2B$$, so its instruction falls below any share $$c$$ once $$n > m\bigl(1 + e^{2B}(1-c)/c\bigr)$$, a fixed length set by the weights. The corollary also explains the known remedies. Veličković and colleagues proved that softmax attention must disperse as inputs grow; Nakanishi's scalable softmax multiplies every score by $$s \log n$$, which supplies exactly the logarithmic growth the corollary asks for; trained models park spare attention on the first few tokens, the attention sinks of Xiao and colleagues; and Federico Barbero's "Transformers need glasses!", discussed on Machine Learning Street Talk, shows the end result, distinct inputs whose final representations become almost identical. With rotary positions there is a second tax on top: Su and colleagues showed that rotary attention decays with relative distance, so an instruction at the start of a long context is penalised for the size of the crowd and for its distance from it.
+
+<div data-dilution data-caption="The share of one head's attention that falls on an instruction of m tokens whose scores sit Δ above the rest, as the model writes. Scalable softmax grows the edge like log n, as Corollary 1 requires. The Ledger's read is normalised over its own K slots, so its share does not depend on the length of the context at all."></div>
+
+*What would fix it:* a channel whose normalisation does not include the context.
 
 ### Compounding
 
-An invariant has to hold at every step. Let $$h_i(t)$$ be the probability that invariant $$i$$ breaks for the first time at step $$t$$, given that it has held so far: its *hazard*.
+An invariant must hold at every opportunity to break it. Let $$h_i(t)$$ be the probability that invariant $$i$$ breaks for the first time at step $$t$$, given that it has held so far: its *hazard*.
 
-**Proposition 2.** Treating $$k$$ invariants as independent (optimistic, since one slip invites the next), the probability that all of them survive $$L$$ tokens is
+**Proposition 2.** Treating $$k$$ invariants as independent, the probability that all of them survive $$L$$ tokens is
 
 $$
 S(L) = \prod_{i=1}^{k} \prod_{t=1}^{L} \bigl(1 - h_i(t)\bigr) \le \exp\!\Bigl(-\sum_{i=1}^{k} \sum_{t=1}^{L} h_i(t)\Bigr).
@@ -203,27 +242,35 @@ The same arithmetic lies behind the collapse Dziri and colleagues measured in mu
 
 <div data-survival data-caption="The chance that all k obligations survive. Each one's hazard either stays at its opening value, as if attention to the prompt never faded, or climbs towards p∞ as the prompt recedes, with τ setting how fast. Over a thousand words, small rates add up."></div>
 
-The proposition also predicts *which* invariants are most fragile. An invariant exercised on every line, like the font of each paragraph, can be re-read from the model's own recent output: once the first paragraph is right, copying helps keep it right. An invariant exercised rarely, like the delimiter of a formula that turns up once every few hundred words, has to be recovered from the examples each time, across a gap that keeps widening. So there are two predictions. Per opportunity to break, sparse invariants should break more often than dense ones. And the hazard of any invariant should rise as the post gets longer. A dense invariant can still fail more often per post, simply because it gets more chances. The experiment below checks both.
+Two predictions follow, and the experiment tests both. First, *per opportunity to break*, a sparse invariant should be more fragile than a dense one. An invariant exercised on every line, like the font of each paragraph, can be re-read from the model's own recent output; one exercised rarely, like the delimiter of a formula that turns up once every few hundred words, must be recovered from the examples each time, across a widening gap. (A dense invariant can still fail more often *per post*, because it gets more chances.) Second, the product form should predict whole-post failure rates from per-opportunity hazards, including the rate at which all invariants survive together.
 
-### Premature stopping
+*What would fix it:* carry the obligation as state, so that each step reads it instead of re-deriving it. Better still, where possible, remove the choice altogether; the section on symmetry shows when that is possible.
 
-Eventualities are judged only at the end, and the end is itself a token, $$\langle\text{eos}\rangle$$. Suppose the model writes $$\langle\text{eos}\rangle$$ with probability $$e_t$$ at a step $$t$$ where some eventuality $$q$$ is still owed. Treating the steps as independent,
+### Blind stopping
+
+Eventualities are judged only at the end, and the end is itself a token, $$\langle\text{eos}\rangle$$.
+
+**Proposition 3.** Suppose that at each step while an eventuality $$q$$ is owed, the model ends the text with probability $$e$$, and otherwise pays $$q$$ with probability $$d$$. Then
 
 $$
-P(\text{the text ends with } q \text{ unpaid}) = \sum_{t} e_t \prod_{s < t} (1 - e_s)(1 - d_s),
+P(\text{the text ends with } q \text{ unpaid}) = \sum_{t \ge 0} e\,\bigl((1 - e)(1 - d)\bigr)^{t} = \frac{e}{e + d - e d}.
 $$
 
-where $$d_s$$ is the probability of paying $$q$$ at step $$s$$. The decision to stop is one entry of one softmax, computed from the same diluted state as everything else. Nothing in the architecture connects it to a list of what is still owed. "Forgot the sources" is this sum, and it grows with every step at which stopping looks locally plausible. Two less-cited results show how fragile that entry is. Stahlberg and Byrne searched translation models exactly and found that for more than half of all sentences the single most probable output was the empty one: the models prefer to stop. Newman, Hewitt, Liang and Manning found that training a model to predict the end token at all makes it generalise worse to longer outputs, because its hidden states organise themselves around position.
+*Proof.* The text ends unpaid at step $$t$$ if it neither ended nor paid at each earlier step, which has probability $$((1-e)(1-d))^t$$, and then ends. Sum the geometric series. ∎
+
+With time-varying rates the same sum holds term by term. The probability of ending unpaid is governed by the ratio of the stop rate to the pay rate, and nothing in a transformer ties the first to what is owed: the decision to stop is one entry of one softmax, computed from the same diluted state as everything else. Two less-cited results show how fragile that entry is. Stahlberg and Byrne searched translation models exactly and found that for more than half of all sentences the single most probable output was the empty one: the models prefer to stop. Newman, Hewitt, Liang and Manning found that training a model to predict the end token at all makes it generalise worse to longer outputs, because its hidden states organise themselves around position.
+
+*What would fix it:* make the stop rate depend on the debt, so that $$e$$ falls while $$q$$ is owed.
 
 ## The Ledger
 
-The three mechanisms suggest three repairs. Give obligations a channel whose share does not shrink with the context. Give them state, so that paid and unpaid are remembered rather than re-derived. And connect that state to the decision to stop. The *Ledger* does these three things, and nothing else. It sits beside an ordinary decoder:
+The three fixes are one design. The Ledger gives the obligations a state (against compounding, and to count with), reads that state through a softmax of its own (against dilution), and lets the state hold back the end of the text (against blind stopping). It sits beside an ordinary decoder and changes nothing about it:
 
 <LedgerDiagram />
 
-**The clerk.** Once the prompt has been read, $$K$$ learned queries attend over the prompt's hidden states at a middle layer $$\ell_c$$, and write $$K$$ slot vectors $$o_1, \dots, o_K$$: what is owed. The clerk runs once per prompt. Small linear heads read what each slot holds (which font, whether sources are expected, how many paragraphs), and that is where training can supervise it.
+**The clerk.** Once the prompt has been read, $$K$$ learned queries attend over the prompt's hidden states at a middle layer $$\ell_c$$, and write $$K$$ slot vectors $$o_1, \dots, o_K$$: what is owed. The clerk runs once per prompt, which is how implicit rules get in: it reads them off the examples, and small linear heads on each slot (which font, whether sources are expected, how many paragraphs) are where training can check what it read.
 
-**Status.** Every token the model writes updates a scalar per slot. With $$h_t$$ the token's layer-normalised state at layer $$\ell_c$$, the event probability is $$e_{t,i} = \sigma\bigl(\langle W_h h_t,\, W_o o_i\rangle/\sqrt{d} + b_i\bigr)$$, and the status $$u_{t,i}$$ accumulates it according to the slot's type:
+**The state.** This is the part the transformer lacks (Fact 2). Every written token updates a scalar per slot. With $$h_t$$ the token's layer-normalised state at layer $$\ell_c$$, the event probability is $$e_{t,i} = \sigma\bigl(\langle W_h h_t,\, W_o o_i\rangle/\sqrt{d} + b_i\bigr)$$, and the status $$u_{t,i}$$ accumulates it according to the slot's type, which is the automaton of the previous section written in differentiable form:
 
 $$
 u_{t,i} = \begin{cases}
@@ -235,74 +282,94 @@ $$
 
 An eventuality or count is *pending* with weight $$\pi_{t,i} = r_i (1 - u_{t,i})$$, where $$r_i$$ is the clerk's estimate that it applies at all; an invariant is never pending, only in force.
 
-**Read.** In every layer above $$\ell_c$$, each written token attends to the $$K$$ slots, whose keys and values are built from $$o_i$$ and from $$(u_{t,i}, \pi_{t,i}, r_i)$$. This softmax, one per head as in multi-head attention, is normalised over the $$K$$ slots only, never over the context:
+**The read.** In every layer above $$\ell_c$$, each written token attends to the $$K$$ slots, whose keys and values are built from $$o_i$$ and from $$(u_{t,i}, \pi_{t,i}, r_i)$$. This softmax, one per head as in multi-head attention, is normalised over the $$K$$ slots only, never over the context (Fact 1 no longer applies to it):
 
 $$
 x_t \leftarrow x_t + \tanh(g_\ell)\; W_O \sum_{i=1}^{K} \mathrm{softmax}_i\!\left(\frac{q_t \cdot k_{t,i}}{\sqrt{d_h}}\right) v_{t,i}.
 $$
 
-**Gate.** Pending eventualities and counts hold back the end of the text, with $$\varepsilon = 10^{-3}$$:
+**The gate.** Pending eventualities and counts hold back the end of the text, with $$\varepsilon = 10^{-3}$$:
 
 $$
 \text{logit}_t(\langle\text{eos}\rangle) \mathrel{+}= \gamma \sum_{i \,\in\, \text{eventualities, counts}} \log\bigl(1 - \pi_{t,i} + \varepsilon\bigr).
 $$
 
-**Training.** Checking is cheap, so the checkers can teach. Next to the usual next-token loss, the clerk's heads learn from labels for each obligation, and the status learns from the monitors' verdicts on every prefix of the training text: whether the sources have begun yet, and, for a count, whether a paragraph starts here. Every training token becomes a supervised example of bookkeeping.
+While a debt is fully owed ($$\pi = 1$$), this multiplies the odds of stopping by $$\varepsilon^{\gamma} = 10^{-3\gamma}$$, which is exactly the lever Proposition 3 asks for. The toy learned $$\gamma$$ between 0.30 and 0.42 across runs: the odds of stopping with a debt outstanding are cut by a factor of 8 to 18.
+
+**Training.** Checking is cheap, so the checkers can teach. Next to the usual next-token loss, the clerk's heads learn from labels for each obligation, and the state learns from the monitors' verdicts on every prefix of the training text: whether the sources have begun yet, and, for a count, whether a paragraph starts here. Every training token becomes a supervised example of bookkeeping.
 
 $$
 \mathcal{L} = \mathcal{L}_{\text{LM}} + \lambda_{\text{ext}} \sum_i \mathrm{CE}(\text{clerk}_i, \varphi_i) + \lambda_{\text{ev}} \sum_{t, i} \mathrm{BCE}\bigl(u_{t,i},\, [\![ y_{\le t} \text{ has paid } \varphi_i ]\!]\bigr).
 $$
 
+### What the Ledger buys
+
 Five properties follow from the definitions.
 
-1. **It changes nothing when inserted.** With $$g_\ell = 0$$ and $$\gamma = 0$$, $$\tanh(g_\ell) = 0$$ and the gate adds 0, so the network computes exactly what it computed before. The zero-initialised tanh gate is Flamingo's trick for grafting new inputs onto a frozen model. In the toy, the first training loss of the Ledger model matched the baseline's to all 16 printed digits.
-2. **Its share does not dilute.** The read is normalised over $$K$$ slots, so by the argument of Lemma 1 a slot with a score edge $$\Delta$$ over the others gets at least $$e^{\Delta}/(e^{\Delta} + K - 1)$$ of the read, whatever $$n$$ and $$t$$ are.
+1. **It changes nothing when inserted.** With $$g_\ell = 0$$ and $$\gamma = 0$$, $$\tanh(g_\ell) = 0$$ and the gate adds 0, so the network computes exactly what it computed before; a trained model can be extended without being disturbed. The zero-initialised tanh gate is Flamingo's device for grafting new inputs onto a frozen model. In the toy, every placement tested below matched the baseline's loss to 12 decimals at insertion.
+2. **Its share does not dilute.** The read is normalised over $$K$$ slots, so by the argument of Lemma 1 a slot with a score edge $$\Delta$$ over the others gets at least $$e^{\Delta}/(e^{\Delta} + K - 1)$$ of the read, whatever $$n$$ and $$t$$ are. Corollary 1's logarithmic growth is no longer needed.
 3. **Paid stays paid.** Eventuality and count status never decrease in $$t$$ (a product of factors in $$[0,1]$$ can only shrink; a sum of non-negative terms can only grow), like the $$\top$$ of a monitor, so the gate cannot trap the model once the debt is settled.
-4. **It trains in parallel.** The noisy-OR is a cumulative sum of $$\log(1 - e_{s,i})$$ and the count a cumulative sum of $$e_{s,i}$$, so training needs no back-propagation through time.
-5. **It is cheap.** A slot's state is $$o_i$$ plus a linear function of three numbers, so its keys and values are $$W o_i$$, computed once per prompt, plus a rank-3 correction. Per written token and read layer that leaves one query projection and $$K$$ dot products, $$O(d^2 + Kd)$$, with no term in $$n$$; self-attention costs $$O(d^2 + nd)$$. The Ledger's memory is a few $$K \times d$$ matrices, constant in the length of the text.
+4. **It trains in parallel.** The noisy-OR is a cumulative sum of $$\log(1 - e_{s,i})$$ and the count a cumulative sum of $$e_{s,i}$$, so training needs no back-propagation through time, even though the state is a recurrence.
+5. **It is cheap, and it is readable.** A slot's state is $$o_i$$ plus a linear function of three numbers, so its keys and values are $$W o_i$$, computed once per prompt, plus a rank-3 correction. Per written token and read layer that leaves one query projection and $$K$$ dot products, $$O(d^2 + Kd)$$, with no term in $$n$$; self-attention costs $$O(d^2 + nd)$$. And the slots can be read out: what the clerk believes is owed, and what the model believes it has paid.
 
-### What is borrowed and what is new
+The advantages are clearest against the alternatives, each of which fixes part of the problem:
 
-The parts have ancestors. The combination, as far as I can find, does not.
+<div class="cx-text">
+
+| approach | its own budget (vs dilution) | a state (vs compounding, counts) | knows what is owed at the stop | reads implicit rules from examples | extra cost per written token |
+|---|---|---|---|---|---|
+| repeat the instruction, or put it last | partly: it moves closer, but shares the softmax | no | no | no | more context for every later token |
+| reweight attention: split-softmax, PASTA, scalable softmax | yes, for marked tokens or by rescaling | no | no | no: someone marks the tokens | small |
+| memory or register tokens in the context | no: same softmax | learned, but diluted | no | learned | $$K$$ more keys |
+| verify and retry outside: Self-Refine, LLM-Modulo, checklist rewards | no | no | only after the fact | only if a checker exists | whole extra generations |
+| constrained decoding with automata | not needed | yes, outside the model | yes | no: the formula must be written out | small, plus search |
+| **Ledger** | **yes** | **yes, learned and supervised** | **yes, the gate** | **yes, the clerk** | $$O(d^2 + Kd)$$, no term in $$n$$ |
+
+</div>
+
+Only the last row answers all three failures at once, and it does so inside the network, for rules nobody wrote down. Where it sits among earlier ideas:
+
+<div class="cx-text">
 
 | earlier work | what it does | how the Ledger differs |
 |---|---|---|
 | neural checklist, Kiddon et al. 2016 | an RNN tracks which items of a given agenda it has mentioned | obligations are inferred from examples, typed, and include invariants, order and counts; transformer; the stop is gated |
-| coverage, Tu et al. 2016 | NMT tracks how much of each source word has been translated | coverage of obligations, not of input tokens |
-| persistent memory, memory tokens, registers, sinks | extra learned vectors inside the same softmax | inside one softmax they dilute like everything else; the "one shared softmax" ablation below tests exactly this |
-| split-softmax, Li et al. 2024; PASTA, Zhang et al. 2024; scalable softmax | reweight or rescale existing attention towards chosen tokens | a separate channel with its own state, rather than a reweighting of the old one |
-| progress monitor, Ma et al. 2019 | a navigation agent estimates how much of its instruction is done | the same instinct, made typed and connected to the decision to stop |
+| coverage, Tu et al. 2016 | a translation model tracks how much of each source word it has translated | coverage of obligations, not of input tokens |
+| persistent memory, memory tokens, registers, sinks | extra learned vectors inside the same softmax | inside one softmax they dilute like everything else; the shared-softmax variant below tests exactly this |
+| split-softmax, Li et al. 2024; PASTA, Zhang et al. 2024; scalable softmax | reweight or rescale existing attention | a separate channel with its own state, rather than a reweighting of the old one |
+| progress monitor, Ma et al. 2019 | a navigation agent estimates how much of its instruction is done | the same instinct, typed and connected to the decision to stop |
 | constrained decoding with automata | forbids tokens that would break a constraint given as a formula | needs the constraint written out; the Ledger reads it off the examples |
-| checklist rewards, LLM-Modulo | verifiers score or filter whole outputs | verifiers supervise a state inside the network at every token |
-| equivariant networks, Cohen and Welling 2016; learned canonicalisation, Kaba et al. 2023 | build a symmetry of the input into the network, or map inputs to a canonical pose first | the symmetry acts on the style of the output as well as on the input, and the output alphabet becomes the orbits |
-| word-permutation equivariance, Gordon et al. 2020; lexical symmetry, Akyürek and Andreas 2023 | tie weights, or augment data, so that swapping words swaps outputs | the group fixes a convention rather than generalising a meaning; it is read once and enforced exactly, not learned |
+| equivariant networks, Cohen and Welling 2016; learned canonicalisation, Kaba et al. 2023 | build a symmetry of the input into the network, or map inputs to a canonical pose first | the symmetry acts on the style of the output as well as on the input, and the output alphabet becomes the orbits (next section) |
+| word-permutation equivariance, Gordon et al. 2020; lexical symmetry, Akyürek and Andreas 2023 | tie weights, or augment data, so that swapping words swaps outputs | the group fixes a convention rather than generalising a meaning; it is read once and enforced exactly |
 | gist tokens, Mu et al. 2023 | compress a prompt into a few tokens by masking attention | what survives is a typed ledger and a group element, both checked by monitors |
 
-## Symmetry
+</div>
 
-The Ledger treats every obligation as something to remember. Many of them have more structure than that, and mathematics has a name for it.
+## Symmetry: when the state collapses
+
+The Ledger keeps an invariant alive with a state and a read, which lowers its hazard; it cannot make it zero. For one large class of invariants, more is possible, and mathematics has a name for the reason.
 
 ### Coherence in mathematics
 
 Mathematics has used the word *coherence* for a long time, with a precise meaning. In a monoidal category there are many ways to rebracket a product such as $$(a \otimes b) \otimes (c \otimes d)$$, each a chain of associativity isomorphisms. Mac Lane's coherence theorem (1963) says that any two such chains between the same two bracketings are equal: every diagram built from them commutes. An equivalent form says that every monoidal category is equivalent to a *strict* one, in which those isomorphisms are identities and there is nothing left to choose. Coherence, there, is the guarantee that choices made in different places agree, and strictification makes the agreement automatic.
 
-Style has the same shape. Many conventions are a choice among interchangeable variants: which font, which delimiter, "colour" or "color". A text keeps such a convention when it makes the same choice everywhere. So far the network has been asked to remember its choice. The alternative is to make the choice once, outside the network, and leave nothing to remember.
+Many conventions are choices of exactly this kind: among interchangeable variants, which font, which delimiter, "colour" or "color". The text keeps such a convention when it makes the same choice everywhere. The Ledger helps the network remember its choice. Strictification suggests something better: make the choice once, outside the network, and leave nothing to remember.
 
 ### A group acting on words
 
-Let a finite group $$G$$ act on the vocabulary $$V$$ by permutations, $$\rho : G \to \mathrm{Sym}(V)$$ with $$\rho(gh) = \rho(g)\,\rho(h)$$, extended to texts one token at a time. In the toy, $$G = S_6 \times S_4 \times S_3$$: one factor permutes the six fonts, one the four heading styles, one the three delimiters (opening and closing together), and every other token is fixed. The orbits $$G \cdot v = \{\rho(g)\,v : g \in G\}$$ are the four style families plus single tokens, and a style is a choice of one member from each family. Attention has a symmetry of the same kind, permutations, acting on positions instead of words: without positional encodings and without the mask, it is equivariant to any reordering of the tokens, which is exactly why the 2017 paper had to add positions. The Geometric Deep Learning programme of Bronstein, Bruna, Cohen and Veličković, the subject of a special edition of Machine Learning Street Talk, builds whole architectures from such symmetries. Groups acting on a vocabulary have been used before, for a different purpose: Gordon, Lopez-Paz, Baroni and Bouchacourt built sequence-to-sequence models equivariant to permutations of words to get compositional generalisation, and Akyürek and Andreas turned lexical symmetries of the data into data augmentation.
+Let a finite group $$G$$ act on the vocabulary $$V$$ by permutations, $$\rho : G \to \mathrm{Sym}(V)$$ with $$\rho(gh) = \rho(g)\,\rho(h)$$, extended to texts one token at a time. In the toy below, $$G = S_6 \times S_4 \times S_3$$: one factor permutes the six fonts, one the four heading styles, one the three delimiters (opening and closing together), and every other token is fixed. The orbits $$G \cdot v = \{\rho(g)\,v : g \in G\}$$ are the four style families plus single tokens, and a style is a choice of one member from each family. Attention has a symmetry of the same kind, permutations, acting on positions instead of words: without positional encodings and without the mask it is equivariant to any reordering of the tokens, which is why the 2017 paper had to add positions. The Geometric Deep Learning programme of Bronstein, Bruna, Cohen and Veličković, the subject of a special edition of Machine Learning Street Talk, builds whole architectures from such symmetries; Gordon, Lopez-Paz, Baroni and Bouchacourt, and Akyürek and Andreas, used groups acting on words for compositional generalisation.
 
-The obligations respect this one. Write $$C(x, q)$$ for the set of coherent posts given example posts $$x$$ and a request $$q$$.
+Write $$C(x, q)$$ for the set of coherent posts given example posts $$x$$ and a request $$q$$.
 
-**Proposition 3 (equivariance).** For every $$g \in G$$, $$C(\rho(g)\,x,\ q) = \rho(g)\,C(x, q)$$. Relabel the author's examples, and the coherent posts are relabelled the same way.
+**Proposition 4 (equivariance).** For every $$g \in G$$, $$C(\rho(g)\,x,\ q) = \rho(g)\,C(x, q)$$. Relabel the author's examples, and the coherent posts are relabelled the same way.
 
 *Proof.* Each style monitor checks that every token of its family equals the member the examples use; applying one permutation to both sides preserves that equality. The other monitors never ask which member of a family appears, and from the request they read only the requested length, which $$G$$ fixes. ∎
 
-A network that learns this relation from data must learn it separately for every style it meets, and it sees the rare styles least. In the baseline (two seeds, 600 posts), authors who use the default font had it kept 96.7% of the time, and authors who use one of the other five, 91.2%; for delimiters the figures are 97.2% and 90.4%. The symmetry is there in the task and missing from the model.
+A network that learns this relation from data must learn it separately for every style it meets, and it sees the rare styles least. In the toy's baseline (two seeds, 600 posts), authors who use the default font had it kept 96.7% of the time, and authors who use one of the other five, 91.2%; for delimiters, 97.2% and 90.4%. The symmetry is in the task and missing from the model.
 
 ### Gauge fixing
 
-In physics, a gauge is a choice of reference frame that the laws do not depend on, and fixing it removes the redundancy. The same move works here. Choose a canonical style $$c$$ (the first member of each family). Read the author's style $$\hat s$$ from the examples, and let $$\hat g$$ be a group element with $$\hat g \cdot c = \hat s$$; in the toy, a product of three transpositions, which is its own inverse. Then:
+In physics, a gauge is a choice of reference frame that the laws do not depend on, and fixing it removes the redundancy. Choose a canonical style $$c$$ (the first member of each family). Read the author's style $$\hat s$$ from the examples, and let $$\hat g$$ be a group element with $$\hat g \cdot c = \hat s$$; in the toy, a product of three transpositions, which is its own inverse. Then:
 
 1. move the context into the canonical frame, $$x \mapsto \rho(\hat g)^{-1} x$$;
 2. let the transformer, trained the same way in the canonical frame, write with its output restricted to the canonical member of every family, so that its alphabet is the set of orbits $$V/G$$ (96 tokens become 84);
@@ -310,7 +377,7 @@ In physics, a gauge is a choice of reference frame that the laws do not depend o
 
 <FrameDiagram />
 
-**Proposition 4 (invariants by construction).** Under gauge fixing, the invariant of family $$i$$ holds at every position of the text if the frame read it correctly, and fails at every occurrence of that family otherwise. For every length $$L$$,
+**Proposition 5 (invariants by construction).** Under gauge fixing, the invariant of family $$i$$ holds at every position of the text if the frame read it correctly, and fails at every occurrence of that family otherwise. For every length $$L$$,
 
 $$
 P(\text{invariant } i \text{ is broken}) \le P(\hat s_i \ne s_i),
@@ -320,39 +387,47 @@ with equality whenever the family occurs at all.
 
 *Proof.* The only member of family $$i$$ the network can emit is $$c_i$$, and step 3 maps it to $$\rho(\hat g)\,c_i = \hat s_i$$ wherever it appears. So every occurrence matches the author if $$\hat s_i = s_i$$, and none does otherwise. ∎
 
-Once the frame is read, the hazard of these invariants is zero at every later step, and the compounding of Proposition 2 no longer applies to them: the whole risk sits in one reading, made before the first word is written.
-
-**Proposition 5 (reading the frame).** Suppose the examples contain $$m$$ tokens of family $$i$$, each equal to the author's member independently with probability $$1 - \eta$$, where $$\eta < \tfrac12$$. Then the most frequent member is the author's with probability at least $$1 - e^{-2m(1/2 - \eta)^2}$$.
+**Proposition 6 (reading the frame).** Suppose the examples contain $$m$$ tokens of family $$i$$, each equal to the author's member independently with probability $$1 - \eta$$, where $$\eta < \tfrac12$$. Then the most frequent member is the author's with probability at least $$1 - e^{-2m(1/2 - \eta)^2}$$.
 
 *Proof.* Let $$X \sim \mathrm{Bin}(m, 1 - \eta)$$ count the author's tokens. If $$X > m/2$$ the author's member is a strict majority. By Hoeffding's inequality, $$P(X \le m/2) = P\bigl(X - m(1 - \eta) \le -m(\tfrac12 - \eta)\bigr) \le e^{-2m(1/2 - \eta)^2}$$. ∎
 
-So the frame is read by counting: one pass over the examples, linear time, no attention, and exponentially reliable in how often the style is shown. It is strictification in miniature. The many places that had to agree are replaced by one choice that cannot disagree.
+Together they give the result the section is for.
+
+**Theorem 1 (coherence that does not decay with length).** Under gauge fixing, with the frame read by majority count and the assumptions of Proposition 6 for each family $$i$$ (with $$m_i$$ examples and noise $$\eta_i$$), the probability that every group-structured invariant holds throughout a text of any length $$L$$ is at least
+
+$$
+1 - \sum_i e^{-2 m_i (1/2 - \eta_i)^2}.
+$$
+
+*Proof.* By Proposition 5 the text keeps all these invariants whenever every family's frame is read correctly, whatever $$L$$ is. By Proposition 6 each family is misread with probability at most $$e^{-2 m_i (1/2 - \eta_i)^2}$$. A union bound over the families gives the result. ∎
+
+Compare Proposition 2. There, the chance of keeping $$k$$ invariants falls exponentially with length, at a rate set by their hazards. Here, the bound does not mention $$L$$ at all: the whole risk sits in one reading, made before the first word is written, and it shrinks exponentially with the number of examples rather than growing with the length of the text. This is strictification in miniature. The many places that had to agree are replaced by one choice that cannot disagree.
 
 ### What it saves
 
-Two things become cheaper. First, once the clerk and the frame have read the examples, the written tokens need the examples only for their content. When the examples are there for their conventions alone, as in the toy, their keys and values can be dropped as soon as they are read. Each written token then attends to the request, its own text and the $$K$$ slots, and a post of $$L$$ tokens that followed $$n_{\text{ex}}$$ example tokens saves $$L\, n_{\text{ex}}$$ key lookups per head and layer. Gist tokens (Mu et al. 2023) compress prompts the same way, by masking attention during training; here what survives the compression is typed and checked. Second, the output alphabet shrinks from $$V$$ to $$V/G$$, and the network stops spending capacity on relabelled copies of the same behaviour.
+Gauge fixing also saves work. Once the clerk and the frame have read the examples, the written tokens need the examples only for their content. When the examples are there for their conventions alone, as in the toy, their keys and values can be dropped as soon as they are read: each written token then attends to the request, its own text and the $$K$$ slots, and a post of $$L$$ tokens that followed $$n_{\text{ex}}$$ example tokens saves $$L\, n_{\text{ex}}$$ key lookups per head and layer. Gist tokens (Mu et al. 2023) compress prompts the same way, by masking attention during training; here what survives the compression is typed and checked. The output alphabet also shrinks from $$V$$ to $$V/G$$, and the network stops spending capacity on relabelled copies of the same behaviour.
 
-There are limits. The group must act on the units the model writes: "colour" and "color" can be tokenised differently, and lower-casing a heading is not invertible, so not every convention is a permutation of tokens. And examples that carry content, such as voice, topic and facts, cannot be dropped wholesale; only their conventions can be factored out. Obligations with no symmetry, like "end with sources" or "write nine paragraphs", stay with the Ledger.
+There are limits. The group must act on the units the model writes: "colour" and "color" can be tokenised differently, and lower-casing a heading is not invertible, so not every convention is a permutation of tokens. Examples that carry content, such as voice, topic and facts, cannot be dropped wholesale; only their conventions can be factored out. And obligations with no symmetry, like "end with sources" or "write nine paragraphs", stay with the Ledger.
 
 ## Where coherence belongs
 
-So far the Ledger has been read by attention in the upper layers, and the frame acts on the output. Is that the right place? A transformer offers several, and they are not equivalent.
+Each part of the repair answers one failure, and each failure happens in one place in the network, so placement is not a free choice.
 
-Start from the residual stream. Elhage and colleagues describe a transformer as a shared channel that every attention layer and feed-forward layer reads from and adds to; the logits read its final sum. So anything written into the stream at any depth reaches the output directly. What depends on the depth is what the rest of the network can do with it. From this, the options sort themselves.
+Start from the residual stream. Elhage and colleagues describe a transformer as a shared channel that every attention layer and feed-forward layer reads from and adds to; the logits read its final sum. Anything written into the stream at any depth reaches the output directly. What depends on the depth is what the rest of the network can do with it.
 
-**Before: in the context.** Write the obligations as tokens in the prompt, as instructions and prefixes do. They then compete in the same softmax as everything else, which is the setting of Lemma 1, and with rotary positions they also sit ever further back: Su and colleagues showed that rotary attention decays with relative distance. The obligations are penalised twice, for the size of the crowd and for their distance from it. The shared-softmax variant of the Ledger is this placement.
+**Before: in the context.** Written as tokens in the prompt, obligations compete in the same softmax as everything else (Lemma 1), and with rotary positions they also sit ever further back. This is the placement Corollary 1 rules out.
 
-**Inside, before attention.** Add the Ledger's read to the stream just before a layer's attention. Queries and keys are computed from the stream, so attention in that same layer can use what is owed to decide what to look up: "sources are still owed" can become "find how the examples wrote their sources".
+**Inside, before or after attention.** Added to the stream just before a layer's attention, the Ledger's read can change what that attention looks up ("sources are still owed" becomes "find how the examples wrote their sources"). Added after, it reaches the feed-forward layer and the layers above. Either way the network can compute with it.
 
-**Inside, after attention.** Add the read after attention, as the Ledger has done so far. The feed-forward layer and the layers above can use it, but the attention of that layer has already chosen.
+**Inside, as modulation.** The ledger can scale and shift the normalised stream instead of being read by attention. Peebles and Xie compared exactly these options for conditioning diffusion transformers: tokens in the context, cross-attention, and zero-initialised adaptive layer norm. The last gave the best images at the lowest cost, and tokens in the context the worst.
 
-**Inside, as modulation.** Skip attention altogether: let the ledger scale and shift the normalised stream, zero at insertion. Peebles and Xie compared these same options for conditioning diffusion transformers: tokens in the context, cross-attention, and zero-initialised adaptive layer norm. The last gave the best images at the lowest cost, and in-context tokens the worst.
+**After: at the output.** Biasing the logits, gating $$\langle\text{eos}\rangle$$ or restricting the alphabet can veto or choose among tokens, exactly, but cannot make the network retrieve or plan anything.
 
-**After: at the output.** Bias the logits, gate $$\langle\text{eos}\rangle$$, or restrict the alphabet. This can veto or choose among tokens, and it is exact, but it cannot make the network retrieve or plan anything.
+**Across: along the sequence.** Attention keeps no state (Fact 2). The obligations are regular languages, whose natural carrier is a finite state updated as the text goes by. The Ledger's status is exactly that: a small recurrence along the positions, beside the attention rather than inside it.
 
-**Across: along the sequence.** Attention is a way of looking things up; it keeps no state, and everything it knows about the past it must recompute at every step. The obligations of this post are regular languages, and the natural carrier of a regular language is a finite state updated as the text goes by. The Ledger's status is exactly that: a small recurrence along the positions, beside the attention rather than inside it.
+The rule that follows: act on an obligation at the lowest place where it can be both checked and acted on, and no lower.
 
-These give a rule. Act on an obligation at the lowest place where it can be both checked and acted on, and no lower:
+<div class="cx-text">
 
 | obligation | where it breaks | where to act |
 |---|---|---|
@@ -361,17 +436,19 @@ These give a rule. Act on an obligation at the lowest place where it can be both
 | an order, or anything that needs content retrieved | what is looked up next | inside, before attention |
 | voice, topic, facts | everywhere | inside, by ordinary attention |
 
-The experiment below tests the inside placements against each other, against the context, and against the output alone.
+</div>
+
+The second row carries a correction from the experiment: a count needs its status read inside the network, not only a gate at the end.
 
 ## An experiment
 
-A claim about architecture should be tested where everything else is held still. Frontier models can't be retrained here, so I built the smallest world that has the problem.
+A claim about architecture should be tested where everything else is held still. Frontier models cannot be retrained here, so I built the smallest world that has the problem, and designed it so that each numbered result above has a measurement that could have come out against it.
 
 ### The task
 
-An *author* has a house style: one of six paragraph fonts, one of four heading styles, one of three formula delimiters, and two habits, a closing "why" section and a sources section, each present or absent. The context shows two or three of the author's posts, then a request: a line in the *default* style (plain serif, single-dollar formulas) that says how many paragraphs to write. Then the model writes. The style is never stated. It has to be read off the posts, and held against the request, which sits right next to the point where writing begins. The words themselves come from a fixed random chain over 48 words and mean nothing. Chomsky's ideas are colourless on purpose: only form is under test.
+An *author* has a house style: one of six paragraph fonts, one of four heading styles, one of three formula delimiters, and two habits, a closing "why" section and a sources section, each present or absent. The context shows two or three of the author's posts, then a request: a line in the *default* style (plain serif, single-dollar formulas) that says how many paragraphs to write. Then the model writes. The style is never stated. It has to be read off the posts and held against the request, which sits right next to the point where writing begins. The words themselves come from a fixed random chain over 48 words and mean nothing. Chomsky's ideas are colourless on purpose: only form is under test.
 
-Most authors in the training data use the default style (40% of fonts, half of all delimiters), so a model that stops looking at the evidence drifts towards the request's style. Seven monitors check each post for the implicit rules: font, headings, maths (the three invariants), the why-section and the sources (eventualities, with sources required to come last), their order, and form (no token that belongs to the prompt, such as a stray request marker). An eighth checks the requested length, which is the one explicit instruction.
+Most authors in the training data use the default style (40% of fonts, half of all delimiters), so a model that stops looking at the evidence drifts towards the request's style. Seven monitors check each post for the implicit rules: font, headings and maths (the three invariants), the why-section and the sources (eventualities, with sources required to come last), their order, and form (no token that belongs to the prompt, such as a stray request marker). An eighth checks the requested length, the one explicit instruction and the one count.
 
 ### The models
 
@@ -380,51 +457,59 @@ Six variants, identical except for the parts under test: a 3-layer decoder with 
 1. **baseline**: the plain decoder.
 2. **baseline + same labels**: the plain decoder with the Ledger's supervision attached to linear probes on its hidden states. If the Ledger wins only because it sees more labels, this variant will win too.
 3. **Ledger**: clerk at layer 1, reads after attention in layers 2 and 3, $$K = 8$$ slots (three invariants, two eventualities, one count, two left free and unsupervised), the gate on the eventuality and count slots, and supervision (212,427 parameters).
-4. **Ledger, one shared softmax**: the same slots, read inside the ordinary attention softmax, as tokens in the context would be.
+4. **Ledger, one shared softmax**: the same slots, read inside the ordinary attention softmax, as tokens in the context would be. This isolates Fact 1: same state, same labels, shared budget.
 5. **Ledger + frame**: the Ledger with gauge fixing.
 6. **Ledger + frame, examples dropped**: as 5, but written tokens may not attend to the example posts; only the clerk and the frame read them, so their keys and values can be discarded before writing begins.
 
-Each trained model wrote 300 posts, one for each of the same 300 prompts (two example posts each; 5 requested lengths, 60 authors each), sampled at temperature 1 so that the numbers describe the model's own distribution rather than a decoding trick.
+Each trained model wrote 300 posts, one for each of the same 300 prompts (two example posts each; 5 requested lengths, 60 authors each), sampled at temperature 1 so that the numbers describe the model's own distribution rather than a decoding trick. Because every model sees the same prompts, pairs of models can be compared prompt by prompt with an exact McNemar test.
 
-**The compute behind it.** Everything here ran on four CPU cores, with no accelerator. One run at the protocol above takes about twenty minutes to train and ten to evaluate, so I capped the experiment at what fits in that budget, and said so rather than stretch it. The baseline and the Ledger were trained with two seeds each; the labelled baseline, the shared-softmax Ledger and the two Ledgers with a frame with one seed each; the remaining ablations did not fit, and are listed at the end as work to do. The placement question got a cheaper screen: all six placements and the baseline, one seed each, trained for 400 steps instead of 1,500 and scored on 100 prompts. A screen ranks candidates; it does not settle them. Everything that follows should be read with those numbers in mind: the proofs carry the argument, and the experiment shows the mechanisms doing what the proofs say, at a scale where every run can be checked.
+**The compute behind it.** Everything here ran on four CPU cores, with no accelerator. One run at the protocol above takes about twenty minutes to train and ten to evaluate, so I capped the experiment at what fits in that budget and say so rather than stretch it. The baseline and the Ledger were trained with two seeds each; the labelled baseline, the shared-softmax Ledger and the two Ledgers with a frame with one seed each; the remaining ablations did not fit, and are listed at the end as work to do. The placement question got a cheaper screen: all six placements and the baseline, one seed each, trained for 400 steps instead of 1,500 and scored on 100 prompts. A screen ranks candidates; it does not settle them.
 
-### Results
+### Results, claim by claim
 
-Across 600 posts from two seeds, the baseline kept all seven implicit rules in 80.5% of them (77.3% and 83.7% for the two seeds). The Ledger kept them in 90.0% (89.0% and 91.0%). On the same prompts and seeds, the Ledger succeeded where the baseline failed 84 times, and the reverse happened 27 times; an exact McNemar test on those pairs gives $$p = 5.5 \times 10^{-8}$$. The labelled baseline, which sees every label the Ledger sees, reached 82.7% (one seed; $$p = 0.08$$ against the baseline), so the labels alone are not what makes the difference. With the frame the Ledger reached 95.0%, and with the examples dropped 93.7% (one seed each; $$p = 3 \times 10^{-6}$$ and $$1 \times 10^{-9}$$ against the baseline on the same prompts).
+Across 600 posts from two seeds, the baseline kept all seven implicit rules in 80.5% of them (77.3% and 83.7% for the two seeds). The Ledger kept them in 90.0% (89.0% and 91.0%). On the same prompts and seeds, the Ledger succeeded where the baseline failed 84 times, and the reverse happened 27 times; the exact McNemar test gives $$p = 5.5 \times 10^{-8}$$. With the frame the Ledger reached 95.0%, and with the examples dropped 93.7% (one seed each; $$p = 3 \times 10^{-6}$$ and $$1 \times 10^{-9}$$ against the baseline on the same prompts).
 
 <ToyResults chart="bars" caption="Share of posts that keep all seven implicit rules: mean over seeds, with the range across seeds as a line where there are two. The thin bar is the same share for authors whose style differs from the request's." />
 
 <ToyResults chart="monitors" />
 
-The largest single gain is on the one explicit instruction, the length: 98.5% of the Ledger's posts had the requested number of paragraphs, against 38.5% for the baseline and 40.3% for the labelled baseline. Counting to $$n$$ takes state, and the Ledger has state.
+The claims, one at a time.
 
-The invariants behave as the theory says. Per opportunity to break, the baseline broke the maths delimiter, which turns up once every few paragraphs, 3.96% of the time, and the font, which starts every paragraph, 0.75% of the time: the sparse invariant is five times as fragile. The Ledger cut both, to 1.51% and 0.41%. Under gauge fixing both are zero: no break in 3,006 font opportunities, 1,069 headings and 451 formulas, nor in 3,007, 1,076 and 422 with the examples dropped. That is Proposition 4, observed. The frame was read correctly for every prompt, so nothing was left that could break.
+**Dilution is real (Lemma 1).** In the baseline, the share of attention that written tokens pay to the example posts halves over the course of a post: from 0.66 in the first ten tokens to 0.34 at tokens 80 to 99, averaged over layers. The Ledger model's ordinary attention fades in the same way, from 0.69 to 0.34. The Ledger does not stop dilution; it gives the obligations a channel that dilution cannot reach.
+
+<ToyResults chart="attention" caption="Attention that written tokens pay to the example posts, averaged over heads and layers, against how far into the post they are. Lemma 1, measured." />
+
+**Compounding follows the product law (Proposition 2).** Per opportunity to break, the baseline broke the maths delimiter, which turns up once every few paragraphs, 3.96% of the time, and the font, which starts every paragraph, 0.75% of the time: the sparse invariant is five times as fragile, as predicted. The font hazard rises from zero at the first paragraph to 0.51% in paragraphs 2 to 4 and 1.09% in paragraphs 5 to 8, and stays at 0.84% beyond, the approach to a plateau $$h^{\infty}$$ that the proposition describes.
 
 <ToyResults chart="hazard" caption="The chance of breaking an invariant at each opportunity to break it (a paragraph, a heading, a formula), pooled over seeds, with 95% intervals. The count is first breaks over opportunities." />
 
-The baseline's font hazard rises from zero at the first paragraph to 0.51% in paragraphs 2 to 4 and 1.09% in paragraphs 5 to 8, and stays at 0.84% beyond. That is the approach to a plateau $$h^{\infty}$$ that Proposition 2 describes, rather than an unbounded climb. With the Ledger it is lower throughout.
-
 <ToyResults chart="rising" caption="The chance that a paragraph is the first to break the font, among posts that reached that paragraph with the font intact (posts that end are left out of later bins, not counted as survivors)." />
 
-Lemma 1 can be watched directly. In the baseline, the share of attention that written tokens pay to the example posts halves over the course of a post: from 0.66 in the first ten tokens to 0.34 at tokens 80 to 99, averaged over layers. The Ledger model's ordinary attention fades in the same way, from 0.69 to 0.34. The Ledger does not stop dilution. It gives the obligations a channel that dilution cannot reach.
+The product law can be checked directly. Take the per-opportunity hazards alone, and each post's number of opportunities, and predict the share of posts that keep each invariant, and all three together. The per-invariant predictions reproduce the measurements closely, which is partly by construction, since the hazards were estimated from the same posts. The joint prediction is not: it assumes the three invariants fail independently, and it lands within half a point of the measured joint rate for every model.
 
-<ToyResults chart="attention" caption="Attention that written tokens pay to the example posts, averaged over heads and layers, against how far into the post they are. This is Lemma 1, measured." />
+<ToyResults chart="productlaw" />
 
-Coherence still falls as the requested length grows, for every model: from 85.8% at four paragraphs to 70.8% at sixteen for the baseline, and from 95.0% to 87.5% for the Ledger. The drop is halved, not removed; the obligations the Ledger does not carry (form, and the eventualities it carries imperfectly) still compound.
+Each cell is predicted / measured, in percent. The Ledger lowers every hazard (maths 3.96% → 1.51%, font 0.75% → 0.41%), and the product law carries those lower hazards through to the whole post, 86.5% → 93.2% for all three invariants together.
+
+**The separate budget is what matters (Fact 1, Ledger property 2).** Put the same slots, with the same state and the same labels, inside the ordinary softmax, and they do not help: 74.0% against the baseline's 80.5%, a difference the paired test cannot distinguish from zero ($$p = 0.29$$, one seed). The why-section and the sources suffered most, kept in 88.0% and 93.7% of posts. Only the normalisation differs.
+
+**The state is what counts (Fact 2).** The largest single gain is on the count: 98.5% of the Ledger's posts had the requested number of paragraphs, against 38.5% for the baseline. The labelled baseline, which sees the same paragraph labels through probes on its hidden states, managed 40.3%: supervision without a state to accumulate it barely helps. The labelled baseline is also 82.7% coherent overall (one seed; $$p = 0.08$$ against the baseline), well short of the Ledger. Coherence still falls as the requested length grows, from 85.8% at four paragraphs to 70.8% at sixteen for the baseline and from 95.0% to 87.5% for the Ledger: the drop is halved, not removed.
 
 <ToyResults chart="bylen" caption="Share of coherent posts against the number of paragraphs requested." />
 
-Put the same slots inside the ordinary softmax, as tokens in the context would be, and they do not help: 74.0% against the baseline's 80.5%, a difference the paired test cannot distinguish from zero ($$p = 0.29$$, one seed). The why-section and the sources suffered most, kept in 88.0% and 93.7% of posts. The slots are the same; only their normalisation differs.
+**Blind stopping (Proposition 3).** In this toy, stopping failures are rare even for the baseline: the why-section was kept in 97.0% of posts and the sources in 97.5%. The Ledger raises these to 98.5% and 99.0%, and the gate's learned strength says why: $$\gamma$$ between 0.30 and 0.42, so the odds of ending with a debt outstanding are cut 8 to 18 times. The ablation that would isolate the gate (the Ledger without it) did not fit the budget, so this effect is small and not separately confirmed at this scale.
 
-Dropping the examples cuts the keys each written token attends to from 119.6 to 43.2, a reduction of 64%, and the attention work with it. In a model this small, the fixed cost of the projections and feed-forward layers dominates, so the total falls less: the full architecture, Ledger and frame with the examples dropped, costs about 199,000 operations per written token, the same as the baseline and 13% less than the Ledger alone. In a model with long contexts, where attention dominates, the saving grows with the length of the examples.
+**Symmetric rules cannot break (Theorem 1).** Under gauge fixing, the frame was read correctly for every prompt, and not one invariant broke: no break in 3,006 font opportunities, 1,069 headings and 451 formulas, nor in 3,007, 1,076 and 422 with the examples dropped. That is Proposition 5 observed, and with the examples here never deviating ($$\eta = 0$$) Theorem 1's bound is 1. The remaining failures of the frame models are the obligations the frame does not cover: form, the eventualities, the count.
+
+**Dropping the examples is nearly free.** Dropping the examples cuts the keys each written token attends to from 119.6 to 43.2, a reduction of 64%, and the attention work with it, while coherence stays at 93.7%. In a model this small, the fixed cost of the projections and feed-forward layers dominates, so the total falls less: the full architecture costs about 199,000 operations per written token, the same as the baseline and 13% less than the Ledger alone. In a model with long contexts, where attention dominates, the saving grows with the length of the examples.
 
 <ToyResults chart="cost" />
 
-The placement screen, at 400 training steps with one seed and 100 prompts, can rank but not settle. Every model is still learning at that point, so only the comparisons mean anything.
+**Placement (a screen).** At 400 training steps, with one seed and 100 prompts, every model is still learning, so only comparisons mean anything.
 
 <ToyResults chart="placement" />
 
-Slots in the context did no better than no slots at all (20% against 17%). Every placement with its own channel roughly doubled the baseline (30% to 44%), and the screen cannot separate them from one another: with 100 prompts, a difference of ten points is within noise. One contrast is large enough to read. On the logits alone, the Ledger kept the surface rules best (maths 89%, form 98%) but counted worst (17% of posts had the right length), while the read before attention counted best (76%). A count needs its status read inside the network, not only a gate at the end; the placement table above says so.
+Slots in the context did no better than no slots at all (20% against 17%), as Corollary 1 predicts for anything that shares the softmax. Every placement with its own channel roughly doubled the baseline (30% to 44%), and the screen cannot separate them from one another: with 100 prompts, a difference of ten points is within noise. One contrast is large enough to read. On the logits alone, the Ledger kept the surface rules best (maths 89%, form 98%) but counted worst (17% of posts had the right length), while the read before attention counted best (76%). A count needs its status read inside the network, not only a gate at the end; the placement table above now says so.
 
 ### Try it
 
@@ -434,26 +519,31 @@ Slots in the context did no better than no slots at all (20% against 17%). Every
 
 The recipe for a pretrained model follows the toy's. First the symmetry: declare the families of interchangeable variants the model writes (delimiters, quotation marks, list markers, spelling pairs that tokenise alike), read the frame by counting them in the examples, and restrict the output to one member per family. This part needs no training at all. Then the Ledger: freeze the model, insert the clerk a third of the way up and reads in the layers above, with $$K$$ between 16 and 32 and every gate at zero, so that on the first step nothing has changed. Train the new parameters, optionally with low-rank adapters on the old ones, on instruction and imitation data that comes with programmatic monitors: the verifiable instructions of IFEval, and style monitors extracted from the examples themselves, like the ones in the audit below. Match slots to monitors per example by bipartite matching, as DETR does for objects, since there are more kinds of obligation than slots. At inference the cost is a few $$K \times d$$ products per layer and token, and the key-value cache is untouched.
 
-The Ledger also makes a model easier to question, which speaks to one of Chomsky's objections. The slots can be read out: what the clerk thinks is owed, and what the model believes it has paid.
-
-The theory makes predictions that a real test should check. With a Ledger, the hazard of a sparse invariant should stop rising with length. The shared-softmax version should degrade as the context grows, and the separate one shouldn't. For conventions that are genuine permutations of the vocabulary, gauge fixing should make the violation rate independent of length, equal to the rate at which the frame is misread. And dropping the examples should cost nothing on obligations the Ledger and the frame carry, while saving attention in proportion to the length of the examples.
+The theory makes predictions that such a test should check. The shared-softmax version should degrade as the context grows, and the separate one should not (Corollary 1). With a Ledger, the hazard of a sparse invariant should stop rising with length (Proposition 2). For conventions that are genuine permutations of the vocabulary, the violation rate should be independent of length and equal to the rate at which the frame is misread (Theorem 1). And dropping the examples should cost nothing on obligations the Ledger and the frame carry, while saving attention in proportion to the length of the examples.
 
 ## What is proved, what is measured, what is open
 
 With a small budget, the weight of the argument has to sit on the mathematics. Here is where each claim stands.
 
+<div class="cx-text">
+
 | claim | proved | measured in the toy |
 |---|---|---|
-| softmax dilutes a fixed instruction as the text grows (Lemma 1) | yes, as a bound | attention on the examples falls as the post goes on |
-| invariant hazards compound with length (Proposition 2) | yes, under stated assumptions | the font hazard rises with the paragraph |
+| softmax dilutes a fixed instruction as the text grows (Lemma 1) | yes, as a bound | attention on the examples halves over a post |
+| holding an instruction's share needs an edge growing like $$\log n$$ (Corollary 1) | yes | slots in the shared softmax: no gain over the baseline |
+| invariant hazards compound with length (Proposition 2) | yes, under stated assumptions | the product law predicts the joint keep rate within half a point |
+| ending unpaid has a closed form, governed by stop rate over pay rate (Proposition 3) | yes | the gate learned to cut the stop odds 8 to 18 times; effect small here |
 | the Ledger computes the base model's function when inserted (property 1) | yes | equal to 12 decimals, for every placement |
-| the Ledger's read does not dilute with context length (property 2) | yes | |
-| the obligations are equivariant under the style group (Proposition 3) | yes | checked on 4,000 random cases |
-| under gauge fixing, invariants break only if the frame is misread (Proposition 4) | yes | no break in 4,526 opportunities, nor in 4,505 with the examples dropped |
-| the frame is read reliably by counting (Proposition 5) | yes | exact in every evaluation prompt |
+| the Ledger's read does not dilute (property 2) | yes | own softmax 90.0% against shared 74.0% |
+| the obligations are equivariant under the style group (Proposition 4) | yes | checked on 4,000 random cases |
+| under gauge fixing, invariants break only if the frame is misread (Proposition 5) | yes | no break in 4,526 opportunities, nor in 4,505 with the examples dropped |
+| the frame is read reliably by counting (Proposition 6) | yes | exact in every evaluation prompt |
+| symmetric conventions hold at every length (Theorem 1) | yes | consistent: zero breaks at every requested length |
 | the Ledger and the frame make posts more coherent | no | 90.0% against 80.5% (two seeds, $$p = 5.5 \times 10^{-8}$$); 95.0% with the frame (one seed) |
-| where in the network the Ledger belongs | argued | screened, one seed |
+| where in the network each part belongs | argued | screened, one seed |
 | any of this for a real language model | no | open |
+
+</div>
 
 The toy is tiny, its prose is noise, and its style has five dimensions where a real blog has hundreds. Its labels come free from the generator; a real system has to extract them, and extraction errors are a new way to fail. Its symmetry is exact and declared in advance; real conventions are only approximately permutations of tokens. The experiments that should come next, in order:
 
@@ -464,13 +554,13 @@ The toy is tiny, its prose is noise, and its style has five dimensions where a r
 
 ## The ledger of this notebook
 
-The monitors are the easy half, and the easy half is useful on its own. Here are the conventions of this notebook as monitors, learned from the other posts: each rule counts how many of them keep it, and it is owed when at least two thirds do. One rule is owed regardless. Only one of the three earlier posts ends with further reading, so the corpus alone would not have made it a rule; I made it one, because an author can promote a habit to a rule, and that is an obligation too. Paste a draft, from a model or not:
+The monitors are the easy half of all this, and the easy half is useful on its own: they are the same kind of checker that supervised the Ledger during training. Here are the conventions of this notebook as monitors, learned from the other posts: each rule counts how many of them keep it, and it is owed when at least two thirds do. One rule is owed regardless. Only one of the three earlier posts ends with further reading, so the corpus alone would not have made it a rule; I made it one, because an author can promote a habit to a rule, and that is an obligation too. Paste a draft, from a model or not:
 
 <Audit self="you-need-coherence" caption="The house style as monitors, checked in one pass. G always, F eventually, L last, S shape. Click a finding to jump to its line." />
 
 ## Why the class is NP
 
-Checking whether a draft keeps a set of obligations takes one pass of a few small automata: time linear in the length of the draft. Writing a draft that keeps them all while also being worth reading is a search through an enormous space, and nothing makes it easy. A proposed answer is easy to verify, a good one is hard to find, and that shape is NP, the same shape as running Life backwards in [Gliders are messages](/posts/gliders-are-messages/). The Ledger's small bet is that the easy side can teach the hard one, during training, one token at a time.
+Checking whether a draft keeps a set of obligations takes one pass of a few small automata: time linear in the length of the draft. Writing a draft that keeps them all while also being worth reading is a search through an enormous space, and nothing makes it easy. A proposed answer is easy to verify, a good one is hard to find, and that shape is NP, the same shape as running Life backwards in [Gliders are messages](/posts/gliders-are-messages/). The Ledger's bet is that the easy side can teach the hard one, during training, one token at a time; the frame's is that, for some obligations, the hard side can be made to disappear.
 
 ---
 
