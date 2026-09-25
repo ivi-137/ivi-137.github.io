@@ -107,7 +107,7 @@ py -3.12 -m venv .venv
 .venv\Scripts\python -m pip install --upgrade pip
 # PyTorch with CUDA: the command from https://pytorch.org/get-started/locally/ (Stable, Windows, Pip, Python, the
 # highest CUDA not above the "CUDA Version" that nvidia-smi prints), run through the venv, for example:
-.venv\Scripts\python -m pip install torch --index-url https://download.pytorch.org/whl/cu128
+.venv\Scripts\python -m pip install torch --index-url https://download.pytorch.org/whl/cu130
 .venv\Scripts\python -m pip install -r requirements.txt
 .venv\Scripts\python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 .venv\Scripts\python setup_ifeval.py
