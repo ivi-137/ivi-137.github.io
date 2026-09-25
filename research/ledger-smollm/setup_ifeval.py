@@ -18,8 +18,8 @@ out = pathlib.Path(__file__).parent / 'vendor' / 'instruction_following_eval'
 for f in FILES:
     urllib.request.urlretrieve(BASE + f, out / f)
     print('fetched', f)
-(out / '__init__.py').write_text('')
-(out / 'SOURCE').write_text(f'google-research/google-research @ {SHA}, instruction_following_eval/ (Apache License 2.0)\n')
+(out / '__init__.py').write_text('', encoding='utf-8')
+(out / 'SOURCE').write_text(f'google-research/google-research @ {SHA}, instruction_following_eval/ (Apache License 2.0)\n', encoding='utf-8')
 for pkg in ('punkt', 'punkt_tab'):
     nltk.download(pkg, quiet=True)
 print('done:', out)

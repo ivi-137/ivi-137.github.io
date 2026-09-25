@@ -46,7 +46,7 @@ def main():
     ap.add_argument('--boot', type=int, default=2000)
     a = ap.parse_args()
     res = pathlib.Path(a.results)
-    rows = [json.loads(line) for f in sorted(res.glob('*-L*.jsonl')) for line in f.read_text().splitlines() if line.strip()]
+    rows = [json.loads(line) for f in sorted(res.glob('*-L*.jsonl')) for line in f.read_text(encoding='utf-8').splitlines() if line.strip()]
     if not rows:
         raise SystemExit(f'no results in {res}')
     # prompt-level strict verdicts: runs[variant][seed][length][key]
@@ -135,7 +135,7 @@ def main():
             contrasts.append({'control': ctrl, 'to': L, 'ledger_minus_control_change': round(float(d.mean()), 4),
                               'ci': [round(float(np.percentile(boot, 2.5)), 4), round(float(np.percentile(boot, 97.5)), 4)]})
     summary = {'table': table, 'mcnemar': tests, 'length_change': drops, 'length_contrast': contrasts}
-    (res / 'summary.json').write_text(json.dumps(summary, indent=2))
+    (res / 'summary.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
     md = ['| variant | context | seeds | prompt strict (95% CI) | prompt loose | instr. strict | invariant | eventuality | count | unsupported |',
           '|---|---|---|---|---|---|---|---|---|---|']
     for t in table:
@@ -147,7 +147,7 @@ def main():
     md += [f"| {t['length']} | {t['a']} | {t['b']} | {t['only_a']} | {t['only_b']} | {t['p']:.2g} |" for t in tests]
     md += ['', '| ledger minus control, change of prompt strict accuracy from shortest context | to | mean | 95% CI |', '|---|---|---|---|']
     md += [f"| {c['control']} | {c['to']} | {c['ledger_minus_control_change']:+.3f} | {c['ci'][0]:+.3f} to {c['ci'][1]:+.3f} |" for c in contrasts]
-    (res / 'summary.md').write_text('\n'.join(md) + '\n')
+    (res / 'summary.md').write_text('\n'.join(md) + '\n', encoding='utf-8')
     print('\n'.join(md))
 
 

@@ -57,7 +57,7 @@ def main():
     lm.eval()
     examples = load_ifeval()
     examples = examples[: a.limit] if a.limit else examples
-    passages = [json.loads(line)['text'] for line in pathlib.Path(a.distractors).read_text().splitlines() if line.strip()] if any(a.lengths) else []
+    passages = [json.loads(line)['text'] for line in pathlib.Path(a.distractors).read_text(encoding='utf-8').splitlines() if line.strip()] if any(a.lengths) else []
     out = pathlib.Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     for L in a.lengths:
@@ -73,7 +73,7 @@ def main():
             rows.append({'key': e['key'], 'length': L, 'variant': info['variant'], 'seed': info.get('seed'),
                          'instruction_id_list': e['instruction_id_list'], **s, 'response': r})
         path = out / f'{name}-L{L}.jsonl'
-        path.write_text(''.join(json.dumps(r) + '\n' for r in rows))
+        path.write_text(''.join(json.dumps(r) + '\n' for r in rows), encoding='utf-8')
         acc = sum(r['strict_all'] for r in rows) / len(rows)
         ins = sum(sum(r['strict']) for r in rows) / sum(len(r['strict']) for r in rows)
         print(f'{name} L={L}: prompt-level strict {acc:.3f}, instruction-level strict {ins:.3f} '

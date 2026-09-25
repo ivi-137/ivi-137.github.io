@@ -82,15 +82,38 @@ python -m pytest -q tests                                 # 259 tests, about 10 
 BATCH=64 ./run_all.sh full                                # the study
 ```
 
-- **NVIDIA on Linux:** `pip install torch` already includes CUDA. **On Windows**, first install the CUDA build of
-  PyTorch with the command from [pytorch.org](https://pytorch.org/get-started/locally/), then the rest of
-  `requirements.txt`; run `run_all.sh` from Git Bash or WSL. Check with
-  `python -c "import torch; print(torch.cuda.is_available())"`.
+- **NVIDIA on Linux:** `pip install torch` already includes CUDA. Check with
+  `python -c "import torch; print(torch.cuda.is_available())"`. On Windows, see below.
 - The scripts pick CUDA, then Apple's MPS, then the CPU (`DEVICE=cuda` forces one). The model downloads from
   Hugging Face on first use (270 MB).
 - `BATCH` sets how many prompts are generated together (default 16). 64 suits a GPU with 8 GB or more; memory at long
   contexts is capped separately.
 - Everything is resumable: rerunning skips finished steps. Outputs go to `work/<preset>/`.
+
+### Windows (PowerShell, NVIDIA GPU)
+
+Open PowerShell (not as administrator) and run one line at a time. `run_all.ps1` does what `run_all.sh` does and uses
+`.venv\Scripts\python.exe` by itself, so nothing has to be activated.
+
+```powershell
+cd $HOME
+git clone https://github.com/ivi-137/ivi-137.github.io
+cd ivi-137.github.io\research\ledger-smollm
+py -3.12 -m venv .venv
+.venv\Scripts\python -m pip install --upgrade pip
+# PyTorch with CUDA: the command from https://pytorch.org/get-started/locally/ (Stable, Windows, Pip, Python, the
+# highest CUDA not above the "CUDA Version" that nvidia-smi prints), run through the venv, for example:
+.venv\Scripts\python -m pip install torch --index-url https://download.pytorch.org/whl/cu128
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+.venv\Scripts\python setup_ifeval.py
+.venv\Scripts\python -m pytest -q tests
+powershell -ExecutionPolicy Bypass -File .\run_all.ps1 pilot
+powershell -ExecutionPolicy Bypass -File .\run_all.ps1 full -Batch 64
+```
+
+Missing tools: `winget install --id Git.Git -e` and `winget install --id Python.Python.3.12 -e`, then reopen PowerShell.
+Install PyTorch with CUDA *before* `requirements.txt`, or pip installs the CPU build first.
 
 **Time.** Measured in the development sandbox (4 CPU cores, a random model of SmolLM2-135M's exact shape): generation
 about 190 tokens/s in batches of 16, training about 440 tokens/s, reading a 4,000-token prompt 3.6 s. From these:
@@ -118,5 +141,5 @@ and push, or paste `summary.md`.
 | `batching.py` | training examples and batches |
 | `data.py` | prompts, targets (samples and exact repairs), background passages |
 | `train.py`, `evaluate.py`, `analyze.py` | training, official IFEval at several lengths, statistics (Wilson, exact McNemar, paired bootstrap) |
-| `run_all.sh` | the whole study (`smoke`, `pilot`, `full`) |
+| `run_all.sh`, `run_all.ps1` | the whole study (`smoke`, `pilot`, `full`), for bash and for Windows PowerShell |
 | `tests/` | label agreement with the checkers; identity at insertion; open gates change the function; decoding equals a full pass; batched equals single generation; gradients reach only the Ledger; monotone state; blocked attention equals whole |

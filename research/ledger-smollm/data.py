@@ -253,7 +253,7 @@ def main():
     topics = [rng.choice(TOPICS) for _ in range(a.passages)]
     passages = generate(lm, tok, [f'Write a long, detailed article about {t}.' for t in topics], max_new_tokens=a.max_new_tokens,
                         temperature=a.temperature, top_p=0.95, batch_size=a.batch_size, seed=a.seed, log=log)
-    (out / 'distractors.jsonl').write_text(''.join(json.dumps({'topic': t, 'text': p}) + '\n' for t, p in zip(topics, passages)))
+    (out / 'distractors.jsonl').write_text(''.join(json.dumps({'topic': t, 'text': p}) + '\n' for t, p in zip(topics, passages)), encoding='utf-8')
     log(f'{len(passages)} background passages')
 
     recs = make_prompts(a.prompts, a.seed)
@@ -286,11 +286,11 @@ def main():
         kept.append(rec)
     rng.shuffle(kept)
     n_dev = max(1, len(kept) // 20)
-    (out / 'dev.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in kept[:n_dev]))
-    (out / 'train.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in kept[n_dev:]))
+    (out / 'dev.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in kept[:n_dev]), encoding='utf-8')
+    (out / 'train.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in kept[n_dev:]), encoding='utf-8')
     summary = {'prompts': len(recs), 'kept': len(kept), 'how': dict(stats), 'by_type': {k: dict(v) for k, v in sorted(by_type.items())},
                'seconds': round(time.time() - t0), 'args': vars(a)}
-    (out / 'stats.json').write_text(json.dumps(summary, indent=2))
+    (out / 'stats.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
     log(f'kept {len(kept)}/{len(recs)} ({dict(stats)}); wrote {out}')
 
 

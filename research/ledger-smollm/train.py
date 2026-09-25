@@ -75,7 +75,7 @@ def main():
     params = sum(p.numel() for p in lm.trainable())
     log('built', variant=a.variant, trainable=params, lora_rank=rank if a.variant == 'lora' else None, device=str(dev))
 
-    recs = [json.loads(line) for line in pathlib.Path(a.data).read_text().splitlines() if line.strip()]
+    recs = [json.loads(line) for line in pathlib.Path(a.data).read_text(encoding='utf-8').splitlines() if line.strip()]
     recs = recs[: a.limit] if a.limit else recs
     examples = [e for e in (make_example(tok, r, tok.eos_token_id, a.max_len) for r in recs) if e is not None]
     log('examples', kept=len(examples), dropped_too_long=len(recs) - len(examples))
@@ -116,7 +116,7 @@ def main():
             'ledger': dataclasses.asdict(lcfg) if a.variant.startswith('ledger') else None,
             'lora_rank': rank if a.variant == 'lora' else None, 'args': vars(a)}
     save_run(out, lm, info)
-    (out / 'log.jsonl').write_text(''.join(json.dumps(x) + '\n' for x in log_lines))
+    (out / 'log.jsonl').write_text(''.join(json.dumps(x) + '\n' for x in log_lines), encoding='utf-8')
     log('saved', path=str(out))
 
 

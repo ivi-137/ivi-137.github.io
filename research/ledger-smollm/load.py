@@ -37,12 +37,12 @@ def save_run(path, lm, info):
     path = pathlib.Path(path)
     path.mkdir(parents=True, exist_ok=True)
     torch.save(lm.trainable_state(), path / 'weights.pt')
-    (path / 'run.json').write_text(json.dumps(info, indent=2))
+    (path / 'run.json').write_text(json.dumps(info, indent=2), encoding='utf-8')
 
 
 def load_run(path, device, model=None):
     path = pathlib.Path(path)
-    info = json.loads((path / 'run.json').read_text())
+    info = json.loads((path / 'run.json').read_text(encoding='utf-8'))
     lcfg = LedgerConfig(**info['ledger']) if info.get('ledger') else None
     lm, tok, _ = build(model or info['model'], info['variant'], device, lcfg, info.get('lora_rank'))
     state = torch.load(path / 'weights.pt', map_location=device)

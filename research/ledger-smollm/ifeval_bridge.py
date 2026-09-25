@@ -19,7 +19,7 @@ DATA = VENDOR / 'instruction_following_eval' / 'data' / 'input_data.jsonl'
 
 def load_ifeval():
     """The 541 IFEval prompts as dicts: key, prompt, instruction_id_list, kwargs."""
-    return [json.loads(line) for line in DATA.read_text().splitlines() if line.strip()]
+    return [json.loads(line) for line in DATA.read_text(encoding='utf-8').splitlines() if line.strip()]
 
 
 def checker(instruction_id, kwargs, prompt=None):
