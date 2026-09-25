@@ -1,0 +1,9 @@
+# tested with torch 2.14 and transformers 5.17 (Python 3.11)
+torch>=2.4
+transformers>=5.0,<6
+numpy
+nltk>=3.9
+langdetect
+absl-py
+immutabledict
+pytest
