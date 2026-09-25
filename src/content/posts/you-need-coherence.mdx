@@ -565,7 +565,7 @@ The model stays frozen; only the new parameters learn. The clerk reads the outpu
 4. The shared-softmax slots never beat the Ledger, and fall further behind as the context grows.
 5. Without its gate, the Ledger loses most on obligations that must be paid before the end: postscripts, end phrases, minimum counts.
 
-If the third prediction fails, then either dilution is not what limits a 135-million-parameter model on IFEval, or the retrofit does not carry the state, and the next version of this post will say which. The code, its 259 tests and the commands are in [research/ledger-smollm](https://github.com/ivi-137/ivi-137.github.io/tree/main/research/ledger-smollm).
+If the third prediction fails, then either dilution is not what limits a 135-million-parameter model on IFEval, or the retrofit does not carry the state, and the next version of this post will say which. The code, its tests and the commands are in [research/ledger-smollm](https://github.com/ivi-137/ivi-137.github.io/tree/main/research/ledger-smollm).
 
 IFEval has no example posts to imitate, so gauge fixing waits for an imitation benchmark. The recipe carries over unchanged: declare the families of interchangeable variants the model writes (delimiters, quotation marks, list markers, spelling pairs that tokenise alike), read the frame by counting them in the examples, and restrict the output to one member per family. That part needs no training at all.
 

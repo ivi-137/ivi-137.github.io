@@ -33,9 +33,10 @@ def model_dir(tmp_path_factory):
     return tiny.build(tmp_path_factory.mktemp('tiny'))
 
 
-def fresh(model_dir, variant, perturb=False):
+def fresh(model_dir, variant, perturb=False, dtype=torch.float32):
+    torch.manual_seed(0)  # the Ledger's initial weights
     tok = AutoTokenizer.from_pretrained(model_dir)
-    backbone = AutoModelForCausalLM.from_pretrained(model_dir, dtype=torch.float32, attn_implementation='sdpa')
+    backbone = AutoModelForCausalLM.from_pretrained(model_dir, dtype=dtype, attn_implementation='sdpa')
     lm = LedgerLM(backbone, variant, LedgerConfig(**LCFG), lora_rank=4, eos_ids=eos_ids(tok)).eval()
     if perturb:
         g = torch.Generator().manual_seed(1)
@@ -150,12 +151,60 @@ def test_state_is_monotone(model_dir):
 
 
 def test_blocked_joint_attention_matches(model_dir, monkeypatch):
-    """Long prompts go through the joint attention in blocks of queries; the result must not change."""
+    """Long prompts go through the joint attention in blocks of query rows; the result must not change."""
     import ledger as L
     lm, tok = fresh(model_dir, 'ledger_joint', perturb=True)
     b = batch(tok)
     ids, mask, feat = b['input_ids'][:, :40], b['attention_mask'][:, :40], b['numfeat'][:, :40]
     whole, _ = lm.prefill(ids, mask, feat)
-    monkeypatch.setattr(L, 'QUERY_BLOCK', 7)
+    monkeypatch.setattr(L, 'BLOCK_ELEMENTS', 1)  # 16-row blocks
     blocked, _ = lm.prefill(ids, mask, feat)
     assert torch.allclose(whole, blocked, atol=1e-5)
+
+
+def test_recomputed_blocks_give_the_same_gradients(model_dir, monkeypatch):
+    """In training the joint attention recomputes each block in the backward pass; gradients must not change."""
+    import ledger as L
+    grads = []
+    for elements in (2**40, 1):
+        monkeypatch.setattr(L, 'BLOCK_ELEMENTS', elements)
+        lm, tok = fresh(model_dir, 'ledger_joint', perturb=True)
+        lm.loss(batch(tok))['total'].backward()
+        grads.append({n: p.grad.clone() for n, p in lm.named_parameters() if p.requires_grad and p.grad is not None})
+    assert grads[0].keys() == grads[1].keys() and len(grads[0]) > 10
+    for n in grads[0]:
+        assert torch.allclose(grads[0][n], grads[1][n], atol=1e-5, rtol=1e-4), n
+
+
+@pytest.mark.parametrize('variant', ['lora', 'ledger', 'ledger_nogate', 'ledger_joint'])
+def test_bfloat16_backbone(model_dir, variant):
+    """With a bfloat16 frozen model (the default on GPUs): identity at insertion, and decoding matches a full pass."""
+    base, tok = fresh(model_dir, 'base', dtype=torch.bfloat16)
+    lm, _ = fresh(model_dir, variant, dtype=torch.bfloat16)
+    b = batch(tok)
+    pos = (b['attention_mask'].cumsum(-1) - 1).clamp(min=0)
+    with torch.no_grad():
+        ref = base.run(b['input_ids'], b['attention_mask'], pos, None, None, b['rmask'])
+        ctx = lm.context('full', prompt_mask=b['prompt_mask'], resp_mask=b['resp_mask'], rmask=b['rmask'], numfeat=b['numfeat'])
+        got = lm.run(b['input_ids'], b['attention_mask'], pos, None, ctx, b['rmask'])
+    if variant == 'ledger_joint':  # float32 attention against the bfloat16 kernel, lambda = 1e-4
+        assert (ref.float() - got.float()).abs().max() < 0.1
+    else:
+        assert torch.equal(ref, got)
+    lm, _ = fresh(model_dir, variant, perturb=True, dtype=torch.bfloat16)
+    ex = make_example(tok, RECS[0], tok.eos_token_id)
+    b = collate([ex], tok.pad_token_id)
+    P, R = len(ex['p_ids']), len(ex['r_ids'])
+    pos = (b['attention_mask'].cumsum(-1) - 1).clamp(min=0)
+    with torch.no_grad():
+        ctx = lm.context('full', prompt_mask=b['prompt_mask'], resp_mask=b['resp_mask'], rmask=b['rmask'], numfeat=b['numfeat'])
+        full = lm.run(b['input_ids'], b['attention_mask'], pos, None, ctx, b['rmask']).float()
+        logits, sess = lm.prefill(b['input_ids'][:, :P], torch.ones(1, P, dtype=torch.long), b['numfeat'][:, :P])
+        steps = [logits] + [lm.decode(sess, b['input_ids'][:, P + t]) for t in range(R)]
+    steps = torch.cat(steps).float()
+    assert (full - steps).abs().max() < 0.15 * full.abs().max()
+    assert (full.argmax(-1) == steps.argmax(-1)).float().mean() > 0.9
+    lm.train()
+    out = lm.loss(b)
+    out['total'].backward()
+    assert all(p.grad is not None and p.grad.dtype == torch.float32 for p in lm.trainable() if p.requires_grad and p.numel() > 1)

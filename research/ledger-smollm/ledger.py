@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 import torch
 import torch.nn as nn
 import torch.nn.functional as fn
+from torch.utils.checkpoint import checkpoint
 from transformers import AttentionInterface, DynamicCache
 from transformers.masking_utils import ALL_MASK_ATTENTION_FUNCTIONS
 from transformers.models.llama.modeling_llama import repeat_kv
@@ -195,7 +196,9 @@ class Ledger(nn.Module):
         return u, pi, feats, (logq[:, -1], cnt[:, -1])
 
     def observe(self, h, ctx: Ctx):
-        """Called with the output of layer l_c: fill the context for the layers above and for the gate."""
+        """Called with the output of layer l_c: fill the context for the layers above and for the gate.
+        The Ledger computes in float32 whatever the backbone's precision (its state is a running sum)."""
+        h = h.float()
         B = h.shape[0]
         if ctx.mode == 'full':
             ctx.clerk = self.clerk(h, ctx.prompt_mask, ctx.numfeat)
@@ -208,46 +211,53 @@ class Ledger(nn.Module):
         ctx.gate = (torch.log(1 - pi + self.cfg.eps) * owed).sum(-1) * ctx.rmask
 
 
-QUERY_BLOCK = 1024  # without gradients, long prompts are processed in blocks of queries to bound memory
+BLOCK_ELEMENTS = 2**24  # attention scores per block of query rows (64 MB in float32): bounds memory for long prompts
 
 
 def _joint_attention(module, query, key, value, attention_mask, scaling, dropout=0.0, **kwargs):
-    """Eager attention; in the joint variant's read layers the slots join the same softmax as the context."""
+    """Eager attention in float32; in the joint variant's read layers the slots join the same softmax as the context.
+    Query rows are processed in blocks, and during training each block is recomputed in the backward pass instead of
+    storing its scores (the shared softmax would otherwise hold B*H*T*T scores per layer)."""
     ks, vs = repeat_kv(key, module.num_key_value_groups), repeat_kv(value, module.num_key_value_groups)
     ctx = _ACTIVE.get()
     lid = str(module.layer_idx)
     joint = ctx is not None and ctx.feats is not None and lid in ctx.ledger.reads
-    T = query.shape[2]
-    size = QUERY_BLOCK if (T > QUERY_BLOCK and not torch.is_grad_enabled()) else T
+    B, H, T, _ = query.shape
+    size = min(T, max(16, BLOCK_ELEMENTS // max(1, B * H * ks.shape[2])))
+
+    def block(q, m, a):
+        s = torch.matmul(q, ks.transpose(2, 3)).float() * scaling
+        if m is not None:
+            s = s.masked_fill(~m, float('-inf')) if m.dtype == torch.bool else s + m.float()
+        if joint:
+            return _joint_block(module, ctx, lid, q, s, vs, scaling, slice(a, a + q.shape[2]))
+        return torch.matmul(fn.softmax(s, dim=-1).to(q.dtype), vs)
+
     outs = []
     for a in range(0, T, size):
-        rows = slice(a, a + size)
-        s = torch.matmul(query[:, :, rows], ks.transpose(2, 3)) * scaling
-        if attention_mask is not None:
-            m = attention_mask[:, :, rows]
-            s = s.masked_fill(~m, float('-inf')) if m.dtype == torch.bool else s + m
-        if joint:
-            outs.append(_joint_block(module, ctx, lid, query[:, :, rows], s, vs, scaling, rows))
-        else:
-            outs.append(torch.matmul(fn.softmax(s, dim=-1, dtype=torch.float32).to(query.dtype), vs))
+        q = query[:, :, a : a + size]
+        m = attention_mask[:, :, a : a + size] if attention_mask is not None else None
+        outs.append(checkpoint(block, q, m, a, use_reentrant=False) if (joint and torch.is_grad_enabled()) else block(q, m, a))
     return torch.cat(outs, 2).transpose(1, 2).contiguous(), None
 
 
 def _joint_block(module, ctx, lid, query, s, vs, scaling, rows):
-    """One block of query rows: context scores s and slot scores normalised together."""
+    """One block of query rows: context scores s and slot scores normalised together (float32)."""
     jkv = ctx.ledger.reads[lid]
     groups = module.num_key_value_groups
+    q = query.float()
     ko, vo = (t.repeat_interleave(groups, dim=1) for t in ctx.slot_kv[lid])  # [B,H,K,dh]
     kf = jkv.kf.view(FEATS, jkv.hkv, jkv.dh).repeat_interleave(groups, dim=1)
     vf = jkv.vf.view(FEATS, jkv.hkv, jkv.dh).repeat_interleave(groups, dim=1)
     f = ctx.feats[:, rows]
-    se = torch.einsum('bhtd,bhkd->bhtk', query, ko) + torch.einsum('bhtc,btkc->bhtk', torch.einsum('bhtd,chd->bhtc', query, kf), f)
+    se = torch.einsum('bhtd,bhkd->bhtk', q, ko) + torch.einsum('bhtc,btkc->bhtk', torch.einsum('bhtd,chd->bhtc', q, kf), f)
     se = (se * scaling).masked_fill(~ctx.rmask[:, rows][:, None, :, None], float('-inf'))
     m = torch.maximum(s.amax(-1, keepdim=True), se.amax(-1, keepdim=True))
     ps, pe = torch.exp(s - m), torch.exp(se - m)
     lam = jkv.lam
     extra = torch.einsum('bhtk,bhkd->bhtd', pe, vo) + torch.einsum('bhtc,chd->bhtd', torch.einsum('bhtk,btkc->bhtc', pe, f), vf)
-    return (torch.matmul(ps, vs) + lam * extra) / (ps.sum(-1, keepdim=True) + lam * pe.sum(-1, keepdim=True))
+    out = (torch.matmul(ps, vs.float()) + lam * extra) / (ps.sum(-1, keepdim=True) + lam * pe.sum(-1, keepdim=True))
+    return out.to(query.dtype)
 
 
 AttentionInterface.register('ledger_eager', _joint_attention)
@@ -263,7 +273,7 @@ class LoRALinear(nn.Module):
         self.scale = (alpha or rank) / rank
 
     def forward(self, x):
-        return self.base(x) + (x @ self.a.t() @ self.b.t()) * self.scale
+        return self.base(x) + ((x.to(self.a.dtype) @ self.a.t() @ self.b.t()) * self.scale).to(x.dtype)
 
 
 class LedgerLM(nn.Module):
@@ -305,7 +315,7 @@ class LedgerLM(nn.Module):
             ctx = _ACTIVE.get()
             if ctx is None or ctx.feats is None:
                 return output
-            x = kwargs['hidden_states'] if 'hidden_states' in kwargs else args[0]
+            x = (kwargs['hidden_states'] if 'hidden_states' in kwargs else args[0]).float()
             out = self.ledger.reads[i](x, *ctx.slot_kv[i], ctx.feats) * ctx.rmask[..., None]
             return (output[0] + out.to(output[0].dtype),) + tuple(output[1:])
 

@@ -46,7 +46,8 @@ def main():
     ap.add_argument('--batch-size', type=int, default=8)
     ap.add_argument('--lr', type=float, default=None, help='default 1e-3 for the Ledger, 3e-4 for LoRA')
     ap.add_argument('--max-len', type=int, default=2048)
-    ap.add_argument('--max-batch-tokens', type=int, default=8192, help='cap on padded tokens per batch (memory)')
+    ap.add_argument('--max-batch-tokens', type=int, default=3072, help='cap on padded tokens per batch (memory)')
+    ap.add_argument('--dtype', default='auto', help='frozen model precision: auto (bfloat16 on a GPU), float32, bfloat16')
     ap.add_argument('--clerk-layer', type=int, default=9)
     ap.add_argument('--width', type=int, default=128)
     ap.add_argument('--heads', type=int, default=4)
@@ -70,10 +71,11 @@ def main():
 
     dev = device_auto(a.device)
     lcfg = LedgerConfig(clerk_layer=a.clerk_layer, width=a.width, heads=a.heads)
-    lm, tok, rank = build(a.model, a.variant, dev, lcfg, a.lora_rank)
+    lm, tok, rank = build(a.model, a.variant, dev, lcfg, a.lora_rank, a.dtype)
     lm.backbone.eval()
     params = sum(p.numel() for p in lm.trainable())
-    log('built', variant=a.variant, trainable=params, lora_rank=rank if a.variant == 'lora' else None, device=str(dev))
+    log('built', variant=a.variant, trainable=params, lora_rank=rank if a.variant == 'lora' else None, device=str(dev),
+        dtype=str(next(lm.backbone.parameters()).dtype))
 
     recs = [json.loads(line) for line in pathlib.Path(a.data).read_text(encoding='utf-8').splitlines() if line.strip()]
     recs = recs[: a.limit] if a.limit else recs

@@ -6,7 +6,7 @@ This directory takes the next step: it retrofits the Ledger to a **pretrained, f
 context) and measures it on the standard instruction benchmark **IFEval** (541 prompts, official checkers), at
 growing context lengths.
 
-**Status.** The code is complete and tested on a random-weight model of the same architecture: 259 tests (below),
+**Status.** The code is complete and tested on a random-weight model of the same architecture: 264 tests (below),
 plus the whole pipeline end to end (`./run_all.sh smoke`). **No results on the real SmolLM2 exist yet.** The
 predictions below were written before any run.
 
@@ -77,7 +77,7 @@ cd ivi-137.github.io/research/ledger-smollm
 python -m venv .venv && source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python setup_ifeval.py                                    # official IFEval checkers and prompts
-python -m pytest -q tests                                 # 259 tests, about 10 s
+python -m pytest -q tests                                 # 264 tests, about 10 s
 ./run_all.sh pilot                                        # one seed, 100 prompts, contexts 0 and 1000
 BATCH=64 ./run_all.sh full                                # the study
 ```
@@ -88,6 +88,10 @@ BATCH=64 ./run_all.sh full                                # the study
   Hugging Face on first use (270 MB).
 - `BATCH` sets how many prompts are generated together (default 16). 64 suits a GPU with 8 GB or more; memory at long
   contexts is capped separately.
+- On a GPU the frozen model runs in bfloat16 (`--dtype auto`), halving its memory; the Ledger and the adapters keep
+  float32 parameters and compute their state in float32. Training batches are capped at 3,072 tokens and evaluation
+  batches at 32,768, which fits a 4 GB laptop GPU with about 2.5 GB free: close other programs that use the GPU
+  (games, browsers with hardware acceleration, chat apps) before a long run.
 - Everything is resumable: rerunning skips finished steps. Outputs go to `work/<preset>/`.
 
 ### Windows (PowerShell, NVIDIA GPU)
@@ -142,4 +146,4 @@ and push, or paste `summary.md`.
 | `data.py` | prompts, targets (samples and exact repairs), background passages |
 | `train.py`, `evaluate.py`, `analyze.py` | training, official IFEval at several lengths, statistics (Wilson, exact McNemar, paired bootstrap) |
 | `run_all.sh`, `run_all.ps1` | the whole study (`smoke`, `pilot`, `full`), for bash and for Windows PowerShell |
-| `tests/` | label agreement with the checkers; identity at insertion; open gates change the function; decoding equals a full pass; batched equals single generation; gradients reach only the Ledger; monotone state; blocked attention equals whole |
+| `tests/` | label agreement with the checkers; identity at insertion (float32 and bfloat16); open gates change the function; decoding equals a full pass; batched equals single generation; gradients reach only the Ledger; monotone state; blocked and recomputed attention equal whole, gradients included |

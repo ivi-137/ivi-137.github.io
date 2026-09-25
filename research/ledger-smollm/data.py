@@ -238,6 +238,7 @@ def main():
     ap.add_argument('--long-frac', type=float, default=0.3, help='share of training inputs followed by background notes')
     ap.add_argument('--long-max', type=int, default=1500, help='longest background, in tokens, during training')
     ap.add_argument('--device', default='auto')
+    ap.add_argument('--dtype', default='auto', help='frozen model precision: auto (bfloat16 on a GPU), float32, bfloat16')
     ap.add_argument('--seed', type=int, default=1234)
     a = ap.parse_args()
     out = pathlib.Path(a.out)
@@ -245,7 +246,7 @@ def main():
     t0 = time.time()
     log = lambda m: print(f'[{time.time() - t0:7.0f}s] {m}', flush=True)
     dev = device_auto(a.device)
-    lm, tok, _ = build(a.model, 'base', dev)
+    lm, tok, _ = build(a.model, 'base', dev, dtype=a.dtype)
     lm.eval()
 
     # background passages written by the model itself, used to lengthen contexts

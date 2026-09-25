@@ -42,17 +42,18 @@ def main():
     ap.add_argument('--limit', type=int, default=0, help='first N IFEval prompts only')
     ap.add_argument('--max-new-tokens', type=int, default=1024)
     ap.add_argument('--batch-size', type=int, default=16)
-    ap.add_argument('--max-batch-tokens', type=int, default=65536, help='smaller batches at long contexts (memory)')
+    ap.add_argument('--max-batch-tokens', type=int, default=32768, help='smaller batches at long contexts (memory)')
     ap.add_argument('--distractors', default='data/distractors.jsonl')
     ap.add_argument('--out', default='results')
     ap.add_argument('--device', default='auto')
+    ap.add_argument('--dtype', default='auto', help='frozen model precision: auto (bfloat16 on a GPU), float32, bfloat16')
     a = ap.parse_args()
     dev = device_auto(a.device)
     if a.run:
-        lm, tok, info = load_run(a.run, dev, a.model)
+        lm, tok, info = load_run(a.run, dev, a.model, a.dtype)
         name = pathlib.Path(a.run).name
     else:
-        lm, tok, _ = build(a.model or DEFAULT_MODEL, a.variant, dev)
+        lm, tok, _ = build(a.model or DEFAULT_MODEL, a.variant, dev, dtype=a.dtype)
         info, name = {'variant': a.variant, 'seed': None}, a.variant
     lm.eval()
     examples = load_ifeval()
