@@ -11,9 +11,14 @@ interface Props {
   step?: number;
   value: number;
   size?: 'sm' | 'md' | 'lg';
-  format?: 'pct' | 'int' | 'bpm' | 'roll';
+  /** How the panel script prints the value (each instrument has its own formatter). */
+  format?: string;
+  /** Named detents, e.g. ['LPG', 'VCF', 'VCA']: printed instead of the number. */
+  positions?: string[];
+  /** Accent colour for this knob's module. */
+  hue?: string;
 }
-const { bind, label, min = 0, max = 1, step = 0.01, value, size = 'md', format = 'pct' } = Astro.props;
+const { bind, label, min = 0, max = 1, step = 0.01, value, size = 'md', format = 'pct', positions, hue } = Astro.props;
 const ticks = [...Array(11).keys()].map((i) => -135 + i * 27);
 ---
 
@@ -30,6 +35,8 @@ const ticks = [...Array(11).keys()].map((i) => -135 + i * 27);
   data-max={max}
   data-step={step}
   data-format={format}
+  data-pos={positions ? positions.join('|') : undefined}
+  style={hue ? `--hue:${hue}` : undefined}
 >
   <svg viewBox="-50 -50 100 100" aria-hidden="true">
     {ticks.map((a) => <line class="knob__tick" x1="0" y1="-44" x2="0" y2="-38" transform={`rotate(${a})`} />)}

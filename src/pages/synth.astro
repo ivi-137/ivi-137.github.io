@@ -1,0 +1,732 @@
+---
+import Base from '../layouts/Base.astro';
+import Stamp from '../components/Stamp.astro';
+import Sigil from '../components/Sigil.astro';
+import K from '../components/synth/K.astro';
+import { PEDALS, SOURCES, DESTS, spec } from '../lib/synth/params';
+import { STEPS, LANES, LANE_INFO, DIRS, SCALES, TUNINGS, PRESETS, makeDefault } from '../lib/synth/state';
+import { METHODS, NAMES } from '../lib/synth/harmony';
+import { fnv1a } from '../lib/sigil';
+import '../styles/synth.css';
+
+const D = makeDefault();
+
+/** An obol: a worn coin outline, different for every plate. */
+function coin(seed: string) {
+  let h = fnv1a(seed) || 1;
+  const rnd = () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909)) >>> 0) / 4294967296;
+  const n = 14;
+  const pts = [...Array(n).keys()].map((i) => {
+    const a = (i / n) * Math.PI * 2;
+    const r = 44 + rnd() * 4;
+    return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r];
+  });
+  const mid = (p: number[], q: number[]) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+  let d = `M${mid(pts[n - 1], pts[0]).map((v) => v.toFixed(1)).join(' ')}`;
+  for (let i = 0; i < n; i++) {
+    const p = pts[i],
+      m = mid(p, pts[(i + 1) % n]);
+    d += ` Q${p[0].toFixed(1)} ${p[1].toFixed(1)} ${m[0].toFixed(1)} ${m[1].toFixed(1)}`;
+  }
+  return d + 'Z';
+}
+
+// Tonnetz: fifths run across, major thirds up and to the right. Up-triangles are
+// major triads, down-triangles minor (Euler 1739; Riemann; Cohn 1998).
+const TW = 46,
+  TH = 40,
+  COLS = 9,
+  ROWS = 4;
+const mod12 = (n: number) => ((n % 12) + 12) % 12;
+const nodes: Array<{ i: number; j: number; x: number; y: number; pc: number }> = [];
+for (let j = 0; j < ROWS; j++)
+  for (let k = 0; k < COLS; k++) {
+    const i = k - Math.floor(j / 2);
+    nodes.push({ i, j, x: 24 + (i + j / 2) * TW, y: 22 + (ROWS - 1 - j) * TH, pc: mod12(7 * i + 4 * j) });
+  }
+const at = (i: number, j: number) => nodes.find((n) => n.i === i && n.j === j);
+const tris: Array<{ id: string; pts: string }> = [];
+const pts = (...ns: Array<{ x: number; y: number }>) => ns.map((n) => `${n.x},${n.y}`).join(' ');
+for (const a of nodes) {
+  const b = at(a.i + 1, a.j),
+    c = at(a.i, a.j + 1),
+    d = at(a.i + 1, a.j + 1);
+  if (b && c) tris.push({ id: `M-${a.pc}`, pts: pts(a, b, c) });
+  if (b && c && d) tris.push({ id: `m-${c.pc}`, pts: pts(b, c, d) });
+}
+const grid = [nodes];
+const tonnetzW = Math.max(...nodes.map((n) => n.x)) + 24;
+const tonnetzH = Math.max(...nodes.map((n) => n.y)) + 22;
+
+const moduleHue = { voce: '#e8b04a', seq: '#ff6a1f', mod: '#9b6bff', rollz: '#7ddc6a', armonia: '#ff6fb1', board: '#d4213d', play: '#39d0e0' };
+const keys = 'A W S E D F T G Y H U J K'.split(' ');
+const plateNotes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+---
+
+<Base
+  title="Orfeo 32"
+  description="An underworld synthesizer with a 32-step sequencer: a complex oscillator through a low pass gate, fifteen harmony engines from the theory literature, and eight river pedals. After Buchla, Serge, Make Noise, Ciat-Lonbarde, Koma, Gieskes, Sancristoforo and Chase Bliss."
+>
+  <Fragment slot="head">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&display=swap" />
+  </Fragment>
+  <section class="orfeo-page" data-orfeo-page>
+    <header class="section-head section-head--page orfeo-page__head">
+      <p class="kicker mono" data-decode>instrument · underworld synthesizer</p>
+      <h1 class="section-head__title">Orfeo <em>32</em></h1>
+      <p class="section-head__lede">
+        Orpheus went down to the underworld with nothing but an instrument, and the instrument was enough. This one has a complex
+        oscillator, a low pass gate, thirty-two steps, fifteen ways to choose the next chord and eight rivers to drown the sound in.
+        The gods hand out gifts. The colony behind the page can write the rhythm.
+      </p>
+      <Sigil class="orfeo-page__sigil" seed="Orfeo 32" cols={64} rows={16} animate="always" ink="paper" />
+      <Stamp id="P" />
+    </header>
+
+    <div class="orfeo" data-orfeo>
+      <canvas class="orfeo__embers" data-embers aria-hidden="true"></canvas>
+
+      <!-- ═══════════════ pediment: brand, transport, scopes ═══════════════ -->
+      <div class="frieze" aria-hidden="true"></div>
+      <div class="orfeo__top">
+        <div class="orfeo__brand">
+          <span class="orfeo__logo">Orfeo<span>·</span>32</span>
+          <span class="mono">sintetizzatore degli inferi · gpojani</span>
+          <span class="orfeo__status mono" data-status aria-live="polite">press the obol or space to wake the lyre</span>
+        </div>
+        <button type="button" class="obol obol--play" data-play aria-pressed="false" aria-label="Play (space)">
+          <svg viewBox="0 0 100 100" aria-hidden="true"><path d={coin('play')} /><circle cx="50" cy="50" r="31" /></svg>
+          <span class="mono" data-play-label>suona</span>
+        </button>
+        <K id="g.bpm" size="lg" />
+        <K id="g.swing" />
+        <K id="g.gate" />
+        <K id="g.vol" />
+        <div class="heat" title="Calore: one knob that makes everything hotter (fold, FM, chaos, ratchets, mutation)">
+          <K id="g.heat" size="md" />
+          <span class="heat__flames" data-heat aria-hidden="true"></span>
+        </div>
+        <div class="orfeo__scopes">
+          <canvas class="orfeo__scope" data-scope aria-label="Oscilloscope"></canvas>
+          <div class="seg seg--mini mono" role="group" aria-label="Scope mode">
+            <button type="button" data-scope-mode="wave" aria-pressed="true">onda</button>
+            <button type="button" data-scope-mode="spec" aria-pressed="false">spettro</button>
+            <button type="button" data-scope-mode="xy" aria-pressed="false">XY</button>
+            <button type="button" data-scope-mode="trins" aria-pressed="false" title="After Gieskes' 3TrinsRGB video synthesizer">3trins</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="orfeo__bar mono">
+        <label class="field">
+          <span>preset</span>
+          <select data-preset aria-label="Preset">
+            <optgroup label="la casa">
+              {PRESETS.map((p) => <option value={p.id} title={p.blurb}>{p.n}</option>)}
+            </optgroup>
+            <optgroup label="tuoi" data-user-presets></optgroup>
+          </select>
+        </label>
+        <button type="button" class="btn btn--boon" data-boon title="Three gifts from three gods. Choose one.">✦ invoca un dono</button>
+        <button type="button" class="btn" data-save>salva</button>
+        <button type="button" class="btn" data-share>link</button>
+        <button type="button" class="btn" data-export>esporta</button>
+        <label class="btn">importa<input type="file" accept="application/json,.json" data-import hidden /></label>
+        <button type="button" class="btn" data-rec aria-pressed="false">● registra</button>
+        <button type="button" class="btn" data-undo title="Undo (⌘Z)">↶</button>
+        <button type="button" class="btn" data-redo title="Redo (⇧⌘Z)">↷</button>
+        <button type="button" class="btn btn--quiet" data-panic title="All notes off (Esc)">silenzio</button>
+      </div>
+
+      <!-- ═══════════════ the voice ═══════════════ -->
+      <section class="mod mod--voce" style={`--hue:${moduleHue.voce}`} aria-labelledby="m-voce">
+        <header class="mod__head">
+          <h2 id="m-voce" class="mod__title">Voce</h2>
+          <span class="mod__sub mono">complex oscillator after Buchla 259 · Make Noise DPO · wave multiplier after Serge · low pass gate after Buchla 292</span>
+        </header>
+        <div class="mod__body mod__body--voce">
+          <fieldset class="bay">
+            <legend>oscillatore complesso</legend>
+            <K id="osc.shape" size="md" />
+            <K id="osc.fold" size="md" />
+            <K id="osc.sym" />
+            <K id="osc.fm" size="md" />
+            <K id="osc.ratio" />
+            <K id="osc.bshape" />
+            <K id="osc.am" />
+            <K id="osc.fine" />
+            <K id="osc.level" />
+            <div class="bay__switches">
+              <button type="button" class="sw" data-switch="osc.harm">armonico</button>
+              <button type="button" class="sw" data-switch="osc.sync">sync</button>
+            </div>
+          </fieldset>
+          <fieldset class="bay">
+            <legend>sorgenti</legend>
+            <K id="src.sub" />
+            <K id="src.noise" />
+            <K id="src.color" />
+            <K id="src.tangle" />
+            <K id="src.chaos" />
+            <K id="src.string" />
+            <K id="src.damp" />
+            <K id="src.field" />
+            <div class="bay__switches">
+              <button type="button" class="sw" data-mic aria-pressed="false" title="Route a microphone into the voice (after Koma's Field Kit)">microfono</button>
+            </div>
+          </fieldset>
+          <fieldset class="bay">
+            <legend>filtro · gate</legend>
+            <K id="flt.cut" size="md" />
+            <K id="flt.res" />
+            <K id="flt.type" />
+            <K id="flt.track" />
+            <K id="lpg.mode" />
+            <K id="lpg.decay" size="md" />
+            <K id="lpg.res" />
+            <K id="lpg.base" />
+          </fieldset>
+          <fieldset class="bay">
+            <legend>contorno · voce</legend>
+            <K id="env.rise" />
+            <K id="env.fall" />
+            <K id="env.curve" />
+            <K id="voc.glide" />
+            <K id="voc.drift" />
+            <K id="voc.pan" />
+            <K id="voc.level" />
+            <K id="voc.oct" />
+            <div class="bay__switches">
+              <button type="button" class="sw" data-switch="env.hold">ASR</button>
+            </div>
+          </fieldset>
+        </div>
+      </section>
+
+      <!-- ═══════════════ the sequencer ═══════════════ -->
+      <section class="mod mod--seq" style={`--hue:${moduleHue.seq}`} aria-labelledby="m-seq">
+        <header class="mod__head">
+          <h2 id="m-seq" class="mod__title">Sequenza <em>32</em></h2>
+          <span class="mod__sub mono">eight polymetric lanes after Koma's Komplex · cartesian paths after Make Noise René · step times after Buchla 248</span>
+        </header>
+        <div class="seq__rail mono">
+          <div class="seq__tabs" role="tablist" aria-label="Lane">
+            {
+              LANES.map((l, i) => (
+                <button type="button" role="tab" data-lane-tab={l} aria-selected={i === 0 ? 'true' : 'false'} title={LANE_INFO[l].hint}>
+                  {LANE_INFO[l].n}
+                </button>
+              ))
+            }
+          </div>
+          <div class="seq__lanectl">
+            <span>lung.</span>
+            <button type="button" class="nudge" data-len="-1" aria-label="Shorter lane">−</button>
+            <b data-len-val>32</b>
+            <button type="button" class="nudge" data-len="1" aria-label="Longer lane">+</button>
+            <span>÷</span>
+            <button type="button" class="nudge" data-div="-1" aria-label="Faster lane clock">−</button>
+            <b data-div-val>1</b>
+            <button type="button" class="nudge" data-div="1" aria-label="Slower lane clock">+</button>
+          </div>
+          <div class="seq__dirs" role="group" aria-label="Direction">
+            {
+              DIRS.map((d, i) => (
+                <button type="button" data-dir={i} aria-pressed={i === 0 ? 'true' : 'false'} title={d.n}>
+                  {d.g}
+                </button>
+              ))
+            }
+          </div>
+        </div>
+
+        <div class="seq__grid" data-grid role="grid" aria-label="32 steps">
+          {
+            [...Array(STEPS).keys()].map((i) => (
+              <div class:list={['step', { 'step--beat': i % 4 === 0 }]} data-step={i} role="gridcell">
+                <button type="button" class="step__gate" data-gate={i} aria-label={`Step ${i + 1}`} aria-pressed="false">
+                  <svg viewBox="0 0 40 40" aria-hidden="true">
+                    <path d="M20 3 L36 20 L20 37 L4 20 Z" />
+                  </svg>
+                </button>
+                <div class="step__bar" data-bar={i}>
+                  <span class="step__fill" />
+                  <span class="step__val mono" />
+                </div>
+                <span class="step__n mono" aria-hidden="true">{i + 1}</span>
+              </div>
+            ))
+          }
+        </div>
+
+        <div class="seq__tools mono">
+          <div class="seq__pats">
+            <span class="lbl">schemi</span>
+            {
+              'ΑΒΓΔΕΖΗΘ'.split('').map((g, i) => (
+                <button type="button" class="pat" data-pat={i} aria-pressed={i === 0 ? 'true' : 'false'} title={`Pattern ${g}. Shift-click: add to the chain`}>
+                  <canvas data-pat-sigil={i} aria-hidden="true" />
+                  <b>{g}</b>
+                </button>
+              ))
+            }
+            <span class="lbl">catena</span>
+            <span class="chain" data-chain-view>—</span>
+            <button type="button" class="btn btn--sm" data-chain-add>+</button>
+            <button type="button" class="btn btn--sm" data-chain-clear>✕</button>
+          </div>
+          <div class="seq__row">
+            <label class="field"><span>tonica</span>
+              <select data-root aria-label="Root">{NAMES.map((n, i) => <option value={i} selected={i === D.root}>{n}</option>)}</select>
+            </label>
+            <label class="field"><span>scala</span>
+              <select data-scale aria-label="Scale">{SCALES.map((s) => <option value={s.id} selected={s.id === D.scale}>{s.n}</option>)}</select>
+            </label>
+            <label class="field"><span>accordatura</span>
+              <select data-tuning aria-label="Tuning">{TUNINGS.map((t) => <option value={t.id}>{t.n}</option>)}</select>
+            </label>
+            <span class="field"><span>trasp.</span><b data-transpose>0</b></span>
+          </div>
+          <div class="seq__row">
+            <span class="lbl">euclide</span>
+            <label class="field field--range"><span>k</span><input type="range" min="0" max="16" value="5" data-euclid-k aria-label="Euclidean onsets" /><b data-euclid-k-val>5</b></label>
+            <label class="field field--range"><span>rot</span><input type="range" min="0" max="15" value="0" data-euclid-r aria-label="Euclidean rotation" /><b data-euclid-r-val>0</b></label>
+            <button type="button" class="btn btn--sm" data-euclid-apply title="Write E(k,16) into the gates">scrivi</button>
+            <span class="lbl">automa</span>
+            <button type="button" class="sw" data-ca aria-pressed="false" title="Rewrite the gates at every loop with an elementary cellular automaton">CA</button>
+            <select data-ca-rule aria-label="Automaton rule">{[30, 45, 54, 60, 90, 105, 110, 137, 150, 184].map((r) => <option value={r} selected={r === 90}>{r}</option>)}</select>
+            <label class="field field--range" title="Turing machine: the chance that notes change at every loop"><span>muta</span><input type="range" min="0" max="100" value="0" data-mut aria-label="Mutation" /><b data-mut-val>0</b></label>
+          </div>
+          <div class="seq__row">
+            <button type="button" class="btn btn--sm" data-tool="rand" title="Randomise this lane">dadi</button>
+            <button type="button" class="btn btn--sm" data-tool="left" title="Rotate left">⟲</button>
+            <button type="button" class="btn btn--sm" data-tool="right" title="Rotate right">⟳</button>
+            <button type="button" class="btn btn--sm" data-tool="rev" title="Retrograde">retro</button>
+            <button type="button" class="btn btn--sm" data-tool="inv" title="Invert values">inverti</button>
+            <button type="button" class="btn btn--sm" data-tool="clear">pulisci</button>
+            <button type="button" class="btn btn--sm" data-tool="copy">copia</button>
+            <button type="button" class="btn btn--sm" data-tool="paste">incolla</button>
+            <span class="lbl">colonia</span>
+            <button type="button" class="sw" data-colony-gates aria-pressed="false" title="At every loop, a row of the living background becomes the gates">la colonia scrive</button>
+            <button type="button" class="sw" data-feed aria-pressed="false" title="Every note drops a glider into the background">nutri la colonia</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ modulation + patchbay ═══════════════ -->
+      <section class="mod mod--mod" style={`--hue:${moduleHue.mod}`} aria-labelledby="m-mod">
+        <header class="mod__head">
+          <h2 id="m-mod" class="mod__title">Modulazione</h2>
+          <span class="mod__sub mono">function generators after Make Noise Maths · uncertainty after Buchla 266 and Serge's Smooth &amp; Stepped · a shift register · banana patching</span>
+        </header>
+        <div class="mod__body mod__body--mod">
+          <fieldset class="bay">
+            <legend>funzione A</legend>
+            <K id="fa.rise" />
+            <K id="fa.fall" />
+            <K id="fa.curve" />
+            <K id="fa.trig" />
+            <div class="bay__switches"><button type="button" class="sw" data-switch="fa.cycle">ciclo</button></div>
+          </fieldset>
+          <fieldset class="bay">
+            <legend>funzione B</legend>
+            <K id="fb.rise" />
+            <K id="fb.fall" />
+            <K id="fb.curve" />
+            <K id="fb.trig" />
+            <div class="bay__switches"><button type="button" class="sw" data-switch="fb.cycle">ciclo</button></div>
+          </fieldset>
+          <fieldset class="bay">
+            <legend>LFO · incertezza · registro</legend>
+            <K id="lfo.rate" />
+            <K id="lfo.shape" />
+            <K id="unc.rate" />
+            <K id="unc.dist" />
+            <K id="unc.slew" />
+            <K id="reg.lock" />
+            <K id="reg.len" />
+            <div class="bay__switches"><button type="button" class="sw" data-switch="lfo.sync">LFO a tempo</button></div>
+          </fieldset>
+        </div>
+        <div class="patch" data-patch>
+          <div class="patch__row patch__row--src">
+            <span class="patch__lbl mono">uscite</span>
+            {
+              SOURCES.map((s, i) => (
+                <button type="button" class="jack jack--src" data-jack-src={i} title={`${s.n}: drag to a destination`}>
+                  <span class="jack__hole" />
+                  <span class="jack__led" data-src-led={i} />
+                  <span class="jack__n mono">{s.n}</span>
+                </button>
+              ))
+            }
+          </div>
+          <svg class="patch__cables" data-cables aria-hidden="true"></svg>
+          <div class="patch__row patch__row--dst">
+            <span class="patch__lbl mono">ingressi</span>
+            {
+              DESTS.map((d, i) => (
+                <button type="button" class="jack jack--dst" data-jack-dst={i} title={`${d.n}: drop a cable here`}>
+                  <span class="jack__hole" />
+                  <span class="jack__n mono">{d.n}</span>
+                </button>
+              ))
+            }
+          </div>
+          <div class="patch__list mono" data-cable-list aria-label="Patch cables"></div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ rollz · gongue · fonologia ═══════════════ -->
+      <section class="mod mod--rollz" style={`--hue:${moduleHue.rollz}`} aria-labelledby="m-rollz">
+        <header class="mod__head">
+          <h2 id="m-rollz" class="mod__title">Rollz · Gongue · Fonologia</h2>
+          <span class="mod__sub mono">pulse rollers and struck resonators after Ciat-Lonbarde · nine sine oscillators after the Studio di Fonologia (RAI Milano, 1955) and Sancristoforo's Berna</span>
+        </header>
+        <div class="mod__body">
+          <fieldset class="bay">
+            <legend>rollz: divisioni della battuta</legend>
+            <K id="rz.d1" />
+            <K id="rz.d2" />
+            <K id="rz.d3" />
+            <K id="rz.d4" />
+            <K id="rz.d5" />
+            <div class="rollers" data-rollers aria-hidden="true">{[0, 1, 2, 3, 4].map((i) => <i data-roller={i} />)}</div>
+            <div class="bay__switches"><button type="button" class="sw" data-switch="rz.on">rollz</button></div>
+          </fieldset>
+          <fieldset class="bay">
+            <legend>gongue</legend>
+            <K id="rz.level" />
+            <K id="rz.decay" />
+            <K id="rz.tone" />
+            <K id="rz.metal" />
+          </fieldset>
+          <fieldset class="bay">
+            <legend>fonologia</legend>
+            <K id="fo.level" />
+            <K id="fo.base" />
+            <K id="fo.spread" />
+            <K id="fo.beat" />
+            <K id="fo.motion" />
+            <K id="fo.tilt" />
+            <div class="bay__switches"><button type="button" class="sw" data-switch="fo.follow">segui l'accordo</button></div>
+          </fieldset>
+        </div>
+      </section>
+
+      <!-- ═══════════════ armonia ═══════════════ -->
+      <section class="mod mod--armonia" style={`--hue:${moduleHue.armonia}`} aria-labelledby="m-arm">
+        <header class="mod__head">
+          <h2 id="m-arm" class="mod__title">Armonia</h2>
+          <span class="mod__sub mono">fifteen rules from the literature · a choir · Fux's second voice · the Tonnetz</span>
+        </header>
+        <div class="arm">
+          <div class="arm__methods" role="radiogroup" aria-label="Harmony method">
+            {
+              METHODS.map((m, i) => (
+                <button type="button" role="radio" class="method" data-method={m.id} aria-checked={m.id === D.harm.method ? 'true' : 'false'} title={m.blurb}>
+                  <b>{m.name}</b>
+                  <span class="mono">{m.en}</span>
+                  <i class="mono">{String(i + 1).padStart(2, '0')}</i>
+                </button>
+              ))
+            }
+          </div>
+          <div class="arm__stage">
+            <div class="arm__readout">
+              <p class="arm__roman mono" data-chord-roman>—</p>
+              <p class="arm__chord" data-chord-name>silenzio</p>
+              <p class="arm__how mono" data-chord-how></p>
+              <p class="arm__cite mono" data-method-cite></p>
+            </div>
+            <svg class="tonnetz" data-tonnetz viewBox={`0 0 ${tonnetzW} ${tonnetzH}`} role="img" aria-label="Tonnetz: the current triad lights up">
+              {tris.map((t) => <polygon class:list={['tonnetz__tri', t.id.startsWith('M') ? 'tonnetz__tri--maj' : 'tonnetz__tri--min']} data-tri={t.id} points={t.pts} />)}
+              {grid.flat().map((n) => (
+                <g class="tonnetz__node" data-node={n.pc} transform={`translate(${n.x} ${n.y})`}>
+                  <circle r="11" />
+                  <text dy="4">{NAMES[n.pc]}</text>
+                </g>
+              ))}
+            </svg>
+          </div>
+          <div class="arm__ctl mono">
+            <div class="seq__row">
+              <button type="button" class="sw" data-harm-on aria-pressed="true">armonia</button>
+              <label class="field"><span>ogni</span>
+                <select data-harm-rate aria-label="Chord length">
+                  <option value="4">1/4</option><option value="8">1/2</option><option value="16" selected>1 battuta</option><option value="32">2 battute</option><option value="64">4 battute</option>
+                </select>
+              </label>
+              <label class="field field--range" title="How adventurous each rule is allowed to be"><span>spezie</span><input type="range" min="0" max="100" value="30" data-spice aria-label="Spice" /><b data-spice-val>30</b></label>
+              <label class="field"><span>voci</span>
+                <select data-voicing aria-label="Voicing"><option value="stretta">strette</option><option value="lata">late (drop 2)</option><option value="bassa">con basso</option></select>
+              </label>
+              <label class="field"><span>arpeggio</span>
+                <select data-arp aria-label="Arpeggio"><option value="0">accordo</option><option value="1">su</option><option value="2">giù</option><option value="3">su e giù</option><option value="4">caso</option></select>
+              </label>
+              <label class="field"><span>passo</span>
+                <select data-arp-rate aria-label="Arpeggio rate"><option value="1">1/16</option><option value="2" selected>1/8</option><option value="4">1/4</option></select>
+              </label>
+            </div>
+            <div class="seq__row">
+              <span class="lbl">la melodia legge</span>
+              <div class="seg" role="group" aria-label="How the note lane is read">
+                <button type="button" data-follow="0" aria-pressed="true">gradi della scala</button>
+                <button type="button" data-follow="1" aria-pressed="false">note dell'accordo</button>
+                <button type="button" data-follow="2" aria-pressed="false">semitoni</button>
+              </div>
+              <button type="button" class="sw" data-negative aria-pressed="false" title="Mirror every chord through Levy's axis">negativo</button>
+              <button type="button" class="sw" data-cp aria-pressed="false" title="Play the Fux counterpoint alongside the lead">contrappunto</button>
+            </div>
+            <div class="bay bay--inline">
+              <K id="co.level" />
+              <K id="co.tone" />
+              <K id="co.attack" />
+              <K id="co.release" />
+              <K id="co.detune" />
+              <K id="co.shape" />
+              <K id="co.width" />
+              <K id="cp.level" />
+            </div>
+            <div class="seq__row arm__acts">
+              <button type="button" class="btn btn--sm" data-harm-act="next" title="Play the next chord now">prossimo accordo</button>
+              <button type="button" class="btn btn--sm" data-harm-act="key" title="Krumhansl–Kessler key-finding on the note lane">trova la tonalità</button>
+              <button type="button" class="btn btn--sm" data-harm-act="fux" title="Write a first-species counterpoint above the sequence">scrivi il contrappunto</button>
+              <button type="button" class="btn btn--sm" data-harm-act="huron" title="A melody by pitch proximity and regression to the mean">melodia attesa</button>
+              <button type="button" class="btn btn--sm" data-harm-act="voss" title="A 1/f melody by Voss's dice">melodia 1/f</button>
+              <button type="button" class="btn btn--sm" data-harm-act="row" title="An all-interval twelve-tone row and one of its forms">serie</button>
+              <button type="button" class="btn btn--sm" data-harm-act="mirror" title="Reflect the note lane through Levy's axis">specchio</button>
+              <button type="button" class="sw" data-cont aria-pressed="false" title="Play on the obols or a MIDI keyboard, stop, and the Continuator answers in your style">continuatore</button>
+              <button type="button" class="btn btn--sm" data-harm-act="cont" title="Write the Continuator's answer into the note lane">scrivi la risposta</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ the pedalboard: rivers of the underworld ═══════════════ -->
+      <section class="mod mod--board" style={`--hue:${moduleHue.board}`} aria-labelledby="m-board">
+        <header class="mod__head">
+          <h2 id="m-board" class="mod__title">I fiumi</h2>
+          <span class="mod__sub mono">eight pedals after Chase Bliss: ramps, dip switches on the back, any order. Drag a pedal to move it through the chain.</span>
+        </header>
+        <div class="board" data-board>
+          {
+            PEDALS.map((pd) => (
+              <article class="pedal" data-pedal={pd.id} style={`--hue:${pd.hue}`} draggable="true" aria-label={pd.name}>
+                <div class="pedal__face">
+                  <header class="pedal__head">
+                    <h3>{pd.name}</h3>
+                    <span class="mono">{pd.river}</span>
+                  </header>
+                  <div class="pedal__knobs">
+                    {pd.knobs.map((k) => (
+                      <K id={`fx.${pd.id}.${k}`} />
+                    ))}
+                  </div>
+                  <div class="pedal__ramp mono">
+                    <div class="seg seg--mini" role="group" aria-label={`${pd.name} ramp`}>
+                      {spec(`fx.${pd.id}.rmode`).pos!.map((n, v) => (
+                        <button type="button" data-seg={`fx.${pd.id}.rmode`} data-v={v} aria-pressed={v === 0 ? 'true' : 'false'}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                    <K id={`fx.${pd.id}.ramp`} label="rampa" />
+                    <span class="pedal__rampled" data-ramp-led={pd.id} />
+                  </div>
+                  {pd.id === 'sti' && (
+                    <div class="pedal__extra mono">
+                      <button type="button" class="btn btn--sm" data-capture aria-pressed="false">cattura</button>
+                      <span class="loopring" data-loop-ring><i /></span>
+                    </div>
+                  )}
+                  {pd.id === 'mne' && (
+                    <div class="pedal__extra mono">
+                      <span>grani</span> <b data-grains>0</b>
+                    </div>
+                  )}
+                  <footer class="pedal__foot">
+                    <button type="button" class="pedal__move" data-move="-1" aria-label={`Move ${pd.name} earlier`}>‹</button>
+                    <button type="button" class="foot" data-switch={`fx.${pd.id}.on`} aria-label={`${pd.name} on/off`}>
+                      <span class="foot__led" />
+                    </button>
+                    <button type="button" class="pedal__move" data-move="1" aria-label={`Move ${pd.name} later`}>›</button>
+                    <button type="button" class="pedal__flip mono" data-flip aria-pressed="false" title="Turn the pedal over: dip switches">dip</button>
+                  </footer>
+                  <p class="pedal__after mono">after {pd.after}</p>
+                </div>
+                <div class="pedal__back" hidden>
+                  <p class="mono">ramp these knobs</p>
+                  <div class="dips">
+                    {pd.knobs.map((k, b) => (
+                      <button type="button" class="dip" data-dip={`${pd.id}:${b}`} aria-pressed="false">
+                        <i />
+                        <span class="mono">{spec(`fx.${pd.id}.${k}`).label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div class="dips">
+                    {pd.dips.map((d, j) => (
+                      <button type="button" class="dip dip--red" data-dip={`${pd.id}:${8 + j}`} aria-pressed="false">
+                        <i />
+                        <span class="mono">{d === 'pol' ? 'polarità' : d}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" class="pedal__flip mono" data-flip>fronte</button>
+                </div>
+              </article>
+            ))
+          }
+        </div>
+      </section>
+
+      <!-- ═══════════════ performance ═══════════════ -->
+      <section class="mod mod--play" style={`--hue:${moduleHue.play}`} aria-labelledby="m-play">
+        <header class="mod__head">
+          <h2 id="m-play" class="mod__title">Oboli</h2>
+          <span class="mod__sub mono">touch plates after Buchla, Serge's TKB and Ciat-Lonbarde: press harder, or lower on the coin, for more · keys A–K · Z/X octave</span>
+        </header>
+        <div class="play">
+          <div class="plates" data-plates>
+            {
+              plateNotes.map((n, i) => (
+                <button type="button" class:list={['obol', { 'obol--dark': [1, 3, 6, 8, 10].includes(n % 12) }]} data-plate={n} aria-label={`Plate ${NAMES[n % 12]} (${keys[i]})`}>
+                  <svg viewBox="0 0 100 100" aria-hidden="true">
+                    <path d={coin(`plate-${i}`)} />
+                    <circle cx="50" cy="50" r="33" />
+                  </svg>
+                  <span class="mono" data-plate-label={n}>{NAMES[n % 12]}</span>
+                  <kbd>{keys[i]}</kbd>
+                </button>
+              ))
+            }
+          </div>
+          <div class="play__side mono">
+            <div class="xy" data-xy role="slider" tabindex="0" aria-label="XY plate: patch 'piastra X' and 'piastra Y'" aria-valuetext="0.5, 0.5">
+              <span class="xy__dot" data-xy-dot />
+              <span class="xy__lbl">piastra XY</span>
+            </div>
+            <div class="seq__row">
+              <button type="button" class="nudge" data-oct="-1" aria-label="Octave down">−</button>
+              <span>ottava <b data-oct-val>0</b></span>
+              <button type="button" class="nudge" data-oct="1" aria-label="Octave up">+</button>
+            </div>
+            <div class="seq__row">
+              <button type="button" class="sw" data-hold aria-pressed="false" title="Plates latch until pressed again">tieni</button>
+              <button type="button" class="sw" data-transpose-mode aria-pressed="false" title="Plates transpose the running sequence instead of playing">trasponi</button>
+            </div>
+            <div class="midi">
+              <button type="button" class="btn btn--sm" data-midi-enable>MIDI</button>
+              <select data-midi-in aria-label="MIDI input" disabled><option value="all">tutti gli ingressi</option></select>
+              <select data-midi-out aria-label="MIDI output" disabled><option value="">nessuna uscita</option></select>
+              <label class="field"><span>clock</span><select data-midi-clock aria-label="Clock source" disabled><option value="int">interno</option><option value="ext">esterno</option></select></label>
+              <p class="midi__hint">right-click a knob to MIDI-learn it</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mod mod--gifts" aria-labelledby="m-gifts">
+        <header class="mod__head">
+          <h2 id="m-gifts" class="mod__title">Doni ricevuti</h2>
+          <span class="mod__sub mono">every gift you accepted, in order</span>
+        </header>
+        <ol class="gifts mono" data-boon-log>
+          <li class="gifts__empty">no gifts yet: <button type="button" class="linkish" data-boon>invoke one</button></li>
+        </ol>
+      </section>
+      <div class="frieze frieze--bottom" aria-hidden="true"></div>
+    </div>
+
+    <dialog class="boons" data-boon-dialog aria-labelledby="boons-title">
+      <p class="boons__kicker mono">the gods offer</p>
+      <h2 id="boons-title" class="boons__title">Scegli un dono</h2>
+      <div class="boons__cards" data-boon-cards></div>
+      <form method="dialog"><button class="btn btn--quiet">rifiuta tutti</button></form>
+    </dialog>
+
+    <article class="unveiled__chapter orfeo-page__notes">
+      <p class="unveiled__num mono">how to play</p>
+      <div class="unveiled__text">
+        <p>
+          Press <kbd>space</kbd> or the gold obol. Touch a diamond to light a step; touch it again for a <b>slide</b> (legato, with
+          glide), and again to clear it. The tabs above the grid switch the lane you're drawing: drag across the bars to paint notes,
+          accents, probabilities, ratchets, two free lanes <b>T</b> and <b>M</b> that you can patch anywhere, and each step's
+          <b>duration</b>. Every lane has its own length and clock divider, so a 5-step accent lane over a 7-step note lane over 32
+          gates takes a long time to repeat.
+        </p>
+        <p>
+          The voice is west coast: a complex oscillator whose modulator FMs, ring-modulates or syncs the carrier, then a
+          <b>wave multiplier</b> folding it, a multimode filter, and a <b>low pass gate</b> modelled on a vactrol (it opens in
+          milliseconds and closes slowly and unevenly). Sources can be added under it: a sub, four colours of noise including a
+          drifting shortwave radio, a tangle of cross-coupled triangle cores, a plucked string, and your microphone.
+        </p>
+        <p>
+          Drag from an <b>uscita</b> to an <b>ingresso</b> to patch a cable, then set its amount in the list. Seventeen sources
+          include the contour, two function generators that can cycle, a synced LFO, fluctuating and stepped random with a
+          probability distribution, a shift register that sometimes flips a bit, the two free lanes, the plates' pressure and XY,
+          the Rollz, and <b>colonia</b>: the block entropy of the Game of Life behind this page.
+        </p>
+        <p>
+          <b>Armonia</b> chooses a chord every bar (or faster) by one of fifteen rules and sings it on the choir, or arpeggiates it.
+          Set the melody to read <b>note dell'accordo</b> and the lead follows the harmony. <b>Scrivi il contrappunto</b> writes a
+          second voice above your sequence that obeys Fux: consonances only, no parallel or hidden fifths and octaves, perfect
+          consonances at both ends. The rules only ever look at neighbouring notes, so the best line is found by dynamic programming
+          over pairs of notes in O(n·k³) time. That, and the finite state of everything else here, is why the stamp says
+          <a href="/archive/#P">P</a>.
+        </p>
+        <p>
+          The pedals are rivers. Each has a footswitch, a <b>ramp</b> that sweeps the knobs you choose on its back (dip switches) as a
+          one-way ramp, a bounce, or a sweep that follows how loud you play, and a polarity dip that decides which way. Drag them to
+          reorder the chain. <b>Stige</b> is a looper that is always listening: press <b>cattura</b> to hold the last bars and play
+          them at another speed or backwards; with its <b>auto</b> dip it keeps renewing itself from the recent past.
+        </p>
+        <p>
+          <b>Invoca un dono</b> and three gods each offer a gift from their domain: Zeus strikes the modulator, Poseidon moves the
+          filter like a tide, Dionysus gets the sequencer drunk, Chaos unmakes the oscillator. Gifts come in four rarities, and
+          sometimes two gods offer one together. <b>Calore</b> turns up the heat on everything at once.
+        </p>
+        <p>
+          Switch on <b>la colonia scrive</b> and at every loop one row of the living background is folded into thirty-two gates:
+          the rhythm is whatever the automaton is doing under the panel. <b>Nutri la colonia</b> does the reverse: every note drops
+          a glider into it. Each pattern slot carries a sigil grown from its contents, the way every post carries one grown from
+          its title.
+        </p>
+      </div>
+    </article>
+
+    <article class="unveiled__chapter orfeo-page__notes">
+      <p class="unveiled__num mono">sources</p>
+      <div class="unveiled__text">
+        <ol class="orfeo-page__refs">
+          {METHODS.map((m) => (
+            <li>
+              <b>{m.name}</b> ({m.en}). {m.cite}.
+            </li>
+          ))}
+          <li><b>Trova la tonalità.</b> C. L. Krumhansl &amp; E. J. Kessler, Psychological Review 89(4), 1982; C. L. Krumhansl, Cognitive Foundations of Musical Pitch (OUP, 1990).</li>
+          <li><b>Contrappunto.</b> J. J. Fux, Gradus ad Parnassum (1725), trans. A. Mann as The Study of Counterpoint (Norton, 1965).</li>
+          <li><b>Melodia attesa.</b> P. von Hippel &amp; D. Huron, “Why do skips precede reversals?”, Music Perception 18(1), 2000, 59–85; D. Huron, Sweet Anticipation (MIT Press, 2006).</li>
+          <li><b>Melodia 1/f.</b> R. F. Voss &amp; J. Clarke, “‘1/f noise’ in music: Music from 1/f noise”, JASA 63(1), 1978, 258–263.</li>
+          <li><b>Continuatore.</b> F. Pachet, “The Continuator: Musical Interaction With Style”, J. New Music Research 32(3), 2003, 333–341.</li>
+          <li><b>Euclide.</b> G. Toussaint, “The Euclidean Algorithm Generates Traditional Musical Rhythms”, Bridges, 2005.</li>
+          <li><b>Tonnetz.</b> L. Euler, Tentamen novae theoriae musicae (1739); drawn here as neo-Riemannian theory draws it.</li>
+        </ol>
+        <p class="mono logic__provenance">
+          In homage to Don Buchla (the 259 complex oscillator, the 292 low pass gate, the 266 Source of Uncertainty, the 248 MARF),
+          Serge Tcherepnin (the Wave Multiplier, Smooth &amp; Stepped, the touch keyboard), Make Noise (Maths, the DPO, René,
+          Morphagene), Peter Blasser's Ciat-Lonbarde (Rollz, Gongue, touch plates), Koma Elektronik (Komplex, Field Kit), Gijs
+          Gieskes (bent circuits, 3TrinsRGB), Giorgio Sancristoforo (Berna, Gleetchlab) and the nine oscillators Alfredo Lietti
+          built for the Studio di Fonologia in Milan; to Chase Bliss (Mood, Generation Loss, Thermae, Dark World, Lossy, Brothers,
+          Habit) for the pedals; and to Supergiant Games' Hades for the look of the underworld. Nothing here is affiliated with any of
+          them.
+        </p>
+      </div>
+    </article>
+  </section>
+  <script>
+    import { mountOrfeo } from '../lib/synth/ui';
+    document.addEventListener('astro:page-load', mountOrfeo);
+  </script>
+</Base>

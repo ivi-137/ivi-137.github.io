@@ -1075,6 +1075,7 @@ class Orfeo extends AudioWorkletProcessor {
   press = 0;
   x = 0.5;
   y = 0.5;
+  colony = 0;
   rollz = 0;
   follow = 0;
   lim = 1;
@@ -1112,7 +1113,8 @@ class Orfeo extends AudioWorkletProcessor {
       case 'ctl':
         if (m.k === 'press') this.press = m.v;
         else if (m.k === 'x') this.x = m.v;
-        else this.y = m.v;
+        else if (m.k === 'y') this.y = m.v;
+        else this.colony = m.v;
         break;
       case 'cmd': {
         const st = this.pedals[5] as Stige;
@@ -1258,6 +1260,7 @@ class Orfeo extends AudioWorkletProcessor {
     src[13] = this.rollz;
     src[14] = clamp((L.logF - Math.log2(55)) / 5);
     src[15] = clamp(this.follow * 3);
+    src[16] = this.colony;
 
     // patchbay
     const md = this.md;

@@ -275,6 +275,7 @@ export const SOURCES = [
   { id: 'rollz', n: 'rollz', bi: false },
   { id: 'note', n: 'nota', bi: false },
   { id: 'follow', n: 'inseguitore', bi: false },
+  { id: 'colony', n: 'colonia', bi: false },
 ] as const;
 
 export const DESTS = [
@@ -323,7 +324,7 @@ export type ToDsp =
   | { t: 'order'; o: number[] }
   | { t: 'cables'; c: Cable[] }
   | { t: 'ev'; e: SynthEvent[] }
-  | { t: 'ctl'; k: 'press' | 'x' | 'y'; v: number }
+  | { t: 'ctl'; k: 'press' | 'x' | 'y' | 'colony'; v: number }
   | { t: 'cmd'; c: 'capture' | 'release' | 'panic' };
 
 export type FromDsp = { t: 'mon'; s: number[]; r: number[]; loop: number; held: 0 | 1; grains: number; level: number };

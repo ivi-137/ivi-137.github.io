@@ -1099,6 +1099,17 @@ export class Continuator {
     }
     if (this.alphabet.length > 2000) this.alphabet.splice(0, this.alphabet.length - 2000);
   }
+  /** Learn one note as it is played, in the context of the notes just before it. */
+  observe(history: number[], note: number) {
+    this.alphabet.push(note);
+    for (let o = 1; o <= this.maxOrder && o <= history.length; o++) {
+      const ctx = history.slice(history.length - o).join(',');
+      const list = this.table.get(ctx) ?? [];
+      list.push(note);
+      this.table.set(ctx, list);
+    }
+    if (this.alphabet.length > 2000) this.alphabet.splice(0, this.alphabet.length - 2000);
+  }
   get size() {
     return this.alphabet.length;
   }

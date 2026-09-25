@@ -67,6 +67,14 @@ export const INSTRUMENTS: Array<{ id: string; title: string; url: string; class:
     why: 'An eight-cell automaton has only 2⁸ states, so every evolving groove falls into a cycle that is found in polynomial time.',
   },
   {
+    id: 'orfeo',
+    title: 'Orfeo 32: an underworld synthesizer',
+    url: '/synth/',
+    class: 'P',
+    glyph: '♪ ×32',
+    why: 'Fux’s rules only compare neighbouring notes, so the best counterpoint is a shortest path: O(n·k³) by dynamic programming. Everything else is a finite-state machine.',
+  },
+  {
     id: 'network',
     title: 'Network of transmissions and ideas',
     url: '/network/',

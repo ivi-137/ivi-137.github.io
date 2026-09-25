@@ -29,6 +29,7 @@ import {
   type Chord,
   type Key,
 } from '../src/lib/synth/harmony.ts';
+import { euclid } from '../src/lib/synth/rhythm.ts';
 
 let failed = 0;
 const check = (label: string, ok: boolean, detail = '') => {
@@ -156,6 +157,12 @@ const cont = new Continuator(3);
 cont.learn([60, 62, 64, 65, 67, 65, 64, 62, 60]);
 const out = cont.continue([62, 64], 3, mulberry(1));
 check('Continuator continues a learned phrase in style', out.notes[0] === 65 || out.notes[0] === 62, out.notes.join(' '));
+
+// ── Euclidean rhythms (Toussaint 2005)
+const ex = (k: number, n: number) => euclid(k, n).map((x) => (x ? 'x' : '.')).join('');
+check('E(3,8) is the tresillo x..x..x.', ex(3, 8) === 'x..x..x.', ex(3, 8));
+check('E(5,8) is the cinquillo x.xx.xx.', ex(5, 8) === 'x.xx.xx.', ex(5, 8));
+check('E(7,16) has 7 onsets and rotates', euclid(7, 16).reduce((a, b) => a + b, 0) === 7 && euclid(7, 16, 1)[1] === 1);
 
 // ── every method produces 32 chords without throwing
 for (const m of METHODS) {

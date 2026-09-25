@@ -17,6 +17,7 @@ const PAGES: Item[] = [
   { label: 'Complexity unveiled: seed, thread, fold, K(s)', hint: '/unveiled/', kind: 'page', run: () => go('/unveiled/') },
   { label: 'Glider logic: a NOT gate from collisions', hint: '/logic/', kind: 'page', run: () => go('/logic/') },
   { label: 'Tamburo 8: automaton drum machine', hint: '/drums/', kind: 'page', run: () => go('/drums/') },
+  { label: 'Orfeo 32: underworld synthesizer', hint: '/synth/', kind: 'page', run: () => go('/synth/') },
   { label: 'Toggle the homeostat (Ashby loop)', hint: 'terminal: homeostat', kind: 'action', run: () => window.dispatchEvent(new Event('homeostat:toggle')) },
   { label: 'About', hint: '/about/', kind: 'page', run: () => go('/about/') },
   { label: 'Open terminal', hint: '~', kind: 'action', run: () => openDialog('[data-term]') },
