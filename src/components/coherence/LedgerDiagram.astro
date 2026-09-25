@@ -1,0 +1,187 @@
+---
+/**
+ * The Ledger inserted into a decoder-only transformer. Left: the ordinary
+ * stack. Right: the clerk, the slots with their types, the status
+ * accumulators, the separate-softmax read, and the <eos> gate.
+ */
+const slots = [
+  { t: 'G', name: 'font', v: 'serif, never mono' },
+  { t: 'G', name: 'maths', v: '$$ … $$' },
+  { t: 'G', name: 'spelling', v: 'British' },
+  { t: 'F', name: 'why-section', v: 'owed' },
+  { t: 'L', name: 'sources', v: 'owed, last' },
+  { t: '#', name: 'length', v: '6 of 9 ¶' },
+];
+---
+
+<figure class="cx-diagram" aria-label="The Ledger inserted into a decoder-only transformer">
+  <svg viewBox="0 0 680 470" role="img">
+    <title>The Ledger: clerk, slots, status, read, gate</title>
+    <defs>
+      <marker id="lg-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0 0L8 4L0 8z" class="fill-ink"></path>
+      </marker>
+      <marker id="lg-arrow-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0 0L8 4L0 8z" class="fill-np"></path>
+      </marker>
+    </defs>
+
+    <!-- the ordinary decoder -->
+    <text x="40" y="24" class="h">decoder layers (frozen, or trained as usual)</text>
+    <g class="blk"><rect x="40" y="380" width="200" height="30" rx="3"></rect><text x="140" y="399">embed + RoPE</text></g>
+    <g class="blk blk--att"><rect x="40" y="320" width="200" height="30" rx="3"></rect><text x="140" y="339">layers 1 … ℓc</text></g>
+    <g class="blk blk--att"><rect x="40" y="220" width="200" height="30" rx="3"></rect><text x="140" y="239">masked self-attention</text></g>
+    <g class="blk blk--led"><rect x="40" y="170" width="200" height="30" rx="3"></rect><text x="140" y="189">+ tanh(g) · ledger read</text></g>
+    <g class="blk blk--ff"><rect x="40" y="120" width="200" height="30" rx="3"></rect><text x="140" y="139">feed forward</text></g>
+    <rect x="30" y="110" width="220" height="150" class="stack"></rect>
+    <text x="34" y="272" class="small">each layer above ℓc</text>
+    <g class="blk blk--out"><rect x="40" y="56" width="200" height="30" rx="3"></rect><text x="140" y="75">logits (+ γ·gate on eos)</text></g>
+    <path d="M140 380V352 M140 320V252 M140 220V202 M140 170V152 M140 120V88 M140 56V36" class="flow" marker-end="url(#lg-arrow)"></path>
+    <text x="146" y="44" class="note">next token</text>
+    <text x="40" y="440" class="note">prompt (the blog, the request) … then the post, token by token</text>
+
+    <!-- clerk -->
+    <path d="M240 335H300" class="flow flow--a" marker-end="url(#lg-arrow-a)"></path>
+    <text x="248" y="327" class="note">prompt</text>
+    <g class="blk blk--led"><rect x="302" y="318" width="126" height="34" rx="3"></rect><text x="365" y="333">clerk</text><text x="365" y="346" class="small">K queries, read once</text></g>
+    <path d="M428 335H450V300" class="flow flow--a" marker-end="url(#lg-arrow-a)"></path>
+
+    <!-- slots -->
+    <text x="452" y="24" class="h">ledger: K slots</text>
+    {
+      slots.map((s, i) => (
+        <g class={`slot slot--${s.t === 'G' ? 'g' : s.t === '#' ? 'n' : 'f'}`} transform={`translate(452 ${40 + i * 42})`}>
+          <rect width="206" height="34" rx="3" />
+          <text x="10" y="21" class="ty">{s.t}</text>
+          <text x="34" y="15" class="nm">{s.name}</text>
+          <text x="34" y="28" class="small">{s.v}</text>
+          {s.t !== 'G' && <rect class="bar" x="150" y="12" width="46" height="8" />}
+          {s.t !== 'G' && <rect class="fill" x="150" y="12" width={s.t === '#' ? 30 : 0} height="8" />}
+        </g>
+      ))
+    }
+
+    <!-- status: written tokens pay obligations -->
+    <path d="M240 232C300 232 360 250 448 250" class="flow flow--dash" marker-end="url(#lg-arrow)"></path>
+    <text x="262" y="266" class="note">each written token</text><text x="262" y="279" class="note">updates the status u</text>
+    <!-- read -->
+    <path d="M450 150C380 150 320 185 244 185" class="flow flow--a" marker-end="url(#lg-arrow-a)"></path>
+    <text x="262" y="134" class="note">read: a softmax over</text><text x="262" y="147" class="note">the K slots only</text>
+    <!-- gate -->
+    <path d="M555 292V420H290V71H244" class="flow flow--gate" marker-end="url(#lg-arrow)"></path>
+    <text x="300" y="414" class="note">pending eventualities hold back &lt;eos&gt;</text>
+    <text x="466" y="316" class="small">G invariant · F eventuality</text><text x="466" y="328" class="small">L last · # count</text>
+  </svg>
+</figure>
+
+<style>
+  .cx-diagram {
+    margin: 2.4em calc(-1 * min(var(--pad), 2rem));
+    padding: 12px;
+    border: 1px solid rgba(22, 20, 15, 0.25);
+    background: var(--paper);
+    background-image: radial-gradient(rgba(22, 20, 15, 0.08) 1px, transparent 1.2px);
+    background-size: 12px 12px;
+  }
+  .cx-diagram svg {
+    width: 100%;
+    height: auto;
+    font-family: var(--f-mono);
+    font-size: 11px;
+  }
+  .h {
+    fill: var(--ink);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .stack {
+    fill: none;
+    stroke: var(--ink);
+    stroke-dasharray: 3 3;
+  }
+  .nx {
+    font-size: 14px;
+    fill: var(--ink);
+  }
+  .blk rect {
+    fill: var(--paper);
+    stroke: var(--ink);
+  }
+  .blk text {
+    text-anchor: middle;
+    fill: var(--ink);
+  }
+  .blk--att rect {
+    fill: color-mix(in srgb, var(--c-np) 16%, var(--paper));
+  }
+  .blk--ff rect {
+    fill: color-mix(in srgb, var(--c-p) 16%, var(--paper));
+  }
+  .blk--led rect {
+    fill: color-mix(in srgb, var(--acid) 55%, var(--paper));
+  }
+  .blk--out rect {
+    fill: color-mix(in srgb, var(--c-exp) 14%, var(--paper));
+  }
+  .small {
+    font-size: 9.5px;
+    fill: var(--ink-2);
+  }
+  .blk .small {
+    text-anchor: middle;
+  }
+  .slot rect {
+    fill: var(--paper);
+    stroke: var(--ink);
+  }
+  .slot--g rect:first-child {
+    fill: color-mix(in srgb, var(--c-np) 10%, var(--paper));
+  }
+  .slot--f rect:first-child {
+    fill: color-mix(in srgb, var(--c-exp) 10%, var(--paper));
+  }
+  .slot--n rect:first-child {
+    fill: color-mix(in srgb, var(--c-p) 10%, var(--paper));
+  }
+  .slot .bar {
+    fill: none;
+    stroke: var(--ink);
+  }
+  .slot .fill {
+    fill: var(--ink);
+    stroke: none;
+  }
+  .ty {
+    font-size: 15px;
+    font-weight: 700;
+    fill: var(--ink);
+  }
+  .nm {
+    fill: var(--ink);
+  }
+  .note {
+    fill: var(--ink-2);
+  }
+  .flow {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.3;
+  }
+  .flow--a {
+    stroke: var(--c-np);
+  }
+  .flow--dash {
+    stroke-dasharray: 4 3;
+  }
+  .flow--gate {
+    stroke: var(--c-exp);
+    stroke-dasharray: 2 3;
+  }
+  :global(.fill-ink) {
+    fill: var(--ink);
+  }
+  :global(.fill-np) {
+    fill: var(--c-np);
+  }
+</style>

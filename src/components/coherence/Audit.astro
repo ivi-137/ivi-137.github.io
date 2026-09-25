@@ -1,0 +1,24 @@
+---
+/**
+ * The house-style audit. The style is learned at build time from every other
+ * published post; the drafts you can load are the real source files.
+ */
+import { learn } from '../../lib/coherence/audit';
+
+interface Props {
+  self: string;
+  caption?: string;
+}
+const { self, caption } = Astro.props;
+const files = import.meta.glob('../../content/posts/*.{md,mdx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const all = Object.entries(files)
+  .map(([path, src]) => ({ id: path.split('/').pop()!.replace(/\.mdx?$/, ''), src }))
+  .filter((p) => !/^draft:\s*true/m.test(p.src));
+const others = all.filter((p) => p.id !== self);
+const style = learn(others.map((p) => p.src));
+const loadable = [...all.filter((p) => p.id === self), ...others.filter((p) => p.id === 'rule-137')];
+---
+
+<div data-audit data-style={JSON.stringify(style)} data-self={self} data-caption={caption}>
+  <script type="application/json" data-sources set:html={JSON.stringify(Object.fromEntries(loadable.map((p) => [p.id, p.src]))).replace(/</g, '\\u003c')} />
+</div>

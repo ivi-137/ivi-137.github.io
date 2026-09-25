@@ -1,0 +1,345 @@
+/* ── "You need coherence": live figures ─────────────────────────────── */
+
+.cx__stage canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: default;
+  image-rendering: auto;
+}
+.embed--attn .cx__stage canvas {
+  cursor: pointer;
+}
+.cx__slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.cx__slider input[type='range'] {
+  width: 110px;
+  accent-color: var(--acid);
+}
+.cx__slider output {
+  min-width: 3.2em;
+  color: var(--acid);
+}
+.embed .embed__bar > span {
+  opacity: 0.8;
+}
+
+/* ── the toy posts ── */
+.cd__author {
+  font-size: 11px;
+  line-height: 1.6;
+  padding: 2px 2px 10px;
+  opacity: 0.9;
+}
+.cd__author b {
+  color: var(--acid);
+  font-weight: 500;
+}
+.cd__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 720px) {
+  .cd__cols {
+    grid-template-columns: 1fr;
+  }
+}
+.cd__col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+.cd__col header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--ink);
+  color: var(--paper);
+}
+.cd__col[data-col='ledger'] header b {
+  color: var(--acid);
+}
+.cd__post {
+  height: 300px;
+  overflow: auto;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.cd__post p {
+  margin: 0 0 0.55em;
+}
+.cd__post h5 {
+  margin: 0.8em 0 0.3em;
+  font: 400 1.05rem/1.1 var(--f-display);
+}
+.tf--0 {
+  font-family: var(--f-text);
+}
+.tf--1 {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 1.12em;
+}
+.tf--2 {
+  font-family: var(--f-mono);
+  font-size: 0.86em;
+}
+.tf--3 {
+  font-family: var(--f-text);
+  font-variant: small-caps;
+  letter-spacing: 0.03em;
+}
+.tf--4 {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.tf--5 {
+  font-family: var(--f-text);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.8em;
+}
+.th [class^='th--'] + span,
+.th span {
+  margin-right: 0.25em;
+}
+.th--1 ~ span {
+  font-family: var(--f-mono);
+  text-transform: uppercase;
+  font-size: 0.8em;
+}
+.th--2::before {
+  content: attr(data-h);
+  margin-right: 0.3em;
+}
+.th--3 ~ span {
+  text-decoration: underline;
+  font-style: italic;
+}
+.tw {
+  font-style: italic;
+}
+.tm {
+  font-family: var(--f-mono);
+  font-size: 0.85em;
+  padding: 0 2px;
+  background: var(--paper-2);
+}
+.tm b {
+  font-weight: 700;
+  color: var(--c-np);
+}
+.cd__post .tr {
+  height: 0;
+  width: 4rem;
+  margin: 0.8em 0 0.4em;
+  border: 0;
+  border-top: 1px solid var(--ink);
+  background: none;
+  mask-image: none;
+}
+.ts {
+  font-size: 0.9em;
+}
+.tx {
+  font-family: var(--f-mono);
+  font-size: 0.75em;
+  color: var(--c-exp);
+}
+.cd__post .is-bad,
+.cd__post p.is-bad {
+  background: color-mix(in srgb, var(--verm) 22%, transparent);
+  outline: 1.5px solid var(--verm);
+  outline-offset: 1px;
+}
+.cd__mon {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0;
+  padding: 8px 10px;
+  list-style: none;
+  font-size: 10.5px;
+  border-top: 1px dashed rgba(22, 20, 15, 0.35);
+}
+.cd__mon .is-ok {
+  color: var(--c-p);
+}
+.cd__mon .is-bad {
+  color: var(--c-exp);
+  font-weight: 700;
+}
+.cd__mon .is-wait {
+  opacity: 0.5;
+}
+.cd__led {
+  padding: 8px 10px 10px;
+  font-size: 10.5px;
+  border-top: 1px dashed rgba(22, 20, 15, 0.35);
+  background: color-mix(in srgb, var(--acid) 18%, var(--paper));
+}
+.cd__led p {
+  margin: 0 0 6px;
+}
+.cd__slot {
+  display: grid;
+  grid-template-columns: 1.4em 6.5em 1fr 5.5em;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0;
+}
+.cd__slot > span:first-child {
+  font-weight: 700;
+}
+.cd__meter {
+  height: 7px;
+  border: 1px solid var(--ink);
+}
+.cd__meter i {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transition: width 0.15s;
+}
+.cd__tally {
+  margin: 8px 2px 0;
+  font-size: 11px;
+  color: var(--acid);
+}
+
+/* ── the audit ── */
+.ca {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 10px;
+}
+@media (max-width: 720px) {
+  .ca {
+    grid-template-columns: 1fr;
+  }
+}
+.ca__text {
+  width: 100%;
+  min-height: 360px;
+  resize: vertical;
+  padding: 10px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--paper);
+  border: 0;
+  tab-size: 2;
+}
+.ca__side {
+  min-width: 0;
+}
+.ca__trace {
+  position: relative;
+  height: 26px;
+  margin: 2px 26px 8px 0;
+}
+.ca__line {
+  position: absolute;
+  inset: 12px 0 auto;
+  height: 2px;
+  background: rgba(236, 229, 211, 0.35);
+}
+.ca__end {
+  position: absolute;
+  right: -26px;
+  top: 6px;
+  font: 10px var(--f-mono);
+  opacity: 0.6;
+}
+.ca__tick {
+  position: absolute;
+  top: 4px;
+  width: 3px;
+  height: 18px;
+  margin-left: -1px;
+  background: var(--verm);
+}
+.ca__tick.is-F,
+.ca__tick.is-L {
+  background: var(--ghost);
+}
+.ca__tick.is-S {
+  background: var(--violet);
+}
+.ca__verdict {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  color: var(--acid);
+}
+.ca__verdict.is-bad {
+  color: var(--verm);
+}
+.ca__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+}
+.ca__list li {
+  display: grid;
+  grid-template-columns: 1.2em 1.4em 1fr;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(236, 229, 211, 0.1);
+  cursor: default;
+}
+.ca__list li[data-line]:not([data-line='']) {
+  cursor: pointer;
+}
+.ca__list small {
+  display: block;
+  opacity: 0.65;
+  font-size: 10px;
+}
+.ca__list .is-kept .ca__mark {
+  color: var(--acid);
+}
+.ca__list .is-broken .ca__mark,
+.ca__list .is-owed .ca__mark {
+  color: var(--verm);
+}
+.ca__list li:not(.is-required).is-broken .ca__mark,
+.ca__list li:not(.is-required).is-owed .ca__mark {
+  color: var(--paper);
+  opacity: 0.6;
+}
+.ca__kind {
+  font-weight: 700;
+  color: var(--ghost);
+}
+
+/* ── results (server-rendered) ── */
+.cx-results {
+  margin: 2.4em calc(-1 * min(var(--pad), 2rem));
+  padding: 14px;
+  border: 1px solid rgba(22, 20, 15, 0.25);
+  background: var(--paper);
+}
+.cx-results svg {
+  width: 100%;
+  height: auto;
+  font-family: var(--f-mono);
+  font-size: 11px;
+}
+.cx-results figcaption,
+.cx-diagram figcaption {
+  padding-top: 8px;
+  font: italic 0.95rem var(--f-text);
+  color: var(--ink-2);
+}

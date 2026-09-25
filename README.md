@@ -40,7 +40,7 @@ Plain HTML in any Markdown post becomes an interactive figure:
 <div data-life="bo$2bo$3o!" data-rule="B3/S23" data-size="48x28" data-autoplay data-caption="A glider"></div>
 ```
 
-`data-life` takes RLE (copy it from LifeWiki or Golly, or export it from the Lab). Posts also get a table of contents, heading anchors, code copy buttons, a BibTeX/APA "Cite this" block, related posts, backlinks and a discussion thread automatically. Add `concepts: [...]` to the front matter to place a post in the Network graph.
+`data-life` takes RLE (copy it from LifeWiki or Golly, or export it from the Lab). The post *You need coherence* adds `data-attention`, `data-posenc`, `data-dilution`, `data-survival`, `data-ledger-demo` and `data-audit` (code in `src/lib/coherence/`, loaded only on pages that use them). Posts also get a table of contents, heading anchors, code copy buttons, a BibTeX/APA "Cite this" block, related posts, backlinks and a discussion thread automatically. Add `concepts: [...]` to the front matter to place a post in the Network graph.
 
 ## Features
 
@@ -61,6 +61,7 @@ Plain HTML in any Markdown post becomes an interactive figure:
 | **Tamburo 8** `/drums/` | 8-step, 6-voice synthesized drum machine; rows can evolve by elementary CA rules each bar; chance, ratchets, tape echo with wow/flutter; share links |
 | **Orfeo 32** `/synth/` | Underworld synthesizer: complex oscillator → wavefolder → vactrol LPG in an AudioWorklet; 32-step sequencer with eight polymetric lanes, seven directions, Euclid, CA and Turing mutation; 17×16 patchbay; five pulse rollers striking gongs, a nine-oscillator drone; **Armonia**: 15 harmony rules from the literature (Piston, Rameau, Rohrmeier, Cohn, Tymoczko, Lerdahl, Levy, Messiaen, Partch, Sethares…), Fux counterpoint by dynamic programming, key-finding, Continuator; eight pedals with ramps and dip switches, named for the rivers of the underworld; boons from the gods; the colony can write the rhythm. Checked by `scripts/check-harmony.mts` |
 | **Melencolia I** `/vocoder/` | Microphone vocoder (8–32 bands, YIN pitch tracking, formant shift, freeze, sibilants) over a choir whose chords are chosen by the research on sad music: minor mode, slow tempo, small intervals, the minor third and minor second, falling bass, appoggiaturas, modal mixture; Dürer's magic square as a sequencer. Feedback guard: echo cancellation, room measurement, per-band echo suppression, a breath probe, a howl detector. Records the dry voice and the vocoder to WAV, and renders takes or files through the vocoder offline. Checked by `scripts/check-melancholy.mts` |
+| **You need coherence** | A post with its own experiment: the Transformer explained with live figures, published measurements of incoherence, the *Ledger* architecture, and a toy trained from scratch in JAX (`research/coherence/`). Both trained models run in the page (`src/lib/coherence/net.ts`, checked against JAX by `scripts/check-coherence-net.mts`). The notebook's house style as monitors: `scripts/check-coherence.mts` |
 | **Recording** | Tamburo 8 and Melencolia I record their output losslessly (an AudioWorklet tap) and save takes as 16- or 24-bit WAV |
 | **Sound** | Press **M**: a scanline sonifies the colony (births → pentatonic notes) |
 | **Shortcuts** | **?** for the sheet; **J/K** next/previous post; **G** then **H/Z/L/A/N** to jump |

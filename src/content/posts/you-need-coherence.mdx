@@ -1,0 +1,369 @@
+---
+title: You need coherence
+date: 2026-09-25T18:00:00Z
+description: A transformer can attend to everything in its context and still break the promises its text has made. Why that happens, how often, and a small ledger that keeps them.
+concepts: [transformers, attention, softmax, coherence, temporal logic, runtime verification, Chomsky hierarchy, NP]
+class: NP
+draft: true
+---
+import '../../styles/coherence.css';
+import TransformerDiagram from '../../components/coherence/TransformerDiagram.astro';
+import LedgerDiagram from '../../components/coherence/LedgerDiagram.astro';
+import ToyResults from '../../components/coherence/ToyResults.astro';
+import Audit from '../../components/coherence/Audit.astro';
+
+Ask a language model to read this notebook and write the next entry. It will get the topic right and the voice roughly right. Then, somewhere around the fourth paragraph, a formula will appear between single dollar signs, although every formula here sits between two. A heading will arrive in Title Case. "Behaviour" will lose its u. And the post will stop one section early, without the further reading that closes every post that has any. None of this is hard. Each is a promise the earlier posts made, and each gets broken anyway.
+
+This post is about that failure. I'll call the property it breaks *coherence*: a text is coherent when it keeps the commitments its context has made, from the first token to the last. The argument goes in six steps:
+
+1. **The machine.** The Transformer of "Attention is all you need", with its mathematics.
+2. **The evidence.** What published measurements say about how often models lose the thread.
+3. **A definition.** Coherence as a set of obligations in temporal logic, each checkable by a finite automaton.
+4. **Three mechanisms.** Dilution, compounding and premature stopping, each with a short proof.
+5. **An architecture.** The *Ledger*: a small block that can be inserted into a trained transformer without changing what it computes on the day it is inserted.
+6. **An experiment.** A controlled toy, trained from scratch several times over, small enough to run live on this page.
+
+Every measurement below is either quoted from a paper in the reading list at the end or produced by code that lives in this site's repository, under `research/coherence/`.
+
+## The machine
+
+### Tokens and positions
+
+Ashish Vaswani and seven co-authors introduced the Transformer in 2017, as a translation model. Text is cut into tokens, and each token becomes a vector of $$d_{\text{model}} = 512$$ numbers. There is no recurrence and no convolution, so nothing in the model knows which token came first. Order has to be added. Each position $$p$$ gets a fixed vector, added to the token's own:
+
+$$
+\mathrm{PE}(p, 2i) = \sin\frac{p}{10000^{2i/d_{\text{model}}}}, \qquad \mathrm{PE}(p, 2i+1) = \cos\frac{p}{10000^{2i/d_{\text{model}}}}.
+$$
+
+Each pair of dimensions is a clock running at its own speed, with wavelengths from $$2\pi$$ to $$10000 \cdot 2\pi$$ positions. The authors chose clocks because, for any fixed offset $$k$$, moving from $$\mathrm{PE}(p)$$ to $$\mathrm{PE}(p+k)$$ is a rotation in every pair, a linear map. The dot product of two positions then depends only on how far apart they are:
+
+$$
+\mathrm{PE}(p) \cdot \mathrm{PE}(p+k) = \sum_{i} \cos(\omega_i k), \qquad \omega_i = 10000^{-2i/d_{\text{model}}}.
+$$
+
+<div data-posenc data-caption="Sinusoidal positions: 96 positions by 128 dimensions, green positive and blue negative. Below, one position's similarity with all the others. Move the slider and the curve only shifts."></div>
+
+Most current models use a descendant, rotary embeddings, which apply the same rotations to queries and keys instead of adding them to the input. The toy model later in this post does too.
+
+### Attention
+
+Each token emits three vectors, all linear maps of its own: a query $$q$$, a key $$k$$ and a value $$v$$. With the queries, keys and values of all tokens stacked into matrices,
+
+$$
+\mathrm{Attention}(Q, K, V) = \mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V.
+$$
+
+Read it one row at a time. One token's query is compared with every key by a dot product. The scores $$s_j$$ become weights through the softmax, $$a_j = e^{s_j} / \sum_i e^{s_i}$$, and the output is the weighted average of the values. Every weight is positive, and the weights in a row add up to 1. Keep that last fact in view. Most of this post follows from it.
+
+Why divide by $$\sqrt{d_k}$$? If the components of $$q$$ and $$k$$ are independent with mean 0 and variance 1, their dot product has variance $$d_k$$ (the paper's footnote 4). Without the division, scores grow with the width of the head, the softmax saturates towards a single winner, and its gradients vanish. Try it:
+
+<div data-attention data-caption="Scaled dot-product attention over one sentence. Click a word to make it the query. Widen d_k with the scaling switched off and the weights collapse onto one word."></div>
+
+A model that writes left to right must not look at tokens it has not written yet, so the scores of later positions are set to $$-\infty$$ before the softmax. That is the causal mask.
+
+### Heads, layers and training
+
+Instead of one attention, the model runs $$h = 8$$ of them in parallel, each on its own 64-dimensional projections, and concatenates the results:
+
+$$
+\mathrm{MultiHead}(Q, K, V) = \mathrm{Concat}(\mathrm{head}_1, \dots, \mathrm{head}_h)\, W^O, \qquad \mathrm{head}_i = \mathrm{Attention}(QW_i^Q, KW_i^K, VW_i^V).
+$$
+
+Each head is free to look for something different: the previous word, the subject of a verb, a matching bracket. After attention, every position passes on its own through a two-layer network, $$\mathrm{FFN}(x) = \max(0,\, xW_1 + b_1)\,W_2 + b_2$$, with an inner width of 2048. Each of these sub-layers is wrapped as $$\mathrm{LayerNorm}(x + \mathrm{Sublayer}(x))$$: a residual connection, so information can pass a layer untouched, and a normalisation. Six such layers make the encoder. The decoder has six more, with a third sub-layer that attends to the encoder's output.
+
+<TransformerDiagram />
+
+Training used Adam with $$\beta_1 = 0.9$$, $$\beta_2 = 0.98$$ and a learning rate that rises for 4,000 steps and then decays with the inverse square root of the step,
+
+$$
+\mathrm{lr} = d_{\text{model}}^{-0.5} \cdot \min\!\left(\text{step}^{-0.5},\ \text{step} \cdot 4000^{-1.5}\right),
+$$
+
+with dropout and label smoothing both at 0.1. The big model reached 28.4 BLEU on English to German and 41.8 on English to French, after 3.5 days on eight P100 GPUs.
+
+For this post, the most important part of the paper is its Table 1, which compares layer types:
+
+| layer | cost per layer | sequential steps | longest path between two tokens |
+|---|---|---|---|
+| self-attention | $$O(n^2 d)$$ | $$O(1)$$ | $$O(1)$$ |
+| recurrent | $$O(n d^2)$$ | $$O(n)$$ | $$O(n)$$ |
+| convolutional | $$O(k n d^2)$$ | $$O(1)$$ | $$O(\log_k n)$$ |
+
+In a recurrent network, a word at the start of a document has to survive $$n$$ updates before it can influence the end. In a transformer the path is one step long: any token reads any other directly. That is a large part of why transformers replaced recurrent networks, and it seems to make forgetting impossible. It doesn't. A path of length one still has a width, and the width is paid for out of a budget that adds up to 1.
+
+Today's language models keep only the decoder. They are trained to predict the next token,
+
+$$
+p(y \mid c) = \prod_{t=1}^{L} p(y_t \mid c,\, y_{<t}),
+$$
+
+and they write by sampling one token at a time and feeding it back in. Every rule the text has to follow must be recovered, at every step, by attention over a context that grows by one token each time.
+
+## How often models lose the thread
+
+No single benchmark measures coherence as I've defined it. The nearest measurements come from three directions: instructions a program can check, long inputs, and imitation of a style.
+
+| study | what was measured | what they found |
+|---|---|---|
+| IFEval, Zhou et al. 2023 | about 500 prompts with 25 kinds of verifiable instruction, such as "no commas" or "at least 3 sections" | GPT-4 kept every instruction of a prompt 76.9% of the time: roughly one prompt in four broke something a program could check |
+| Multi-IF, He et al. 2024 | instructions of the same kind over three turns, in eight languages | o1-preview fell from 0.877 at the first turn to 0.707 at the third |
+| Laban et al. 2025 | 15 models, over 200,000 simulated conversations, six tasks | when a task arrived over several turns, performance dropped by 39% on average; unreliability rose by 112% |
+| IFScale, Jaroslawicz et al. 2025 | up to 500 keyword instructions for one report | the best frontier models reached 68% at 500, with a bias towards earlier instructions |
+| Li et al. 2024 | two chatbots talking, each given a persona by its system prompt | significant drift from the system prompt within eight rounds, traced to attention decay |
+| Liu et al. 2024, "Lost in the middle" | an answer placed at different depths of a long context | U-shaped accuracy; with the answer in the middle, GPT-3.5-Turbo did worse than with no documents at all (56.1%) |
+| RULER, Hsieh et al. 2024 | synthetic long-context tasks | of the models claiming 32K tokens or more, only half kept satisfactory performance at 32K |
+| NoLiMa, Modarressi et al. 2025 | retrieval where question and answer share no words | at 32K tokens, 11 models fell below half of their short-context score; GPT-4o went from 99.3% to 69.7% |
+| ALCE, Gao et al. 2023 | answers that must cite their sources | on ELI5, even the best models lacked complete citation support half of the time |
+| Levy, Jacoby and Goldberg 2024 | the same reasoning questions, padded to different lengths | reasoning degraded at input lengths far below the models' technical maximum |
+| Wang et al. 2025 | imitating more than 400 everyday authors from a few samples, over 40,000 generations per model | style approximated in news and email; blogs and forums remained hard |
+
+Three patterns run through the table.
+
+First, failures grow with the number of things to keep in mind: more instructions (IFScale), more turns (Multi-IF, Laban et al.), more context (RULER, NoLiMa, lost in the middle). Second, implicit constraints are harder than explicit ones. Instruction benchmarks state their rules. Imitation from examples does not, and the one large study of the case this post began with found blogs among the hardest domains. Third, these are not failures of knowledge. Laban et al. separate *aptitude*, which barely moved, from *reliability*, which collapsed. The models could do the task. They didn't do it consistently.
+
+Numbers from 2023 age fast, and newer models do better on every row. But each study found failures that grow with length, turns or the number of constraints, and a pattern that survives across models, labs and years points to a cause in the architecture rather than in any one model. The rest of this post looks for it.
+
+## What coherence means
+
+### Grammatical is not coherent
+
+In 1957 Noam Chomsky wrote a sentence to make a point about grammar: "Colorless green ideas sleep furiously." Every word is in its place, and the sentence means nothing. Being well formed and making sense are different properties.
+
+Coherence, in the sense I need, is a third property, closer to bookkeeping. A context makes promises about the text that follows it. The earlier posts in this notebook promise a way of writing formulas, a spelling, headings in sentence case, a closing section that explains the filing, and sources at the end. A request for "nine paragraphs" promises nine. Formally, a context $$c$$ induces a set of obligations $$\Phi(c) = \{\varphi_1, \dots, \varphi_k\}$$, and an output $$y$$ is coherent with $$c$$ when
+
+$$
+y \models \varphi_i \quad \text{for every } \varphi_i \in \Phi(c).
+$$
+
+The obligations in a blog post come in a few shapes, and linear temporal logic has a name for each. Amir Pnueli introduced the logic for reasoning about programs in 1977; De Giacomo and Vardi gave it the semantics for finite traces in 2013, and a text is a finite trace.
+
+| shape | formula | in this notebook |
+|---|---|---|
+| invariant | $$\mathbf{G}\,p$$, always $$p$$ | every formula uses the double-dollar delimiter |
+| eventuality | $$\mathbf{F}\,q$$, eventually $$q$$ | some section explains the complexity class |
+| order | $$\lnot r \;\mathbf{U}\; q$$, no $$r$$ until $$q$$ | that section comes before the sources |
+| last | $$\mathbf{F}\,r \land \mathbf{G}(r \to \mathbf{G}\,s)$$ | once the sources begin, only sources follow |
+| count | $$\#p = n$$, bounded | the requested number of paragraphs |
+
+All of these can be checked while the text is being written. Bauer, Leucker and Schallhart (2011) give a three-valued verdict on a finite prefix $$u$$ of the output: $$\top$$ if every continuation of $$u$$ satisfies $$\varphi$$, $$\bot$$ if none does, and $$?$$ otherwise. An invariant can only move from $$?$$ to $$\bot$$: one slip breaks it for good. An eventuality can only move from $$?$$ to $$\top$$: once paid, it stays paid, and it is judged $$\bot$$ only when the text ends unpaid. Each obligation compiles to a small deterministic automaton that reads the output once.
+
+That puts coherence on the bottom rung of the hierarchy Chomsky described in 1956: these are regular languages, the ones a finite automaton recognises. You don't need a Turing machine to keep a promise. You need a finite automaton that doesn't forget. Keith Duggar makes the matching point about networks on Machine Learning Street Talk: a network of fixed size is a finite-state machine, not a Turing machine. So carrying a handful of obligations is well within what a transformer can represent. What is in question is whether it carries them in practice. Delétang and colleagues trained 20,910 networks on 15 tasks grouped by the Chomsky hierarchy, and the hierarchy predicted which architectures could extend what they had learned to longer inputs. The networks that climbed highest were the ones given an explicit memory, a stack or a tape.
+
+### Competence and performance
+
+In *Aspects of the Theory of Syntax* (1965), Chomsky separated what a speaker knows, *competence*, from what a speaker does, *performance*. Linguistic theory, he wrote, studies an ideal speaker
+
+> unaffected by such grammatically irrelevant conditions as memory limitations, distractions, shifts of attention and interest, and errors (random or characteristic) in applying his knowledge of the language in actual performance.
+
+The distinction fits incoherent models almost too well. Methods that ask a model to criticise and revise its own draft, such as Self-Refine (Madaan et al. 2023), improve the draft, which they could not do if the model couldn't see what was wrong. Checking is a competence the model has. Producing is a performance, and it is subject to exactly Chomsky's list: limited memory, distraction by whatever text is nearest, attention that drifts. Chomsky has been a severe critic of language models, in conversation on Machine Learning Street Talk in 2022 and in the *New York Times* in 2023, where he and his co-authors called ChatGPT "a lumbering statistical engine for pattern matching". This post doesn't need to settle that argument. It borrows his distinction because it says where to look: not at what the model knows, but at the machinery that carries what it knows through a long performance.
+
+Subbarao Kambhampati, also on Machine Learning Street Talk, draws a practical conclusion from the same asymmetry: let the model propose and let external verifiers check, in a loop he calls LLM-Modulo. The architecture below moves the verifiers inside. They teach the network during training, and a small state carries their verdicts while it writes.
+
+## Three ways to lose the thread
+
+### Dilution
+
+**Lemma 1.** Suppose every attention score in a row satisfies $$|s_j| \le B$$. Then every weight satisfies
+
+$$
+a_j = \frac{e^{s_j}}{\sum_{i=1}^{n} e^{s_i}} \le \frac{e^{B}}{n\, e^{-B}} = \frac{e^{2B}}{n}.
+$$
+
+*Proof.* The numerator is at most $$e^B$$ and each of the $$n$$ terms of the denominator is at least $$e^{-B}$$. ∎
+
+So the $$m$$ tokens of an instruction receive at most $$m e^{2B}/n$$ of a head's attention, and their share of its output is bounded by the same fraction. While the model writes, $$n = n_0 + t$$ grows by one with every token. With bounded scores, the influence of a fixed instruction decays like $$1/(n_0 + t)$$.
+
+The lemma is not new. Veličković and colleagues proved that softmax attention must disperse as inputs grow, and Nakanishi named the effect *attention fading* and proposed multiplying scores by $$s \log n$$, so that the edge grows with the crowd. Trained models do raise some scores, and they park spare attention on the first few tokens, the *attention sinks* found by Xiao and colleagues. Federico Barbero's "Transformers need glasses!", also discussed on Machine Learning Street Talk, shows a related collapse at the other end: distinct inputs can end with almost identical final representations, which the model then provably cannot tell apart. But a fixed budget shared by a growing crowd remains the default.
+
+<div data-dilution data-caption="The share of one head's attention that falls on an instruction of m tokens whose scores sit Δ above the rest, as the model writes. The Ledger's read (next section) is normalised over its own K slots, so its share does not depend on the length of the context at all."></div>
+
+### Compounding
+
+An invariant has to hold at every step. Let $$h_i(t)$$ be the probability that invariant $$i$$ breaks for the first time at step $$t$$, given that it has held so far: its *hazard*.
+
+**Proposition 2.** Treating $$k$$ invariants as independent (optimistic, since one slip invites the next), the probability that all of them survive $$L$$ tokens is
+
+$$
+S(L) = \prod_{i=1}^{k} \prod_{t=1}^{L} \bigl(1 - h_i(t)\bigr) \le \exp\!\Bigl(-\sum_{i=1}^{k} \sum_{t=1}^{L} h_i(t)\Bigr).
+$$
+
+If each hazard is a non-increasing function of the attention share its evidence receives, $$h_i(t) = g_i(\text{share}_i(t))$$ with $$g_i(0) = h_i^{\infty} > 0$$, then by Lemma 1 $$h_i(t) \to h_i^{\infty}$$, and $$S(L)$$ falls exponentially in $$L$$, $$k$$ times as fast with $$k$$ invariants.
+
+*Proof.* The product form is the chain rule for first-failure times. The bound is $$1 - x \le e^{-x}$$. With bounded scores, $$\text{share}_i(t) \to 0$$ by Lemma 1, so $$h_i(t) \to g_i(0)$$. ∎
+
+The same arithmetic lies behind the collapse Dziri and colleagues measured in multi-step problems, where small per-step error rates multiply. A long post is a many-step problem, and every paragraph is a step for every invariant at once:
+
+<div data-survival data-caption="The chance that all k obligations survive. Each one's hazard either stays at its opening value, as if attention to the prompt never faded, or climbs towards p∞ as the prompt recedes, with τ setting how fast. Over a thousand words, small rates add up."></div>
+
+The proposition also predicts *which* invariants fail first. An invariant exercised on every line, like the font of each paragraph, can be re-read from the model's own recent output: once the first paragraph is right, copying keeps it right. An invariant exercised rarely, like the delimiter of a formula that turns up once every few hundred words, has to be recovered from the examples every time, across a gap that keeps widening. Its evidence is diluted, so its hazard rises. Sparse invariants should break before dense ones. The experiment below checks this.
+
+### Premature stopping
+
+Eventualities are judged only at the end, and the end is itself a token, $$\langle\text{eos}\rangle$$. Suppose the model writes $$\langle\text{eos}\rangle$$ with probability $$e_t$$ at a step $$t$$ where some eventuality $$q$$ is still owed. Then
+
+$$
+P(\text{the text ends with } q \text{ unpaid}) = \sum_{t} e_t \prod_{s < t} (1 - e_s)(1 - d_s),
+$$
+
+where $$d_s$$ is the probability of paying $$q$$ at step $$s$$. The decision to stop is one entry of one softmax, computed from the same diluted state as everything else. Nothing in the architecture connects it to a list of what is still owed. "Forgot the sources" is this sum, and it grows with every step at which stopping looks locally plausible.
+
+## The Ledger
+
+The three mechanisms suggest three repairs. Give obligations a channel whose share does not shrink with the context. Give them state, so that paid and unpaid are remembered rather than re-derived. And connect that state to the decision to stop. The *Ledger* does these three things, and nothing else. It sits beside an ordinary decoder:
+
+<LedgerDiagram />
+
+**The clerk.** Once the prompt has been read, $$K$$ learned queries attend over the prompt's hidden states at a middle layer $$\ell_c$$, and write $$K$$ slot vectors $$o_1, \dots, o_K$$: what is owed. The clerk runs once per prompt. Small heads read each slot's type and content, which is where training can supervise them.
+
+**Status.** Every token the model writes updates a scalar per slot. With $$h_t$$ the token's state at layer $$\ell_c$$, the event probability is $$e_{t,i} = \sigma\bigl(\langle W_h h_t,\, W_o o_i\rangle/\sqrt{d} + b_i\bigr)$$, and the status $$u_{t,i}$$ accumulates it according to the slot's type:
+
+$$
+u_{t,i} = \begin{cases}
+0 & \text{invariant: always in force} \\[2pt]
+1 - \prod_{s \le t} (1 - e_{s,i}) & \text{eventuality: noisy-OR, monotone} \\[2pt]
+\sigma\bigl(4\,(\textstyle\sum_{s \le t} e_{s,i} - \hat n_i + \tfrac12)\bigr) & \text{count, with target } \hat n_i \text{ read by the clerk}
+\end{cases}
+$$
+
+An obligation is *pending* with weight $$\pi_{t,i} = r_i (1 - u_{t,i})$$, where $$r_i$$ is the clerk's estimate that it applies at all.
+
+**Read.** In every layer above $$\ell_c$$, each written token attends to the $$K$$ slots, whose keys and values are built from $$o_i$$ and from $$(u_{t,i}, \pi_{t,i}, r_i)$$. This softmax is normalised over the $$K$$ slots only, never over the context:
+
+$$
+x_t \leftarrow x_t + \tanh(g_\ell)\; W_O \sum_{i=1}^{K} \mathrm{softmax}_i\!\left(\frac{q_t \cdot k_{t,i}}{\sqrt{d_h}}\right) v_{t,i}.
+$$
+
+**Gate.** Pending eventualities hold back the end of the text:
+
+$$
+\text{logit}_t(\langle\text{eos}\rangle) \mathrel{+}= \gamma \sum_{i \in \text{eventualities}} \log\bigl(1 - \pi_{t,i} + \varepsilon\bigr).
+$$
+
+**Training.** Checking is cheap, so the checkers can teach. Next to the usual next-token loss, the clerk's heads learn from labels for each obligation, and the status learns from the monitors' verdicts on every prefix of the training text: whether the sources have begun yet, whether a paragraph starts here. Every training token becomes a supervised example of bookkeeping.
+
+$$
+\mathcal{L} = \mathcal{L}_{\text{LM}} + \lambda_{\text{ext}} \sum_i \mathrm{CE}(\text{clerk}_i, \varphi_i) + \lambda_{\text{ev}} \sum_{t, i} \mathrm{BCE}\bigl(u_{t,i},\, [\![ y_{\le t} \text{ has paid } \varphi_i ]\!]\bigr).
+$$
+
+Five properties follow from the definitions.
+
+1. **It changes nothing when inserted.** With $$g_\ell = 0$$ and $$\gamma = 0$$, $$\tanh(g_\ell) = 0$$ and the gate adds 0, so the network computes exactly what it computed before. The zero-initialised tanh gate is Flamingo's trick for grafting new inputs onto a frozen model. In the toy, the first training loss of the Ledger model matched the baseline's to all 16 printed digits.
+2. **Its share does not dilute.** The read is normalised over $$K$$ slots, so by the argument of Lemma 1 a slot with a score edge $$\Delta$$ over the others gets at least $$e^{\Delta}/(e^{\Delta} + K - 1)$$ of the read, whatever $$n$$ and $$t$$ are.
+3. **Paid stays paid.** Eventuality status is monotone in $$t$$, like the $$\top$$ of a monitor, so the gate cannot trap the model once the debt is settled.
+4. **It trains in parallel.** The noisy-OR is a cumulative sum of $$\log(1 - e_{s,i})$$ and the count a cumulative sum of $$e_{s,i}$$, so training needs no back-propagation through time.
+5. **It is cheap.** Per written token and read layer it costs $$O(Kd)$$, against $$O(nd)$$ for self-attention, and its memory is $$K$$ vectors, constant in the length of the text.
+
+### What is borrowed and what is new
+
+The parts have ancestors. The combination, as far as I can find, does not.
+
+| earlier work | what it does | how the Ledger differs |
+|---|---|---|
+| neural checklist, Kiddon et al. 2016 | an RNN tracks which items of a given agenda it has mentioned | obligations are inferred from examples, typed, and include invariants, order and counts; transformer; the stop is gated |
+| coverage, Tu et al. 2016 | NMT tracks how much of each source word has been translated | coverage of obligations, not of input tokens |
+| persistent memory, memory tokens, registers, sinks | extra learned vectors inside the same softmax | inside one softmax they dilute like everything else; the "one shared softmax" ablation below tests exactly this |
+| split-softmax, Li et al. 2024; PASTA, Zhang et al. 2024; scalable softmax | reweight or rescale existing attention towards chosen tokens | a separate channel with its own state, rather than a reweighting of the old one |
+| progress monitor, Ma et al. 2019 | a navigation agent estimates how much of its instruction is done | the same instinct, made typed and connected to the decision to stop |
+| constrained decoding with automata | forbids tokens that would break a constraint given as a formula | needs the constraint written out; the Ledger reads it off the examples |
+| checklist rewards, LLM-Modulo | verifiers score or filter whole outputs | verifiers supervise a state inside the network at every token |
+
+## An experiment
+
+A claim about architecture should be tested where everything else is held still. Frontier models can't be retrained here, so I built the smallest world that has the problem.
+
+### The task
+
+An *author* has a house style: one of six paragraph fonts, one of four heading styles, one of three formula delimiters, and two habits, a closing "why" section and a sources section, each present or absent. The context shows two or three of the author's posts, then a request: a line in the *default* style (plain serif, single-dollar formulas) that says how many paragraphs to write. Then the model writes. The style is never stated. It has to be read off the posts, and held against the request, which sits right next to the point where writing begins. The words themselves come from a fixed random chain over 48 words and mean nothing. Chomsky's ideas are colourless on purpose: only form is under test.
+
+Most authors in the training data use the default style (40% of fonts, half of all delimiters), so a model that stops looking at the evidence drifts towards the request's style. Six monitors check each post: font, headings, maths (the three invariants), the why-section and the sources (eventualities, with sources required to come last), and their order. A seventh checks the requested length, which is the one explicit instruction.
+
+### The models
+
+Six variants, identical except for the parts under test: a 3-layer decoder with 4 heads, width 64 and rotary positions (155,456 parameters), trained from scratch for 1,500 steps on fresh batches of 32 episodes.
+
+1. **baseline**: the plain decoder.
+2. **baseline + same labels**: the plain decoder with the Ledger's supervision attached to linear probes on its hidden states. If the Ledger wins only because it sees more labels, this variant will win too.
+3. **Ledger**: clerk at layer 1, reads in layers 2 and 3, $$K = 8$$ slots, gate and supervision (212,427 parameters).
+4. **Ledger, one shared softmax**: the same slots, but read inside the ordinary attention softmax, as memory tokens would be.
+5. **Ledger, no eos gate.**
+6. **Ledger, no monitor labels**: trained on the next-token loss alone.
+
+The baseline, the labelled baseline, the Ledger and the shared-softmax Ledger were each trained with three seeds; the two other ablations with two. Each trained model wrote 300 posts, one for each of the same 300 prompts (5 requested lengths, 60 authors each), sampled at temperature 1 so that the numbers describe the model's own distribution rather than a decoding trick.
+
+### Results
+
+<ToyResults chart="bars" caption="Share of posts that keep all six implicit rules, per model: mean over seeds, with the range across seeds as a line. The thin bar is the same share on authors whose style differs from the request's." />
+
+<ToyResults chart="monitors" />
+
+<ToyResults chart="bylen" caption="Share of coherent posts against the number of paragraphs requested." />
+
+<ToyResults chart="survival" caption="Share of posts in which all three invariants (font, headings, maths) are still intact after a given number of written tokens." />
+
+<ToyResults chart="attention" caption="Attention that written tokens pay to the example posts, averaged over heads and layers, against how far into the post they are. This is Lemma 1, measured." />
+
+### Try it
+
+<div data-ledger-demo data-src="/coherence" data-caption="Both models, seed 0, running in your browser on the weights trained above. The same prompt goes to both; red marks a token a monitor caught. Under the Ledger, the slots it filled from the example posts, and what each still owes."></div>
+
+## Putting it in a real model
+
+The recipe for a pretrained model follows the toy's. Freeze the model. Insert the clerk a third of the way up and reads in the layers above, with $$K$$ between 16 and 32 and every gate at zero, so that on the first step nothing has changed. Train the new parameters, optionally with low-rank adapters on the old ones, on instruction and imitation data that comes with programmatic monitors: the verifiable instructions of IFEval, and style monitors extracted from the examples themselves, like the ones in the audit below. Match slots to monitors per example by bipartite matching, as DETR does for objects, since there are more kinds of obligation than slots. At inference the cost is a few $$K \times d$$ products per layer and token, and the key-value cache is untouched.
+
+The Ledger also makes a model easier to question, which speaks to one of Chomsky's objections. The slots can be read out: what the clerk thinks is owed, and what the model believes it has paid.
+
+The theory makes three predictions that a real test should check. The hazard of a sparse invariant should stop rising with length. The shared-softmax version should degrade as the context grows, and the separate one shouldn't. And the gains should concentrate on eventualities and sparse invariants, not on rules the text repeats every line.
+
+## What this does not show
+
+The toy is tiny, its prose is noise, and its style has five dimensions where a real blog has hundreds. Its labels come free from the generator; a real system has to extract them, and extraction errors are a new way to fail. The experiment shows that the mechanism works where the theory says it should, in a world simple enough to measure. It does not show that a Ledger makes a frontier model write better blog posts. That needs the retrofit above, trained at scale and measured on the benchmarks in the table, which is the obvious next experiment.
+
+## The ledger of this notebook
+
+The monitors are the easy half, and the easy half is useful on its own. Here are the conventions of this notebook as monitors, learned from the other posts: each rule counts how many of them keep it, and it is owed when at least two thirds do. One rule is owed regardless. Only one of the three earlier posts ends with further reading, so the corpus alone would not have made it a rule; I made it one, because an author can promote a habit to a rule, and that is an obligation too. Paste a draft, from a model or not:
+
+<Audit self="you-need-coherence" caption="The house style as monitors, checked in one pass. G always, F eventually, L last, S shape. Click a finding to jump to its line." />
+
+## Why the class is NP
+
+Checking whether a draft keeps a set of obligations takes one pass of a few small automata: time linear in the length of the draft. Writing a draft that keeps them all while also being worth reading is a search through an enormous space, and nothing makes it easy. A proposed answer is easy to verify, a good one is hard to find, and that shape is NP, the same shape as running Life backwards in [Gliders are messages](/posts/gliders-are-messages/). The Ledger's small bet is that the easy side can teach the hard one, during training, one token at a time.
+
+---
+
+*Further reading:*
+
+- Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin, "Attention Is All You Need," *NeurIPS* (2017).
+- Noam Chomsky, "Three Models for the Description of Language," *IRE Transactions on Information Theory* 2 (1956); *Syntactic Structures* (1957); *Aspects of the Theory of Syntax* (1965).
+- Noam Chomsky, Ian Roberts, Jeffrey Watumull, "The False Promise of ChatGPT," *The New York Times* (8 March 2023).
+- *Machine Learning Street Talk*: "#78, Prof. Noam Chomsky (Special Edition)" (July 2022); "Prof. Subbarao Kambhampati: LLMs don't reason, they memorize" (July 2024); "Transformers Need Glasses!, Federico Barbero".
+- Amir Pnueli, "The Temporal Logic of Programs," *FOCS* (1977).
+- Giuseppe De Giacomo, Moshe Y. Vardi, "Linear Temporal Logic and Linear Dynamic Logic on Finite Traces," *IJCAI* (2013).
+- Andreas Bauer, Martin Leucker, Christian Schallhart, "Runtime Verification for LTL and TLTL," *ACM TOSEM* 20 (2011).
+- Grégoire Delétang et al., "Neural Networks and the Chomsky Hierarchy," *ICLR* (2023).
+- Jeffrey Zhou et al., "Instruction-Following Evaluation for Large Language Models" (IFEval), arXiv:2311.07911 (2023).
+- Yun He et al., "Multi-IF: Benchmarking LLMs on Multi-Turn and Multilingual Instructions Following," arXiv:2410.15553 (2024).
+- Philippe Laban, Hiroaki Hayashi, Yingbo Zhou, Jennifer Neville, "LLMs Get Lost In Multi-Turn Conversation," *ICLR* (2026).
+- Daniel Jaroslawicz et al., "How Many Instructions Can LLMs Follow at Once?" (IFScale), arXiv:2507.11538 (2025).
+- Kenneth Li et al., "Measuring and Controlling Instruction (In)Stability in Language Model Dialogs," *COLM* (2024).
+- Nelson F. Liu et al., "Lost in the Middle: How Language Models Use Long Contexts," *TACL* 12 (2024).
+- Cheng-Ping Hsieh et al., "RULER: What's the Real Context Size of Your Long-Context Language Models?," *COLM* (2024).
+- Ali Modarressi et al., "NoLiMa: Long-Context Evaluation Beyond Literal Matching," *ICML* (2025).
+- Tianyu Gao, Howard Yen, Jiatong Yu, Danqi Chen, "Enabling Large Language Models to Generate Text with Citations" (ALCE), *EMNLP* (2023).
+- Zhengxiang Wang, Nafis Irtiza Tripto, Solha Park, Zhenzhen Li, Jiawei Zhou, "Catch Me If You Can? Not Yet: LLMs Still Struggle to Imitate the Implicit Writing Styles of Everyday Authors," *Findings of EMNLP* (2025).
+- Mosh Levy, Alon Jacoby, Yoav Goldberg, "Same Task, More Tokens: the Impact of Input Length on the Reasoning Performance of Large Language Models," *ACL* (2024).
+- Petar Veličković, Christos Perivolaropoulos, Federico Barbero, Razvan Pascanu, "Softmax Is Not Enough (for Sharp Size Generalisation)," *ICML* (2025).
+- Ken M. Nakanishi, "Scalable-Softmax Is Superior for Attention," arXiv:2501.19399 (2025).
+- Guangxuan Xiao, Yuandong Tian, Beidi Chen, Song Han, Mike Lewis, "Efficient Streaming Language Models with Attention Sinks," *ICLR* (2024).
+- Federico Barbero et al., "Transformers Need Glasses! Information Over-Squashing in Language Tasks," *NeurIPS* (2024).
+- Nouha Dziri et al., "Faith and Fate: Limits of Transformers on Compositionality," *NeurIPS* (2023).
+- Aman Madaan et al., "Self-Refine: Iterative Refinement with Self-Feedback," *NeurIPS* (2023).
+- Subbarao Kambhampati et al., "Position: LLMs Can't Plan, But Can Help Planning in LLM-Modulo Frameworks," *ICML* (2024).
+- Chloé Kiddon, Luke Zettlemoyer, Yejin Choi, "Globally Coherent Text Generation with Neural Checklist Models," *EMNLP* (2016).
+- Zhaopeng Tu, Zhengdong Lu, Yang Liu, Xiaohua Liu, Hang Li, "Modeling Coverage for Neural Machine Translation," *ACL* (2016).
+- Sainbayar Sukhbaatar et al., "Augmenting Self-attention with Persistent Memory," arXiv:1907.01470 (2019).
+- Qingru Zhang et al., "Tell Your Model Where to Attend: Post-hoc Attention Steering for LLMs" (PASTA), *ICLR* (2024).
+- Chih-Yao Ma et al., "Self-Monitoring Navigation Agent via Auxiliary Progress Estimation," *ICLR* (2019).
+- Jean-Baptiste Alayrac et al., "Flamingo: a Visual Language Model for Few-Shot Learning," *NeurIPS* (2022).
+- Vijay Viswanathan et al., "Checklists Are Better Than Reward Models For Aligning Language Models," *NeurIPS* (2025).
+- Nicolas Carion et al., "End-to-End Object Detection with Transformers" (DETR), *ECCV* (2020).
+- Code, data and trained weights for the experiment: `research/coherence/` in this site's repository.

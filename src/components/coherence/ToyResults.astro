@@ -1,0 +1,195 @@
+---
+/**
+ * Results of the toy experiment, drawn at build time from
+ * research/coherence/results/summary.json (written by aggregate.py).
+ */
+import summary from '../../../research/coherence/results/summary.json';
+
+interface Props {
+  chart: 'bars' | 'bylen' | 'survival' | 'attention' | 'monitors';
+  caption?: string;
+}
+const { chart, caption } = Astro.props;
+
+type S = { mean: number; min: number; max: number; sd: number; n: number } | null;
+const V = summary.variants as Record<string, any>;
+const NAME: Record<string, string> = {
+  base: 'baseline',
+  base_aux: 'baseline + same labels',
+  ledger: 'Ledger',
+  ledger_joint: 'Ledger, one shared softmax',
+  ledger_nogate: 'Ledger, no eos gate',
+  ledger_nosup: 'Ledger, no monitor labels',
+};
+const COLOR: Record<string, string> = {
+  base: 'var(--c-exp)',
+  base_aux: 'var(--violet)',
+  ledger: 'var(--c-p)',
+  ledger_joint: 'var(--c-np)',
+  ledger_nogate: 'var(--ink-2)',
+  ledger_nosup: '#b98a00',
+};
+const order = ['base', 'base_aux', 'ledger_nosup', 'ledger_joint', 'ledger_nogate', 'ledger'].filter((v) => V[v]);
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+const W = 680;
+
+// bars
+const bars = order.map((v, i) => ({ v, i, all: V[v].all.coherent as S, conf: V[v].conflict.coherent as S }));
+const bx = (x: number) => 190 + x * 360;
+
+// lines over k
+const ks = Object.keys(V.base?.by_k ?? {}).map(Number);
+const lineVariants = ['base', 'base_aux', 'ledger_joint', 'ledger'].filter((v) => V[v]);
+const kx = (k: number) => 60 + ((k - ks[0]) / (ks[ks.length - 1] - ks[0] || 1)) * (W - 100);
+const ky = (y: number) => 220 - y * 190;
+const path = (pts: [number, number][]) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('');
+
+// survival
+const L = V.base?.survival.L ?? [];
+const sx = (l: number) => 60 + (l / (L[L.length - 1] || 1)) * (W - 100);
+
+// attention
+const att = (v: string) => (V[v]?.attention ?? []) as number[];
+const amax = Math.max(0.05, ...att('base'), ...att('ledger'));
+const ax = (t: number) => 60 + (t / 110) * (W - 100);
+const ay = (y: number) => 220 - (y / amax) * 190;
+
+const MON = ['font', 'heading', 'math', 'why', 'sources', 'order', 'length', 'coherent'];
+const MON_LABEL: Record<string, string> = { font: 'font', heading: 'headings', math: 'maths', why: 'why-section', sources: 'sources last', order: 'order', length: 'length', coherent: 'all six implicit' };
+---
+
+{
+  chart === 'monitors' ? (
+    <table class="cx-table">
+      <thead>
+        <tr>
+          <th>monitor</th>
+          {order.map((v) => <th>{NAME[v]}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {MON.map((m) => (
+          <tr>
+            <td>{MON_LABEL[m]}</td>
+            {order.map((v) => {
+              const s = V[v].conflict[m] as S;
+              return <td>{s ? `${pct(s.mean)}` : '·'}{s && s.n > 1 ? <small> ±{Math.round(s.sd * 100)}</small> : null}</td>;
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ) : (
+    <figure class="cx-results">
+      {chart === 'bars' && (
+        <svg viewBox={`0 0 ${W} ${40 + bars.length * 44}`} role="img" aria-label="Share of coherent posts per model">
+          {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+            <g>
+              <line x1={bx(t)} x2={bx(t)} y1="18" y2={24 + bars.length * 44} class="grid" />
+              <text x={bx(t)} y="12" class="tick" text-anchor="middle">{pct(t)}</text>
+            </g>
+          ))}
+          {bars.map((b) => (
+            <g transform={`translate(0 ${26 + b.i * 44})`}>
+              <text x="180" y="13" text-anchor="end" class="lab">{NAME[b.v]}</text>
+              {b.all && <rect x={bx(0)} y="2" width={bx(b.all.mean) - bx(0)} height="14" style={`fill:${COLOR[b.v]}`} />}
+              {b.all && <line x1={bx(b.all.min)} x2={bx(b.all.max)} y1="9" y2="9" class="whisk" />}
+              {b.all && <text x={bx(b.all.mean) + 6} y="14" class="val">{pct(b.all.mean)}</text>}
+              {b.conf && <rect x={bx(0)} y="20" width={bx(b.conf.mean) - bx(0)} height="8" class="conf" style={`fill:${COLOR[b.v]}`} />}
+              {b.conf && <text x={bx(b.conf.mean) + 6} y="28" class="val val--dim">{pct(b.conf.mean)} when the style differs</text>}
+            </g>
+          ))}
+        </svg>
+      )}
+      {chart === 'bylen' && (
+        <svg viewBox={`0 0 ${W} 250`} role="img" aria-label="Coherent share against requested length">
+          {[0, 0.5, 1].map((t) => (
+            <g>
+              <line x1="60" x2={W - 40} y1={ky(t)} y2={ky(t)} class="grid" />
+              <text x="50" y={ky(t) + 4} text-anchor="end" class="tick">{pct(t)}</text>
+            </g>
+          ))}
+          {ks.map((k) => <text x={kx(k)} y="240" text-anchor="middle" class="tick">{k} ¶</text>)}
+          {lineVariants.map((v, j) => (
+            <g>
+              <path d={path(ks.map((k) => [kx(k), ky(V[v].by_k[k].coherent.mean)]))} class="line" style={`stroke:${COLOR[v]}`} />
+              {ks.map((k) => <circle cx={kx(k)} cy={ky(V[v].by_k[k].coherent.mean)} r="3" style={`fill:${COLOR[v]}`} />)}
+              <text x={W - 36} y={14 + j * 14} text-anchor="end" class="lab" style={`fill:${COLOR[v]}`}>{NAME[v]}</text>
+            </g>
+          ))}
+        </svg>
+      )}
+      {chart === 'survival' && (
+        <svg viewBox={`0 0 ${W} 250`} role="img" aria-label="Survival of the three invariants against output position">
+          {[0, 0.5, 1].map((t) => (
+            <g>
+              <line x1="60" x2={W - 40} y1={ky(t)} y2={ky(t)} class="grid" />
+              <text x="50" y={ky(t) + 4} text-anchor="end" class="tick">{pct(t)}</text>
+            </g>
+          ))}
+          {L.filter((l: number) => l % 20 === 0).map((l: number) => <text x={sx(l)} y="240" text-anchor="middle" class="tick">{l}</text>)}
+          <text x={W - 40} y="232" text-anchor="end" class="tick">tokens written</text>
+          {lineVariants.map((v, j) => (
+            <g>
+              <path d={path(L.map((l: number, i: number) => [sx(l), ky(V[v].survival.S[i])]))} class="line" style={`stroke:${COLOR[v]}`} />
+              <text x={W - 36} y={130 + j * 14} text-anchor="end" class="lab" style={`fill:${COLOR[v]}`}>{NAME[v]}</text>
+            </g>
+          ))}
+        </svg>
+      )}
+      {chart === 'attention' && (
+        <svg viewBox={`0 0 ${W} 250`} role="img" aria-label="Attention on the example posts against output position">
+          {[0, amax / 2, amax].map((t) => (
+            <g>
+              <line x1="60" x2={W - 40} y1={ay(t)} y2={ay(t)} class="grid" />
+              <text x="50" y={ay(t) + 4} text-anchor="end" class="tick">{t.toFixed(2)}</text>
+            </g>
+          ))}
+          {[0, 20, 40, 60, 80, 100].map((t) => <text x={ax(t)} y="240" text-anchor="middle" class="tick">{t}</text>)}
+          <text x={W - 40} y="232" text-anchor="end" class="tick">tokens written</text>
+          {['base', 'ledger'].filter((v) => V[v]).map((v, j) => (
+            <g>
+              <path d={path(att(v).map((y, t) => [ax(t), ay(y)]))} class="line" style={`stroke:${COLOR[v]}`} />
+              <text x={W - 36} y={14 + j * 14} text-anchor="end" class="lab" style={`fill:${COLOR[v]}`}>{NAME[v]}</text>
+            </g>
+          ))}
+        </svg>
+      )}
+      {caption && <figcaption>{caption}</figcaption>}
+    </figure>
+  )
+}
+
+<style>
+  .grid {
+    stroke: rgba(22, 20, 15, 0.15);
+  }
+  .tick,
+  .lab,
+  .val {
+    fill: var(--ink);
+  }
+  .tick {
+    fill: var(--ink-2);
+    font-size: 10px;
+  }
+  .val--dim {
+    fill: var(--ink-2);
+    font-size: 9.5px;
+  }
+  .conf {
+    opacity: 0.45;
+  }
+  .whisk {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+  }
+  .line {
+    fill: none;
+    stroke-width: 2;
+  }
+  .cx-table td small {
+    font-weight: 400;
+    opacity: 0.6;
+  }
+</style>
