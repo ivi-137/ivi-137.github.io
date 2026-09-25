@@ -2,6 +2,7 @@
 import Base from '../layouts/Base.astro';
 import Stamp from '../components/Stamp.astro';
 import { DISTS } from '../lib/stochos/math';
+import { TX, TX_LENS, CURVES, trackColor } from '../lib/stochos/engine';
 const LANES = [['vel', 'velocity'], ['len', 'length'], ['prob', 'chance'], ['cond', 'condition'], ['micro', 'micro-timing'], ['cc', 'CC lock']];
 ---
 
@@ -37,6 +38,19 @@ const LANES = [['vel', 'velocity'], ['len', 'length'], ['prob', 'chance'], ['con
         <button type="button" class="chip" data-opt="preview" aria-pressed="true" title="Hear a simple preview voice in the browser">preview sound</button>
       </div>
 
+      <div class="st-tx mono" data-tx>
+        <span class="st-label">Transition</span>
+        <select data-tx-type aria-label="Transition type">{TX.slice(1).map((t, i) => <option value={i + 1}>{t}</option>)}</select>
+        <select data-tx-len aria-label="Length in steps">{TX_LENS.map((n) => <option value={n} selected={n === 16}>{n} steps</option>)}</select>
+        <select data-tx-curve aria-label="Curve">{CURVES.map((c, i) => <option value={i}>{c}</option>)}</select>
+        <span class="st-mutes" data-tx-mask aria-label="Tracks affected">{[...Array(8).keys()].map((t) => <button type="button" data-txm={t} aria-pressed={t === 0 ? 'true' : 'false'} style={`--c:${trackColor(t)}`}>{t + 1}</button>)}</span>
+        <button type="button" class="chip" data-tx-go title="Starts at the next bar (key T)">fire at next bar ⇥</button>
+        <label>row <select data-tx-row aria-label="Song row"></select></label>
+        <button type="button" class="chip" data-tx-set>set on row</button>
+        <button type="button" class="chip" data-tx-clear>clear row</button>
+        <span class="st-tx__note" data-tx-note></span>
+      </div>
+
       <div class="st-main">
         <!-- tracks -->
         <ol class="st-tracks" data-tracks></ol>
@@ -57,7 +71,7 @@ const LANES = [['vel', 'velocity'], ['len', 'length'], ['prob', 'chance'], ['con
 
         <!-- generators -->
         <aside class="st-gen" aria-label="Generators">
-          <p class="st-gen__title mono">Formalized music · generators for the selected track</p>
+          <p class="st-gen__title mono">Formalized music · 22 generators for the selected track</p>
           <details open>
             <summary><b>Sieve</b> <span class="mono">Xenakis 1990</span></summary>
             <p class="formula">S = (m₁@r₁ ∪ m₂@r₂ …) ∩ ¬(…)</p>
@@ -111,6 +125,41 @@ const LANES = [['vel', 'velocity'], ['len', 'length'], ['prob', 'chance'], ['con
             <button type="button" class="chip" data-gen="ca">set on track</button>
             <button type="button" class="chip" data-toggle="nomos">Nomos: rotate tracks</button>
           </details>
+          <details>
+            <summary><b>Laws of chance</b> <span class="mono">Formalized Music · Zipf 1949</span></summary>
+            <p class="formula">v ~ N(μ, σ²) · P(rank r) ∝ 1/rˢ</p>
+            <label>σ <input type="range" min="0" max="0.4" step="0.01" value="0.12" data-g="gsig" /></label>
+            <button type="button" class="chip" data-gen="gauss">Gaussian dynamics &amp; timing</button>
+            <label>Zipf s <input type="range" min="0.5" max="2.5" step="0.1" value="1" data-g="zs" /></label>
+            <button type="button" class="chip" data-gen="zipf">Zipf pitches</button>
+          </details>
+          <details>
+            <summary><b>Strange attractors</b> <span class="mono">Lorenz 1963 · Hénon 1976</span></summary>
+            <p class="formula">ẋ = σ(y−x), ẏ = x(ρ−z)−y, ż = xy−βz · xₙ₊₁ = 1−ax²ₙ+yₙ</p>
+            <button type="button" class="chip" data-gen="lorenz">Lorenz pitches</button>
+            <button type="button" class="chip" data-gen="henon">Hénon rhythm &amp; pitch</button>
+          </details>
+          <details>
+            <summary><b>Ruled lines · strategy</b> <span class="mono">Metastaseis 1954 · Duel 1959</span></summary>
+            <p class="formula">straight glissandi between anchors · p* = (d−c)/(a−b−c+d)</p>
+            <label>anchor every <input type="range" min="2" max="32" value="8" data-g="anchor" /></label>
+            <button type="button" class="chip" data-gen="metastaseis">ruled glissandi</button>
+            <button type="button" class="chip" data-gen="duel">Duel: minimax tactics</button>
+          </details>
+          <details>
+            <summary><b>Sets &amp; series</b> <span class="mono">Schoenberg · Morris 1987 · Nørgård 1959</span></summary>
+            <p class="formula">P, I, R, RI · pc → k·pc (mod 12) · a(2n) = −a(n), a(2n+1) = a(n)+1</p>
+            <button type="button" class="chip" data-gen="row12">twelve-tone row</button>
+            <button type="button" class="chip" data-gen="m5">M5</button>
+            <button type="button" class="chip" data-gen="m7">M7 (fifths)</button>
+            <button type="button" class="chip" data-gen="infinity">infinity series</button>
+          </details>
+          <details>
+            <summary><b>Symmetry</b> <span class="mono">Messiaen 1944 · Thue 1912</span></summary>
+            <p class="formula">non-retrogradable: g(i) = g(n−1−i) · t(n) = parity of the digit sum</p>
+            <button type="button" class="chip" data-gen="palindrome">non-retrogradable</button>
+            <button type="button" class="chip" data-gen="thue">Thue–Morse</button>
+          </details>
           <p class="st-gen__foot mono">
             <button type="button" class="chip" data-act="undo">undo</button>
             <button type="button" class="chip" data-act="clearTrack">clear track</button>
@@ -135,7 +184,7 @@ const LANES = [['vel', 'velocity'], ['len', 'length'], ['prob', 'chance'], ['con
         <section class="st-song">
           <p class="mono st-label">Song · <span data-song-info></span></p>
           <table class="mono">
-            <thead><tr><th>#</th><th>pattern</th><th>×</th><th>mutes (tracks 1–8)</th><th>transpose</th><th>tempo</th><th></th></tr></thead>
+            <thead><tr><th>#</th><th>pattern</th><th>×</th><th>mutes (tracks 1–8)</th><th>transpose</th><th>tempo</th><th>transition</th><th></th></tr></thead>
             <tbody data-song></tbody>
           </table>
           <p class="mono st-row">
@@ -173,6 +222,15 @@ const LANES = [['vel', 'velocity'], ['len', 'length'], ['prob', 'chance'], ['con
           permutations of the 8 tracks, stepped by Xenakis's recurrence gₙ = gₙ₋₁∘gₙ₋₂ (<i>Nomos Alpha</i>). Cellular automata
           rewriting a track's gates each loop (<i>Horos</i>). Euclidean rhythms (Toussaint, 2005), the Fibonacci word, and the
           logistic map (May, <i>Nature</i> 261, 1976). The algebra is checked in <span class="mono">scripts/check-stochos.mts</span>.
+        </p>
+        <p>
+          <b>Transitions.</b> A song row can leave or enter through a transition, or you can fire one live; it starts on the
+          next bar. Fades are linear in decibels (the Weber–Fechner law). Filter sweeps send the track's CC. Builds double their
+          subdivision (1, 2, 4, 8 hits per step). The golden drop falls silent from the golden section of the window, 0.618, to
+          the downbeat (after Lendvai on Bartók). Erosion thins notes with rising probability; the stochastic morph swaps in the
+          next pattern step by step; Fibonacci entries bring tracks in at gaps that grow by Fibonacci numbers; accelerando and
+          ritardando glide the tempo. Each follows a curve: linear, exponential, logistic (Verhulst), sine, or a Brownian bridge,
+          which is new every time.
         </p>
         <p>
           The stamp says <a href="/archive/#EXP">EXP</a>: a single pattern holds 2<sup>1024</sup> gate configurations, and

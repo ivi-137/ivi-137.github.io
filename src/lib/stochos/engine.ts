@@ -40,12 +40,53 @@ export interface Track {
 export interface Pattern {
   steps: Step[][]; // [track][step]
 }
+/**
+ * Transitions: how a song row leaves (or enters). Each runs over a window of
+ * steps, driven by a curve c(u), u ∈ [0, 1], and touches only the tracks in `mask`.
+ */
+export const TX = ['none', 'fade out', 'fade in', 'filter close', 'filter open', 'build (roll)', 'golden drop', 'erosion', 'stochastic morph', 'riser', 'Fibonacci entries', 'accelerando', 'ritardando'] as const;
+export const TX_ENTRY = new Set(['fade in', 'filter open', 'Fibonacci entries']); // these run at the start of a row
+export const CURVES = ['linear', 'exponential', 'logistic', 'sine', 'Brownian bridge'] as const;
+export const TX_LENS = [4, 8, 16, 32, 64];
+export interface Transition {
+  type: number; // index into TX
+  len: number; // steps
+  curve: number; // index into CURVES
+  mask: number; // tracks affected
+}
+const PHI = (1 + Math.sqrt(5)) / 2;
+const FIB = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55];
+/** A Brownian bridge from 0 to 1: a random walk pinned at both ends, so every transition breathes differently. */
+function bridge(n = 64) {
+  const w = [0];
+  for (let i = 1; i <= n; i++) w.push(w[i - 1] + (Math.random() * 2 - 1) / Math.sqrt(n));
+  return w.map((x, i) => Math.min(1, Math.max(0, i / n + 0.45 * (x - (i / n) * w[n]))));
+}
+export function curve(k: number, u: number, br?: number[]): number {
+  u = Math.min(1, Math.max(0, u));
+  switch (CURVES[k]) {
+    case 'exponential':
+      return (Math.exp(4 * u) - 1) / (Math.exp(4) - 1);
+    case 'logistic': {
+      const L = (x: number) => 1 / (1 + Math.exp(-12 * (x - 0.5)));
+      return (L(u) - L(0)) / (L(1) - L(0));
+    }
+    case 'sine':
+      return 0.5 - 0.5 * Math.cos(Math.PI * u);
+    case 'Brownian bridge':
+      return br ? br[Math.round(u * (br.length - 1))] : u;
+    default:
+      return u;
+  }
+}
+
 export interface SongRow {
   pat: number;
   reps: number;
   mutes: number; // bitmask over tracks
   trans: number; // semitones
   bpm: number; // 0 = keep
+  tx?: Transition;
 }
 export interface State {
   bpm: number;
@@ -119,6 +160,12 @@ export class Engine {
   private listeners = new Set<(f: Fired) => void>();
   private rowListeners = new Set<(row: number, pat: number) => void>();
   private extTicks = 0;
+  private rowStart = 0;
+  private live: (Transition & { start: number; bpm0: number }) | null = null;
+  private bridges = new Map<string, number[]>();
+  private rowBpm0 = 0;
+  /** Pattern mode: a pattern chosen while playing waits for the next boundary (as on Elektron machines). */
+  queued: number | null = null;
 
   constructor(s: State, midi: Midi) {
     this.s = s;
@@ -156,7 +203,10 @@ export class Engine {
     this.rep = 0;
     this.perm = [0, 1, 2, 3, 4, 5, 6, 7];
     this.nomosIdx = 0;
+    this.rowStart = t0;
+    this.live = null;
     if (this.s.songMode) this.applyRowTempo();
+    this.rowBpm0 = this.s.bpm;
     if (this.clockOut) this.midi.transport(true);
     if (!this.extClock) {
       this.timer = window.setInterval(() => this.schedule(), 20);
@@ -191,6 +241,8 @@ export class Engine {
     // master clock: pattern boundaries (song rows, Nomos rotations, CA)
     while (this.masterNext < horizon) {
       if (this.masterStep > 0 && this.masterStep % this.s.master === 0) this.patternEnd();
+      this.tempo(this.masterNext);
+      if (this.live && this.masterNext >= this.live.start + this.live.len * this.stepDur) this.endLive();
       this.masterStep++;
       this.masterNext += this.stepDur;
     }
@@ -217,9 +269,11 @@ export class Engine {
         const t = this.next[ti] + swing;
         // Nomos: track ti plays the material of track perm[ti] on its own channel
         const src = this.s.nomos ? this.perm[ti] : ti;
-        const st = pat.steps[src][p % MAX_STEPS];
+        const m = this.shape(ti, p % MAX_STEPS, t);
+        const st = m.swap ?? pat.steps[src][p % MAX_STEPS];
         const muted = tr.mute || (anySolo && !tr.solo) || (row ? (row.mutes >> ti) & 1 : 0);
-        if (st.on && !muted && this.condition(ti, st)) this.fire(ti, p, st, t + st.micro * dur, dur, row?.trans ?? 0);
+        if (m.cc >= 0) this.midi.out?.send([0xb0 | tr.ch, tr.cc & 127, m.cc], this.toPerf(t));
+        if (st.on && !muted && !m.skip && this.condition(ti, st)) this.fire(ti, p, st, t + st.micro * dur, dur, (row?.trans ?? 0) + m.trans, m.vel, m.rat);
         this.next[ti] += dur;
       }
     }
@@ -242,14 +296,130 @@ export class Engine {
     return ok;
   }
 
-  private fire(ti: number, step: number, st: Step, t: number, dur: number, trans: number) {
+  private fire(ti: number, step: number, st: Step, t: number, dur: number, trans: number, velMul = 1, rat = 1) {
     const tr = this.s.tracks[ti];
     const note = Math.max(0, Math.min(127, st.note + trans));
-    const at = this.toPerf(t), off = this.toPerf(t + Math.max(0.01, st.len * dur));
-    this.midi.note(tr.ch, note, st.vel, at, off);
-    if (st.cc >= 0 && this.midi.out) this.midi.out.send([0xb0 | tr.ch, tr.cc & 127, st.cc & 127], at);
-    if (this.preview) this.blip(ti, note, st.vel, t, Math.max(0.03, st.len * dur));
+    for (let r = 0; r < rat; r++) {
+      const tt = t + (r * dur) / rat;
+      const vel = Math.min(1, st.vel * velMul * (r ? 0.82 : 1));
+      if (vel < 0.02) continue;
+      const len = Math.max(0.01, (st.len * dur) / rat);
+      this.midi.note(tr.ch, note, vel, this.toPerf(tt), this.toPerf(tt + len));
+      if (this.preview) this.blip(ti, note, vel, tt, Math.max(0.03, len));
+    }
+    if (st.cc >= 0 && this.midi.out) this.midi.out.send([0xb0 | tr.ch, tr.cc & 127, st.cc & 127], this.toPerf(t));
     this.listeners.forEach((fn) => fn({ track: ti, step, time: t }));
+  }
+
+  // ── transitions ───────────────────────────────────────────────────────────
+
+  /** The transition windows active at time t: the current song row's, and a live one. */
+  windows(t: number) {
+    const out: Array<{ tx: Transition; u: number; key: string; live: boolean }> = [];
+    const sd = this.stepDur;
+    const row = this.s.songMode ? this.s.song[this.row] : null;
+    if (row?.tx?.type) {
+      const rowLen = this.s.master * Math.max(1, row.reps);
+      const len = Math.min(row.tx.len, rowLen);
+      const entry = TX_ENTRY.has(TX[row.tx.type]);
+      const a = entry ? this.rowStart : this.rowStart + (rowLen - len) * sd;
+      if (t >= a && t < a + len * sd) out.push({ tx: row.tx, u: (t - a) / (len * sd), key: `r${this.rowStart.toFixed(3)}`, live: false });
+    }
+    if (this.live && t >= this.live.start && t < this.live.start + this.live.len * sd) out.push({ tx: this.live, u: (t - this.live.start) / (this.live.len * sd), key: `l${this.live.start.toFixed(3)}`, live: true });
+    return out;
+  }
+
+  private c(w: { tx: Transition; u: number; key: string }) {
+    let br = this.bridges.get(w.key);
+    if (!br && CURVES[w.tx.curve] === 'Brownian bridge') this.bridges.set(w.key, (br = bridge()));
+    if (this.bridges.size > 16) this.bridges.delete(this.bridges.keys().next().value!);
+    return curve(w.tx.curve, w.u, br);
+  }
+
+  /** The active transition's curve, sampled, for drawing. */
+  plot(w: { tx: Transition; u: number; key: string }, n = 48) {
+    return [...Array(n + 1).keys()].map((i) => this.c({ ...w, u: i / n }));
+  }
+
+  private nextPattern(live: boolean) {
+    if (live || !this.s.songMode) return this.queued ?? (this.s.cur + 1) % 16;
+    return this.s.song[(this.row + 1) % this.s.song.length].pat;
+  }
+
+  /** How the active transitions reshape one step of one track. */
+  private shape(ti: number, p: number, t: number) {
+    const m = { skip: false, vel: 1, rat: 1, trans: 0, cc: -1, swap: null as Step | null };
+    for (const w of this.windows(t)) {
+      if (!((w.tx.mask >> ti) & 1)) continue;
+      const c = this.c(w);
+      switch (TX[w.tx.type]) {
+        case 'fade out': // linear in decibels (Weber–Fechner): 0 to −48 dB
+          m.vel *= 10 ** ((-48 * c) / 20);
+          break;
+        case 'fade in':
+          m.vel *= 10 ** ((-48 * (1 - c)) / 20);
+          break;
+        case 'filter close':
+          m.cc = Math.round(127 * (1 - c));
+          break;
+        case 'filter open':
+          m.cc = Math.round(127 * c);
+          break;
+        case 'build (roll)': // subdivisions double: 1, 2, 4, 8 hits per step
+          m.rat = Math.min(8, 2 ** Math.floor(c * 3.999));
+          m.vel *= 0.55 + 0.45 * c;
+          break;
+        case 'golden drop': // silence from the golden section of the window to the downbeat
+          if (w.u >= 1 / PHI) m.skip = true;
+          break;
+        case 'erosion':
+          if (Math.random() < c) m.skip = true;
+          break;
+        case 'stochastic morph':
+          if (Math.random() < c) m.swap = this.s.pats[this.nextPattern(w.live)].steps[ti][p];
+          break;
+        case 'riser':
+          m.trans += Math.round(12 * c);
+          break;
+        case 'Fibonacci entries': {
+          // the j-th of k masked tracks enters at (F(j+2)−1)/(F(k+2)−1) of the window: gaps grow by Fibonacci numbers
+          const order = [...Array(8).keys()].filter((i) => (w.tx.mask >> i) & 1);
+          const j = order.indexOf(ti), k = order.length;
+          if (w.u < (FIB[j + 1] - 1) / (FIB[k + 1] - 1 || 1)) m.skip = true;
+          break;
+        }
+      }
+    }
+    return m;
+  }
+
+  /** Accelerando / ritardando: the tempo glides along the curve toward the target. */
+  private tempo(t: number) {
+    for (const w of this.windows(t)) {
+      const type = TX[w.tx.type];
+      if (type !== 'accelerando' && type !== 'ritardando') continue;
+      const base = w.live ? this.live!.bpm0 : this.rowBpm0;
+      const next = w.live ? 0 : this.s.song[(this.row + 1) % this.s.song.length].bpm;
+      const target = next || base * (type === 'accelerando' ? 1.25 : 0.8);
+      this.s.bpm = Math.round((base + (target - base) * this.c(w)) * 10) / 10;
+    }
+  }
+
+  /** Fire a transition now, starting at the next bar (16 steps). */
+  go(tx: Transition) {
+    if (!this.playing) return;
+    const wait = (16 - (this.masterStep % 16)) % 16;
+    this.live = { ...tx, start: this.masterNext + wait * this.stepDur, bpm0: this.s.bpm };
+  }
+
+  private endLive() {
+    const l = this.live!;
+    if (TX[l.type] === 'filter close') this.resetCC(l.mask, l.start + l.len * this.stepDur);
+    this.live = null;
+  }
+
+  private resetCC(mask: number, t: number) {
+    this.s.tracks.forEach((tr, i) => (mask >> i) & 1 && this.midi.out?.send([0xb0 | tr.ch, tr.cc & 127, 127], this.toPerf(t)));
   }
 
   /** A small preview voice so the sequencer can be heard without MIDI hardware. */
@@ -283,10 +453,19 @@ export class Engine {
 
   private patternEnd() {
     if (this.s.nomos) this.perm = this.nomosSeq[this.nomosIdx++ % this.nomosSeq.length];
+    if (!this.s.songMode && this.queued !== null) {
+      this.s.cur = this.queued;
+      this.queued = null;
+      this.pos = Array(8).fill(-1);
+      this.rowListeners.forEach((fn) => fn(-1, this.s.cur));
+    }
     if (!this.s.songMode || !this.s.song.length) return;
     if (++this.rep < Math.max(1, this.s.song[this.row].reps)) return;
     this.rep = 0;
+    const leaving = this.s.song[this.row].tx;
+    if (leaving && TX[leaving.type] === 'filter close') this.resetCC(leaving.mask, this.masterNext);
     this.row = this.s.markovSong ? this.markovNext() : (this.row + 1) % this.s.song.length;
+    this.rowStart = this.masterNext;
     this.pos = Array(8).fill(-1);
     this.loops = Array(8).fill(0);
     this.applyRowTempo();
@@ -306,6 +485,7 @@ export class Engine {
   private applyRowTempo() {
     const r = this.s.song[this.row];
     if (r?.bpm) this.s.bpm = r.bpm;
+    this.rowBpm0 = this.s.bpm;
   }
 
   /** Preview one note now (keyboard, step input). */

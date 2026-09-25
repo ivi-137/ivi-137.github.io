@@ -176,3 +176,75 @@ export function snapToSieve(note: number, allowed: boolean[]): number {
   }
   return note;
 }
+
+// ── more generators ─────────────────────────────────────────────────────────
+
+/** Lorenz system (Lorenz, J. Atmos. Sci. 20, 1963), σ=10 ρ=28 β=8/3, sampled x(t) scaled to [0,1]. */
+export function lorenz(n: number, dt = 0.02): number[] {
+  let x = 1 + Math.random(), y = 1, z = 1;
+  const xs: number[] = [];
+  for (let i = 0; i < 400 + n * 3; i++) {
+    const dx = 10 * (y - x), dy = x * (28 - z) - y, dz = x * y - (8 / 3) * z;
+    x += dx * dt; y += dy * dt; z += dz * dt;
+    if (i >= 400 && (i - 400) % 3 === 0) xs.push(x);
+  }
+  return xs.slice(0, n).map((v) => (v + 20) / 40);
+}
+
+/** Hénon map (Hénon, Commun. Math. Phys. 50, 1976), a=1.4 b=0.3: x for pitch, sign of y for onsets. */
+export function henon(n: number): Array<[number, boolean]> {
+  let x = Math.random() * 0.1, y = 0;
+  for (let i = 0; i < 100; i++) [x, y] = [1 - 1.4 * x * x + y, 0.3 * x];
+  return [...Array(n)].map(() => {
+    [x, y] = [1 - 1.4 * x * x + y, 0.3 * x];
+    return [(x + 1.3) / 2.6, y > 0];
+  });
+}
+
+/** Zipf's law: rank r drawn with probability ∝ 1/r^s (Zipf 1949; Manaris et al., Computer Music Journal 29/1, 2005). */
+export function zipf(n: number, ranks: number, s = 1): number[] {
+  const w = [...Array(ranks).keys()].map((r) => 1 / (r + 1) ** s);
+  const tot = w.reduce((a, b) => a + b, 0);
+  return [...Array(n)].map(() => {
+    let u = Math.random() * tot;
+    for (let r = 0; r < ranks; r++) if ((u -= w[r]) <= 0) return r;
+    return ranks - 1;
+  });
+}
+
+/** Thue–Morse sequence t(n) = parity of the binary digit sum of n (Thue 1912; Morse 1921). */
+export const thueMorse = (n: number, rot = 0) => [...Array(n).keys()].map((k) => (k + rot).toString(2).split('1').length % 2 === 0);
+
+/** Per Nørgård's infinity series (1959): a(0)=0, a(2n) = −a(n), a(2n+1) = a(n)+1. */
+export function infinitySeries(n: number): number[] {
+  const a = [0];
+  for (let k = 1; k < n; k++) a.push(k % 2 ? a[(k - 1) / 2] + 1 : -a[k / 2]);
+  return a;
+}
+
+/** Messiaen's non-retrogradable rhythm (1944): a palindrome, the same forwards and backwards. */
+export const palindrome = (g: boolean[]) => g.map((_, i) => g[Math.min(i, g.length - 1 - i)]);
+
+/** Pitch-class multiplication M_k: pc → k·pc (mod 12). M7 maps the chromatic scale onto the circle of fifths. */
+export const multiplyPc = (note: number, k: number) => note - (((note % 12) + 12) % 12) + ((k * note) % 12 + 12) % 12;
+
+/** A random twelve-tone row and its forms P, I, R, RI (Schoenberg's method). */
+export function twelveTone(): number[][] {
+  const p = [...Array(12).keys()];
+  for (let i = 11; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [p[i], p[j]] = [p[j], p[i]];
+  }
+  const inv = p.map((x) => (((2 * p[0] - x) % 12) + 12) % 12);
+  return [p, inv, [...p].reverse(), [...inv].reverse()];
+}
+
+/**
+ * Optimal mixed strategy of a 2×2 zero-sum game (von Neumann's minimax),
+ * as in Xenakis's Duel (1959). Returns the row player's probability of tactic 1.
+ */
+export function minimax2x2(a: number, b: number, c: number, d: number): number {
+  const lower = Math.max(Math.min(a, b), Math.min(c, d)), upper = Math.min(Math.max(a, c), Math.max(b, d));
+  if (lower === upper) return Math.min(a, b) >= Math.min(c, d) ? 1 : 0; // saddle point: a pure strategy
+  return (d - c) / (a - b - c + d);
+}

@@ -1,5 +1,5 @@
-import { CONDS, Engine, MAX_STEPS, SPEEDS, emptyPattern, emptyStep, initial, trackColor, type Pattern, type State, type Step } from './engine';
-import { brownian, draw, euclid, fibonacciWord, logistic, markovRemix, poissonOnsets, sieve, snapToSieve, type Dist } from './math';
+import { CONDS, CURVES, Engine, MAX_STEPS, SPEEDS, TX, emptyPattern, emptyStep, initial, trackColor, type Pattern, type State, type Step, type Transition } from './engine';
+import { brownian, draw, euclid, fibonacciWord, henon, infinitySeries, logistic, lorenz, markovRemix, minimax2x2, multiplyPc, palindrome, poissonOnsets, sieve, snapToSieve, thueMorse, twelveTone, zipf, type Dist } from './math';
 import { Midi } from '../synth/midi';
 import { toast } from '../ui/nav';
 
@@ -173,6 +173,30 @@ export function mountStochos() {
       }
     }
     g.globalAlpha = 1;
+    if (eng.playing && eng.ctx) {
+      const ws = eng.windows(eng.ctx.currentTime);
+      ws.forEach((wd, k) => {
+        const bw = 170, bh = 64, bx = w - bw - 8, by = 8 + k * (bh + 8);
+        g.fillStyle = 'rgba(244,241,230,0.92)';
+        g.fillRect(bx, by, bw, bh);
+        g.strokeStyle = '#16140f';
+        g.lineWidth = 1;
+        g.strokeRect(bx + 0.5, by + 0.5, bw, bh);
+        const pts = eng.plot(wd);
+        g.strokeStyle = '#c0392b';
+        g.lineWidth = 1.6;
+        g.beginPath();
+        pts.forEach((v, i) => {
+          const px = bx + 6 + (i / (pts.length - 1)) * (bw - 12), py = by + bh - 8 - v * (bh - 22);
+          i ? g.lineTo(px, py) : g.moveTo(px, py);
+        });
+        g.stroke();
+        g.fillStyle = '#16140f';
+        g.fillRect(bx + 6 + wd.u * (bw - 12), by + 14, 1.5, bh - 22);
+        g.font = '9px "JetBrains Mono", monospace';
+        g.fillText(`Fig. 2 · ${TX[wd.tx.type]} · ${CURVES[wd.tx.curve]}`, bx + 5, by + 10);
+      });
+    }
     if (stroke.length > 1) {
       g.strokeStyle = '#c0392b';
       g.lineWidth = 1.5;
@@ -427,6 +451,57 @@ export function mountStochos() {
       on.forEach((x, i) => (x.note = next[i]));
     },
     ca: () => (tr().ca = clamp(Math.round(gn('caRule')), 0, 255)),
+    gauss: () =>
+      steps().forEach((st, i) => {
+        if (i >= tr().len) return;
+        st.vel = clamp(0.72 + draw('gaussian') * gn('gsig') * 1.6, 0.05, 1);
+        st.micro = Math.round(clamp(draw('gaussian') * gn('gsig') * 0.6, -0.45, 0.45) * 100) / 100;
+      }),
+    zipf: () => {
+      const c = gn('center');
+      const cands = [...Array(25).keys()].map((d) => c - 12 + d).map((n) => snap(sel, n)).filter((n, i, a) => a.indexOf(n) === i).sort((a, b) => Math.abs(a - c) - Math.abs(b - c));
+      const on = steps().slice(0, tr().len).filter((x) => x.on);
+      zipf(on.length, cands.length, gn('zs')).forEach((r, i) => (on[i].note = cands[r]));
+    },
+    lorenz: () => {
+      const lo = gn('lo'), hi = gn('hi');
+      lorenz(tr().len).forEach((v, i) => (steps()[i].note = snap(sel, lo + clamp(v, 0, 1) * (hi - lo))));
+    },
+    henon: () => {
+      const lo = gn('lo'), hi = gn('hi');
+      henon(tr().len).forEach(([v, on], i) => Object.assign(steps()[i], { on, note: snap(sel, lo + clamp(v, 0, 1) * (hi - lo)) }));
+    },
+    metastaseis: () => {
+      const lo = Math.min(gn('lo'), gn('hi')), hi = Math.max(gn('lo'), gn('hi')), a = Math.max(2, gn('anchor')), n = tr().len;
+      const anchors = [...Array(Math.ceil(n / a) + 1)].map(() => lo + Math.random() * (hi - lo));
+      steps().forEach((st, i) => {
+        if (i >= n) return;
+        const k = Math.floor(i / a), f = (i % a) / a;
+        st.note = snap(sel, anchors[k] + (anchors[k + 1] - anchors[k]) * f);
+      });
+    },
+    duel: () => {
+      const r = () => Math.floor(Math.random() * 7) - 3;
+      const [a, b, c, d] = [r(), r(), r(), r()];
+      const p = minimax2x2(a, b, c, d);
+      const n = tr().len;
+      for (let blk = 0; blk < n; blk += 16) {
+        const dense = Math.random() < p; // tactic 1: a dense stochastic cloud; tactic 2: a sparse sustained line
+        const on = dense ? poissonOnsets(10, 16) : euclid(3, 16, blk / 16);
+        for (let i = 0; i < 16 && blk + i < n; i++) Object.assign(steps()[blk + i], { on: on[i], len: dense ? 0.3 : 3.5 });
+      }
+      toast(`Duel: payoff [[${a}, ${b}], [${c}, ${d}]] → play the cloud with p* = ${p.toFixed(2)}`, 3500);
+    },
+    row12: () => {
+      const forms = twelveTone().flat();
+      const base = Math.floor(gn('center') / 12) * 12;
+      steps().slice(0, tr().len).filter((x) => x.on).forEach((x, i) => (x.note = base + forms[i % forms.length]));
+    },
+    m5: () => steps().forEach((x) => (x.note = clamp(multiplyPc(x.note, 5), 0, 127))),
+    m7: () => steps().forEach((x) => (x.note = clamp(multiplyPc(x.note, 7), 0, 127))),
+    infinity: () => infinitySeries(tr().len).forEach((a, i) => (steps()[i].note = snap(sel, gn('center') + a))),
+    palindrome: () => palindrome(steps().slice(0, tr().len).map((x) => x.on)).forEach((on, i) => (steps()[i].on = on)),
+    thue: () => thueMorse(tr().len, gn('rot')).forEach((on, i) => (steps()[i].on = on)),
   };
   $$('[data-gen]').forEach((b) =>
     b.addEventListener('click', () => {
@@ -523,6 +598,11 @@ export function mountStochos() {
     });
   $$('[data-pat]').forEach((b) =>
     b.addEventListener('click', () => {
+      if (eng.playing && !s.songMode && Number(b.dataset.pat) !== s.cur) {
+        eng.queued = Number(b.dataset.pat);
+        $$('[data-pat]').forEach((x) => x.classList.toggle('is-queued', x === b));
+        return toast(`Pattern ${Number(b.dataset.pat) + 1} queued for the next boundary.`, 1400);
+      }
       s.cur = Number(b.dataset.pat);
       renderBank();
       paint();
@@ -541,6 +621,7 @@ export function mountStochos() {
           <td class="st-mutes">${[...Array(8).keys()].map((t) => `<button type="button" data-m="${t}" aria-pressed="${!!((r.mutes >> t) & 1)}" style="--c:${trackColor(t)}">${t + 1}</button>`).join('')}</td>
           <td><input type="number" min="-24" max="24" data-r="trans" /></td>
           <td><input type="number" min="0" max="300" data-r="bpm" placeholder="—" /></td>
+          <td class="st-txcell">${r.tx?.type ? `${TX[r.tx.type]} · ${r.tx.len} · ${CURVES[r.tx.curve]}` : '—'}</td>
           <td><button type="button" class="st-del" aria-label="Delete row">×</button></td>`;
         trEl.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-r]').forEach((el) => {
           const k = el.dataset.r as 'pat' | 'reps' | 'trans' | 'bpm';
@@ -560,10 +641,48 @@ export function mountStochos() {
         return trEl;
       }),
     );
+    const rowSel = document.querySelector<HTMLSelectElement>('[data-stochos] [data-tx-row]');
+    if (rowSel) {
+      const v = rowSel.value;
+      rowSel.replaceChildren(...s.song.map((_, i) => new Option(String(i + 1), String(i))));
+      if (v && Number(v) < s.song.length) rowSel.value = v;
+    }
     const bars = s.song.reduce((a, r) => a + r.reps, 0);
     $('[data-song-info]').textContent = `${s.song.length} rows · ${bars} × ${s.master} steps${s.songMode ? ' · song mode on' : ''}${s.markovSong ? ' · stochastic order' : ''}`;
   }
-  eng.onRow(() => requestAnimationFrame(() => (renderSong(), renderBank(), paint())));
+  eng.onRow(() => requestAnimationFrame(() => ($$('[data-pat]').forEach((x) => x.classList.remove('is-queued')), renderSong(), renderBank(), paint())));
+
+  // ── transitions ─────────────────────────────────────────────────────────────
+  let txMask = 1;
+  $$('[data-txm]').forEach((b) =>
+    b.addEventListener('click', () => {
+      txMask ^= 1 << Number(b.dataset.txm);
+      b.setAttribute('aria-pressed', String(!!((txMask >> Number(b.dataset.txm)) & 1)));
+    }),
+  );
+  const txNow = (): Transition => ({
+    type: Number($<HTMLSelectElement>('[data-tx-type]').value),
+    len: Number($<HTMLSelectElement>('[data-tx-len]').value),
+    curve: Number($<HTMLSelectElement>('[data-tx-curve]').value),
+    mask: txMask,
+  });
+  const fireTx = () => {
+    if (!eng.playing) return toast('Press play first: transitions start on the next bar.');
+    eng.go(txNow());
+    $('[data-tx-note]').textContent = `${TX[txNow().type]} armed for the next bar`;
+  };
+  $('[data-tx-go]').addEventListener('click', fireTx);
+  $('[data-tx-set]').addEventListener('click', () => {
+    const r = s.song[Number($<HTMLSelectElement>('[data-tx-row]').value)];
+    if (!r) return;
+    r.tx = txNow();
+    renderSong();
+    save();
+  });
+  $('[data-tx-clear]').addEventListener('click', () => {
+    const r = s.song[Number($<HTMLSelectElement>('[data-tx-row]').value)];
+    if (r) delete r.tx, renderSong(), save();
+  });
 
   const download = (bytes: BlobPart, type: string, name: string) => {
     const a = document.createElement('a');
@@ -650,6 +769,7 @@ export function mountStochos() {
     else if (/^[1-8]$/.test(e.key) && !e.ctrlKey && !e.metaKey) select(Number(e.key) - 1);
     else if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey)) acts.undo(), paint();
     else if ((e.key === 'f' || e.key === 'F') && !e.repeat) setFill(true);
+    else if ((e.key === 't' || e.key === 'T') && !e.repeat) fireTx();
     else handled = false;
     if (handled) e.preventDefault(), e.stopImmediatePropagation();
   };

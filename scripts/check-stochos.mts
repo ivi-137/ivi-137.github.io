@@ -25,5 +25,12 @@ eq('rule 90 on a ring', caStep([false, false, true, false, false], 90).map(Numbe
 const bytes = smf([[{ tick: 0, data: [0x90, 60, 100] }, { tick: 96, data: [0x80, 60, 0] }]], 96, 120);
 eq('SMF header', [...bytes.slice(0, 14)], [77, 84, 104, 100, 0, 0, 0, 6, 0, 1, 0, 2, 0, 96]);
 eq('SMF track chunk tag', String.fromCharCode(...bytes.slice(14, 18)), 'MTrk');
+import { infinitySeries, thueMorse, minimax2x2, palindrome, multiplyPc } from '../src/lib/stochos/math.ts';
+eq('Nørgård infinity series', infinitySeries(8), [0, 1, -1, 2, 1, 0, -2, 3]);
+eq('Thue–Morse', thueMorse(16).map(Number).join(''), '0110100110010110');
+eq('minimax: matching pennies is 1/2', minimax2x2(1, -1, -1, 1), 0.5);
+eq('minimax: saddle point is pure', minimax2x2(3, 2, 1, 0), 1);
+eq('palindrome', palindrome([true, false, false, true, true]).map(Number).join(''), '10001');
+eq('M7 maps C C# D to C G D', [60, 61, 62].map((n) => multiplyPc(n, 7)), [60, 67, 62]);
 console.log(fail ? `${fail} FAILED` : 'all checks passed');
 process.exit(fail ? 1 : 0);
