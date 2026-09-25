@@ -1,0 +1,160 @@
+---
+import Base from '../layouts/Base.astro';
+import Stamp from '../components/Stamp.astro';
+import { SYSTEMS } from '../lib/chords/chaos';
+import { MODELS, TENSION, VOICINGS, EXTENSIONS, PATTERNS, BASS, MOODS, GENRES } from '../lib/chords/progression';
+import { SYS2 } from '../lib/chords/systems';
+import { NAMES } from '../lib/synth/harmony';
+const range = (bind: string, label: string, min: number, max: number, step: number, value: number) => ({ bind, label, min, max, step, value });
+const SWARM = [range('swarm.count', 'boids', 0, 160, 1, 60), range('swarm.cohesion', 'cohesion', 0, 1, 0.01, 0.35), range('swarm.alignment', 'alignment', 0, 1, 0.01, 0.4), range('swarm.separation', 'separation', 0, 1, 0.01, 0.3), range('swarm.coupling', 'flow coupling', 0, 1, 0.01, 0.6), range('influence', 'swarm influence', 0, 1, 0.01, 0.45)];
+const PROG = [range('spice', 'adventure', 0, 1, 0.01, 0.3), range('gravity', 'key gravity', 0, 1, 0.01, 0.55), range('tensionAmt', 'tension weight', 0, 1, 0.01, 0.6), range('human', 'humanise', 0, 1, 0.01, 0.25)];
+const sel = (bind: string, label: string, opts: readonly string[], value = 0) => ({ bind, label, opts, value });
+---
+
+<Base title="Attrattore" description="A chord progression machine driven by a chaotic attractor and a swarm, choosing from Piston, neo-Riemannian, voice-leading and tonal-pitch-space theory, with MIDI out.">
+  <section class="attr" data-attr>
+    <header class="section-head section-head--page attr__head">
+      <p class="kicker mono" data-decode>instrument · chord progression machine · MIDI</p>
+      <h1 class="section-head__title">Attrattore</h1>
+      <p class="section-head__lede">
+        A strange attractor runs in the processor below. Each time its trajectory crosses a Poincaré section, the next chord is
+        chosen: music theory proposes, the chaos decides, the swarm leans on the choice, and the tension curve shapes the arc.
+      </p>
+      <Stamp id="NP" />
+    </header>
+
+    <div class="attr__rack">
+      <div class="attr__bar mono">
+        <button type="button" class="attr__play" data-play aria-pressed="false">▶ play</button>
+        <label>tempo <input type="number" min="40" max="240" value="92" data-v="bpm" /></label>
+        <button type="button" class="chip" data-act="compose">compose chain ⟳</button>
+        <button type="button" class="chip" data-t="evolve" aria-pressed="false" title="While playing, each chord is re-chosen from the next crossing as the playhead leaves it">evolve</button>
+        <button type="button" class="chip" data-t="cadence" aria-pressed="true">cadence V–I</button>
+        <span class="attr__sep"></span>
+        <button type="button" class="chip" data-midi>connect MIDI</button>
+        <select data-midi-out hidden aria-label="MIDI output"></select>
+        <label>chords ch <select data-v="chCh">{[...Array(16).keys()].map((c) => <option value={c}>{c + 1}</option>)}</select></label>
+        <label>bass ch <select data-v="chBass">{[...Array(16).keys()].map((c) => <option value={c} selected={c === 1}>{c + 1}</option>)}</select></label>
+        <button type="button" class="chip" data-t="clockOut" aria-pressed="true">clock out</button>
+        <button type="button" class="chip" data-t="preview" aria-pressed="true">preview sound</button>
+        <button type="button" class="chip" data-act="export">export .mid</button>
+      </div>
+
+      <div class="attr__main">
+        <figure class="attr__proc">
+          <canvas data-proc aria-label="The chaotic processor: attractor, Poincaré section, swarm and the circle-of-fifths dial"></canvas>
+          <figcaption class="mono" data-readout></figcaption>
+          <div class="attr__procctl mono">
+            <label>system <select data-v="sys"><optgroup label="flows · strange attractors">{Object.entries(SYSTEMS).map(([id, s]) => <option value={id}>{s.name}</option>)}</optgroup><optgroup label="maps · mechanics · lattices">{Object.entries(SYS2).map(([id, make]) => <option value={id}>{make().name}</option>)}</optgroup></select></label>
+            <label><span data-klabel>ρ</span> <input type="range" min="20" max="60" step="0.1" value="28" data-v="k" /></label>
+            <label>speed <input type="range" min="1" max="40" step="1" value="8" data-v="speed" /></label>
+            <span class="attr__hint" data-hint>drag the processor to rotate it</span>
+          </div>
+        </figure>
+
+        <div class="attr__panels">
+          <section class="attr__mod">
+            <p class="attr__title"><b>Sciame</b> <span class="mono">swarm · Reynolds 1987</span></p>
+            {SWARM.map((r) => <label class="attr__r mono">{r.label}<input type="range" min={r.min} max={r.max} step={r.step} value={r.value} data-v={r.bind} /><output data-o={r.bind}></output></label>)}
+          </section>
+          <section class="attr__mod">
+            <p class="attr__title"><b>Progressione</b> <span class="mono">genre · mood · theory · tension</span></p>
+            <label class="attr__r mono">genre<select data-genre><option value="-1">— none —</option>{GENRES.map((g, i) => <option value={i}>{g.name}</option>)}</select></label>
+            <p class="attr__note" data-genre-note>Pick a genre: its chord vocabulary, its favourite root motions and its signature idiom.</p>
+            <label class="attr__r mono">idiom<input type="range" min="0" max="1" step="0.01" value="0.6" data-v="idiom" /><output data-o="idiom"></output></label>
+            <label class="attr__r mono">mood<select data-mood><option value="-1">— none —</option>{MOODS.map((m, i) => <option value={i}>{m.name}</option>)}</select></label>
+            <p class="attr__note" data-mood-note>Pick a mood: it sets tempo, mode, theory, tension, voicing and rhythm, and biases which chords win.</p>
+            <label class="attr__r mono">harmonic ↔ disharmonic<input type="range" min="0" max="1" step="0.01" value="0.3" data-dis /><output data-dis-o>0.30</output></label>
+            <p class="attr__btns mono"><button type="button" class="chip" data-act="randomise">randomise everything ⚄</button></p>
+            {[sel('model', 'theory', MODELS), sel('tonic', 'key', NAMES), sel('minor', 'mode', ['major', 'minor']), sel('len', 'chords', ['8', '12', '16', '20', '24', '32'], 2), sel('beats', 'beats each', ['1', '2', '4', '8'], 2), sel('curve', 'tension curve', TENSION, 4)].map((o) => (
+              <label class="attr__r mono">{o.label}<select data-v={o.bind}>{o.opts.map((x, i) => <option value={i} selected={i === o.value}>{x}</option>)}</select></label>
+            ))}
+            {PROG.map((r) => <label class="attr__r mono">{r.label}<input type="range" min={r.min} max={r.max} step={r.step} value={r.value} data-v={r.bind} /><output data-o={r.bind}></output></label>)}
+          </section>
+          <section class="attr__mod">
+            <p class="attr__title"><b>Bottega</b> <span class="mono">composer's tools</span></p>
+            {[sel('voicing', '1 · voicing', VOICINGS, 1), sel('ext', '2 · extensions', EXTENSIONS, 1), sel('pattern', '3 · rhythm', PATTERNS, 0), sel('bass', '4 · bass line', BASS, 1)].map((o) => (
+              <label class="attr__r mono">{o.label}<select data-v={o.bind}>{o.opts.map((x, i) => <option value={i} selected={i === o.value}>{x}</option>)}</select></label>
+            ))}
+            <p class="attr__r mono">5 · reharmonise</p>
+            <p class="attr__btns mono">
+              <button type="button" class="chip" data-act="secdom">secondary dominants</button>
+              <button type="button" class="chip" data-act="tritone">tritone substitution</button>
+              <button type="button" class="chip" data-act="modal">modal interchange</button>
+            </p>
+          </section>
+        </div>
+      </div>
+
+      <ol class="attr__chain" data-chain aria-label="The progression: click to hear, L to lock, R to re-roll"></ol>
+      <p class="attr__help mono">click a chord to hear it · 🔒 locks it against compose, evolve and reharmonisation · ⟳ re-rolls it from the next event · ✎ sets any of the 180 chords · space plays</p>
+    </div>
+
+    <article class="unveiled__chapter">
+      <p class="unveiled__num mono">notice</p>
+      <div class="unveiled__text">
+        <p>
+          <b>How a chord is chosen.</b> Four theories propose the candidates that may follow the current chord: Walter Piston's
+          table of usual root progressions (<i>Harmony</i>, 1941); the neo-Riemannian transformations P, L, R and their compounds
+          (Cohn, <i>Journal of Music Theory</i> 42/2, 1998); every chord within three semitones of voice leading (Tymoczko,
+          <i>Science</i> 313, 2006); and chords in nearby keys weighted by Lerdahl's <i>Tonal Pitch Space</i> distance (2001).
+          Each candidate's sensory dissonance is measured with the Plomp–Levelt curve in Sethares' form (1993) and compared with
+          the tension curve (the golden arch peaks at 0.618 of the chain). Key gravity penalises tones outside the scale. The
+          swarm adds weight to chords whose position on the circle-of-fifths dial it crowds around. Candidates are lined up dark
+          to bright around the circle of fifths, and the point where the trajectory crosses the Poincaré section picks one: the
+          attractor's lobe decides the colour. A fifth, <i>combinatorial</i> mode drops the theories and admits all 180 chords
+          (twelve roots × fifteen qualities: triads, augmented and diminished, the five sevenths, sus2, sus4, add9, 6, m6, 7♭9),
+          weighted only by voice-leading distance; and ✎ on any link sets any of the 180 by hand.
+        </p>
+        <p>
+          <b>Genres.</b> Seventeen genres, each a vocabulary of chord qualities, a weighting of scale degrees, a preference for
+          certain root motions and a signature idiom: the pop axis, rock's ♭VII (de Clercq and Temperley 2011), the twelve-bar
+          blues, jazz ii–V–I chains (Steedman 1984), bossa nova, the gospel turnaround, neo-soul, the city-pop royal road, funk
+          vamps, lo-fi, trance, the Andalusian cadence (Manuel 2002), tango, the baroque ground, Hollywood's chromatic mediants
+          (Lehman 2018), ambient and metal. The <i>idiom</i> slider sets how often the idiom claims a slot; the rest of the chain
+          is chosen from the genre's vocabulary by the theories and the chaos.
+        </p>
+        <p>
+          <b>Moods.</b> Thirteen moods, each a point on Russell's circumplex of affect (valence × arousal, 1980), realised
+          through the cues Juslin and Laukka found listeners use to hear emotion (<i>Psychological Bulletin</i> 129, 2003): mode,
+          tempo, dissonance, register and articulation. Valence sets the preferred brightness on the circle of fifths and the
+          balance of major and minor (Hevner, 1935); arousal sets tempo, rhythmic density and tension. Some moods also
+          reharmonise: nostalgic borrows from the parallel minor, romantic and euphoric add secondary dominants, tense adds
+          tritone substitutions. The <i>randomiser</i> rolls every setting at once; its slider leans the roll toward consonance
+          (strong key gravity, low tension, a cadence) or toward dissonance (chromatic theories, high tension, extended chords,
+          tritone substitutions, no cadence).
+        </p>
+        <p>
+          <b>Fifteen systems.</b> Five flows drawn as strange attractors: Lorenz (1963, sections on z = ρ − 1), Rössler (1976),
+          Thomas' cyclically symmetric attractor (1999), Chua's double-scroll circuit (1983) and Aizawa (1982). Ten more are
+          drawn in the plane, each with its own picture and its own events: the logistic map's bifurcation diagram and cobweb
+          (May 1976); the Hénon (1976) and Ikeda (1979) maps as point clouds; Chirikov's standard map (1979), islands in a
+          chaotic sea; the Duffing–Ueda oscillator seen once per forcing period (1979); a double pendulum racing a ghost
+          started 10⁻⁷ rad away; three bodies on the Chenciner–Montgomery figure eight (2000), nudged into Poincaré's chaos;
+          Bunimovich's stadium billiard (1979), a circle when its straight sides vanish; Wolfram's rule 30 (1983), whose centre
+          column became Mathematica's random-number generator; and Kaneko's coupled map lattice (1984), spatiotemporal chaos. The swarm is Reynolds' boids
+          (<i>Computer Graphics</i> 21/4, 1987): separation, alignment and cohesion, plus a coupling that makes the boids ride the
+          same vector field.
+        </p>
+        <p>
+          <b>The composer's tools.</b> 1 Voicing with minimal voice leading (close, drop 2, open, spread). 2 Extensions chosen
+          by function (major sevenths on tonic and subdominant, dominant sevenths on V, ninths, elevenths, ♯11 on major chords,
+          thirteenths). 3 Rhythm: block, strum, arpeggios, Alberti bass, syncopated comping. 4 Bass lines: roots, root–fifth,
+          walking with chromatic approach tones, tonic pedal. 5 Reharmonisation: secondary dominants, tritone substitution and
+          modal interchange, plus an authentic cadence. Chords can be locked, auditioned and re-rolled; MIDI goes out on two
+          channels with clock, and the whole chain exports as a Standard MIDI File. The engine is checked in
+          <span class="mono">scripts/check-chords.mts</span>.
+        </p>
+        <p>
+          The stamp says <a href="/archive/#NP">NP</a>: asking whether any progression satisfies a set of harmonic constraints is
+          a constraint-satisfaction problem, NP-complete in general. A proposed progression is quick to check and hard to find,
+          so here the chaos proposes and the theory checks.
+        </p>
+      </div>
+    </article>
+  </section>
+  <script>
+    import { mountAttrattore } from '../lib/chords/ui';
+    document.addEventListener('astro:page-load', mountAttrattore);
+  </script>
+</Base>
