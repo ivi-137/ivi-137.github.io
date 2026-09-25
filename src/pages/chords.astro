@@ -2,7 +2,8 @@
 import Base from '../layouts/Base.astro';
 import Stamp from '../components/Stamp.astro';
 import { SYSTEMS } from '../lib/chords/chaos';
-import { MODELS, TENSION, VOICINGS, EXTENSIONS, PATTERNS, BASS } from '../lib/chords/progression';
+import { MODELS, TENSION, VOICINGS, EXTENSIONS, PATTERNS, BASS, MOODS, GENRES } from '../lib/chords/progression';
+import { SYS2 } from '../lib/chords/systems';
 import { NAMES } from '../lib/synth/harmony';
 const range = (bind: string, label: string, min: number, max: number, step: number, value: number) => ({ bind, label, min, max, step, value });
 const SWARM = [range('swarm.count', 'boids', 0, 160, 1, 60), range('swarm.cohesion', 'cohesion', 0, 1, 0.01, 0.35), range('swarm.alignment', 'alignment', 0, 1, 0.01, 0.4), range('swarm.separation', 'separation', 0, 1, 0.01, 0.3), range('swarm.coupling', 'flow coupling', 0, 1, 0.01, 0.6), range('influence', 'swarm influence', 0, 1, 0.01, 0.45)];
@@ -44,10 +45,10 @@ const sel = (bind: string, label: string, opts: readonly string[], value = 0) =>
           <canvas data-proc aria-label="The chaotic processor: attractor, Poincaré section, swarm and the circle-of-fifths dial"></canvas>
           <figcaption class="mono" data-readout></figcaption>
           <div class="attr__procctl mono">
-            <label>system <select data-v="sys">{Object.entries(SYSTEMS).map(([id, s]) => <option value={id}>{s.name}</option>)}</select></label>
+            <label>system <select data-v="sys"><optgroup label="flows · strange attractors">{Object.entries(SYSTEMS).map(([id, s]) => <option value={id}>{s.name}</option>)}</optgroup><optgroup label="maps · mechanics · lattices">{Object.entries(SYS2).map(([id, make]) => <option value={id}>{make().name}</option>)}</optgroup></select></label>
             <label><span data-klabel>ρ</span> <input type="range" min="20" max="60" step="0.1" value="28" data-v="k" /></label>
             <label>speed <input type="range" min="1" max="40" step="1" value="8" data-v="speed" /></label>
-            <span class="attr__hint">drag the processor to rotate it</span>
+            <span class="attr__hint" data-hint>drag the processor to rotate it</span>
           </div>
         </figure>
 
@@ -57,7 +58,14 @@ const sel = (bind: string, label: string, opts: readonly string[], value = 0) =>
             {SWARM.map((r) => <label class="attr__r mono">{r.label}<input type="range" min={r.min} max={r.max} step={r.step} value={r.value} data-v={r.bind} /><output data-o={r.bind}></output></label>)}
           </section>
           <section class="attr__mod">
-            <p class="attr__title"><b>Progressione</b> <span class="mono">theory · tension</span></p>
+            <p class="attr__title"><b>Progressione</b> <span class="mono">genre · mood · theory · tension</span></p>
+            <label class="attr__r mono">genre<select data-genre><option value="-1">— none —</option>{GENRES.map((g, i) => <option value={i}>{g.name}</option>)}</select></label>
+            <p class="attr__note" data-genre-note>Pick a genre: its chord vocabulary, its favourite root motions and its signature idiom.</p>
+            <label class="attr__r mono">idiom<input type="range" min="0" max="1" step="0.01" value="0.6" data-v="idiom" /><output data-o="idiom"></output></label>
+            <label class="attr__r mono">mood<select data-mood><option value="-1">— none —</option>{MOODS.map((m, i) => <option value={i}>{m.name}</option>)}</select></label>
+            <p class="attr__note" data-mood-note>Pick a mood: it sets tempo, mode, theory, tension, voicing and rhythm, and biases which chords win.</p>
+            <label class="attr__r mono">harmonic ↔ disharmonic<input type="range" min="0" max="1" step="0.01" value="0.3" data-dis /><output data-dis-o>0.30</output></label>
+            <p class="attr__btns mono"><button type="button" class="chip" data-act="randomise">randomise everything ⚄</button></p>
             {[sel('model', 'theory', MODELS), sel('tonic', 'key', NAMES), sel('minor', 'mode', ['major', 'minor']), sel('len', 'chords', ['8', '12', '16', '20', '24', '32'], 2), sel('beats', 'beats each', ['1', '2', '4', '8'], 2), sel('curve', 'tension curve', TENSION, 4)].map((o) => (
               <label class="attr__r mono">{o.label}<select data-v={o.bind}>{o.opts.map((x, i) => <option value={i} selected={i === o.value}>{x}</option>)}</select></label>
             ))}
@@ -79,7 +87,7 @@ const sel = (bind: string, label: string, opts: readonly string[], value = 0) =>
       </div>
 
       <ol class="attr__chain" data-chain aria-label="The progression: click to hear, L to lock, R to re-roll"></ol>
-      <p class="attr__help mono">click a chord to hear it · 🔒 locks it against compose, evolve and reharmonisation · ⟳ re-rolls it from the next crossing · space plays</p>
+      <p class="attr__help mono">click a chord to hear it · 🔒 locks it against compose, evolve and reharmonisation · ⟳ re-rolls it from the next event · ✎ sets any of the 180 chords · space plays</p>
     </div>
 
     <article class="unveiled__chapter">
@@ -94,11 +102,37 @@ const sel = (bind: string, label: string, opts: readonly string[], value = 0) =>
           the tension curve (the golden arch peaks at 0.618 of the chain). Key gravity penalises tones outside the scale. The
           swarm adds weight to chords whose position on the circle-of-fifths dial it crowds around. Candidates are lined up dark
           to bright around the circle of fifths, and the point where the trajectory crosses the Poincaré section picks one: the
-          attractor's lobe decides the colour.
+          attractor's lobe decides the colour. A fifth, <i>combinatorial</i> mode drops the theories and admits all 180 chords
+          (twelve roots × fifteen qualities: triads, augmented and diminished, the five sevenths, sus2, sus4, add9, 6, m6, 7♭9),
+          weighted only by voice-leading distance; and ✎ on any link sets any of the 180 by hand.
         </p>
         <p>
-          <b>The dynamics.</b> The Lorenz system (1963), with sections on the plane z = ρ − 1, or the Rössler system (1976),
-          with sections on the half-plane x = 0. Raise ρ or c and the motion becomes more erratic. The swarm is Reynolds' boids
+          <b>Genres.</b> Seventeen genres, each a vocabulary of chord qualities, a weighting of scale degrees, a preference for
+          certain root motions and a signature idiom: the pop axis, rock's ♭VII (de Clercq and Temperley 2011), the twelve-bar
+          blues, jazz ii–V–I chains (Steedman 1984), bossa nova, the gospel turnaround, neo-soul, the city-pop royal road, funk
+          vamps, lo-fi, trance, the Andalusian cadence (Manuel 2002), tango, the baroque ground, Hollywood's chromatic mediants
+          (Lehman 2018), ambient and metal. The <i>idiom</i> slider sets how often the idiom claims a slot; the rest of the chain
+          is chosen from the genre's vocabulary by the theories and the chaos.
+        </p>
+        <p>
+          <b>Moods.</b> Thirteen moods, each a point on Russell's circumplex of affect (valence × arousal, 1980), realised
+          through the cues Juslin and Laukka found listeners use to hear emotion (<i>Psychological Bulletin</i> 129, 2003): mode,
+          tempo, dissonance, register and articulation. Valence sets the preferred brightness on the circle of fifths and the
+          balance of major and minor (Hevner, 1935); arousal sets tempo, rhythmic density and tension. Some moods also
+          reharmonise: nostalgic borrows from the parallel minor, romantic and euphoric add secondary dominants, tense adds
+          tritone substitutions. The <i>randomiser</i> rolls every setting at once; its slider leans the roll toward consonance
+          (strong key gravity, low tension, a cadence) or toward dissonance (chromatic theories, high tension, extended chords,
+          tritone substitutions, no cadence).
+        </p>
+        <p>
+          <b>Fifteen systems.</b> Five flows drawn as strange attractors: Lorenz (1963, sections on z = ρ − 1), Rössler (1976),
+          Thomas' cyclically symmetric attractor (1999), Chua's double-scroll circuit (1983) and Aizawa (1982). Ten more are
+          drawn in the plane, each with its own picture and its own events: the logistic map's bifurcation diagram and cobweb
+          (May 1976); the Hénon (1976) and Ikeda (1979) maps as point clouds; Chirikov's standard map (1979), islands in a
+          chaotic sea; the Duffing–Ueda oscillator seen once per forcing period (1979); a double pendulum racing a ghost
+          started 10⁻⁷ rad away; three bodies on the Chenciner–Montgomery figure eight (2000), nudged into Poincaré's chaos;
+          Bunimovich's stadium billiard (1979), a circle when its straight sides vanish; Wolfram's rule 30 (1983), whose centre
+          column became Mathematica's random-number generator; and Kaneko's coupled map lattice (1984), spatiotemporal chaos. The swarm is Reynolds' boids
           (<i>Computer Graphics</i> 21/4, 1987): separation, alignment and cohesion, plus a coupling that makes the boids ride the
           same vector field.
         </p>

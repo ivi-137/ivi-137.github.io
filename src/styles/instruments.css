@@ -2740,3 +2740,8 @@ main,
 .attr__tools { display: flex; gap: 4px; }
 .attr__tools button { font: 11px var(--f-mono); padding: 1px 5px; cursor: pointer; color: var(--paper); background: transparent; border: 1px solid rgba(236,229,211,0.25); }
 .attr__help { margin: 8px 0 0; font-size: 10px; color: rgba(236,229,211,0.55); }
+.attr__note { margin: 2px 0 8px; font: italic 0.95rem/1.35 var(--f-text); color: var(--ink-2); }
+.attr__edit { display: flex; gap: 3px; }
+.attr__edit[hidden] { display: none; }
+.attr__edit select { min-width: 0; flex: 1; font: 10px var(--f-mono); color: var(--paper); background: #1c1c20; border: 1px solid rgba(236,229,211,0.3); }
+.attr__tools button[aria-pressed='true'] { background: var(--acid); color: var(--ink); }

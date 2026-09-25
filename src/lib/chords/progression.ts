@@ -11,9 +11,12 @@
  * the circle of fifths, and the chaotic section coordinate u picks one by
  * inverting the cumulative weights: the attractor's lobe chooses the colour.
  */
-import { chord, diatonic, dissonance, midiHz, mod12, pistonRow, plr, roman, tpsDistance, vlDistance, type Chord, type Key } from '../synth/harmony';
+import { SHAPES, chord, diatonic, dissonance, midiHz, mod12, pistonRow, plr, roman, tpsDistance, vlDistance, type Chord, type Key, type Quality } from '../synth/harmony';
 
-export const MODELS = ['all theories', 'Piston: functional', 'Cohn: neo-Riemannian', 'Tymoczko: voice leading', 'Lerdahl: tonal pitch space'] as const;
+export const MODELS = ['all theories', 'Piston: functional', 'Cohn: neo-Riemannian', 'Tymoczko: voice leading', 'Lerdahl: tonal pitch space', 'combinatorial: all 180 chords'] as const;
+export type Q = Exclude<Quality, 'q' | 'x'>;
+/** Every chord quality the machine knows: 12 roots × 15 = 180 chords. */
+export const QUALITIES = Object.keys(SHAPES) as Q[];
 export const TENSION = ['flat', 'arch', 'rise', 'fall', 'golden arch'] as const;
 export const VOICINGS = ['close', 'drop 2', 'open', 'spread'] as const;
 export const EXTENSIONS = ['triads', 'sevenths', 'ninths', 'elevenths', 'thirteenths'] as const;
@@ -37,13 +40,13 @@ const degreeOf = (c: Chord, k: Key) => {
 /** Brightness on the circle of fifths relative to the tonic (minor chords sit three fifths darker). */
 export const brightness = (c: Chord, k: Key) => {
   const f = mod12((c.root - k.tonic) * 7);
-  return (f > 6 ? f - 12 : f) - (c.quality === 'm' || c.quality === 'm7' || c.quality === 'd' ? 3 : 0);
+  return (f > 6 ? f - 12 : f) - (['m', 'm7', 'm6', 'd', 'h7', 'd7'].includes(c.quality) ? 3 : 0);
 };
 
 /** Where a chord sits on the dial the swarm flies over: angle = circle of fifths, radius = mode. */
 export function anchorOf(c: Chord): [number, number] {
   const a = (mod12(c.root * 7) / 12) * Math.PI * 2 - Math.PI / 2;
-  const r = c.quality === 'm' || c.quality === 'm7' ? 0.6 : c.quality === 'd' || c.quality === 'h7' ? 0.4 : 0.9;
+  const r = ['m', 'm7', 'm6'].includes(c.quality) ? 0.6 : ['d', 'h7', 'd7'].includes(c.quality) ? 0.4 : 0.9;
   return [Math.cos(a) * r, Math.sin(a) * r];
 }
 
@@ -75,6 +78,13 @@ export function candidates(model: number, prev: Chord, key: Key, spice: number):
         if (c.name !== prev.name) add(c, 5 * Math.exp(-tpsDistance(prev, key, c, k2) / 3));
       }
   }
+  // the combinatorial space: every root × every quality, weighted by voice-leading distance alone
+  if (model === 5)
+    for (let r = 0; r < 12; r++)
+      for (const q of QUALITIES) {
+        const c = chord(r, q);
+        add(c, 3 * Math.exp(-vlDistance(prev.pcs, c.pcs) / 2.5) + 0.05);
+      }
   out.delete(prev.name);
   return [...out.values()];
 }
@@ -107,19 +117,36 @@ export interface ChooseOpts {
   bias: (c: Chord) => number; // swarm density near the chord's anchor, 0..1
   influence: number;
   gravity: number; // 0..1: pull toward the key (penalises tones outside the scale)
+  mood?: (c: Chord) => number;
 }
+
+const dcache = new Map<string, number>();
+const diss = (c: Chord) => {
+  let d = dcache.get(c.name);
+  if (d === undefined) dcache.set(c.name, (d = dissonance(c.pcs.map((pc) => midiHz(48 + c.pcs[0] + mod12(pc - c.pcs[0]))))));
+  return d;
+};
+let dspan: [number, number] | null = null;
+/** Sensory dissonance (Plomp–Levelt, Sethares) scaled to [0,1] across all 180 chords. */
+export const tension = (c: Chord) => {
+  if (!dspan) {
+    const ds = [...Array(12).keys()].flatMap((r) => QUALITIES.map((q) => diss(chord(r, q))));
+    dspan = [Math.min(...ds), Math.max(...ds)];
+  }
+  return Math.max(0, Math.min(1, (diss(c) - dspan[0]) / (dspan[1] - dspan[0])));
+};
 
 export function choose(prev: Chord, o: ChooseOpts): { chord: Chord; tension: number } {
   const cands = candidates(o.model, prev, o.key, o.spice);
   if (!cands.length) return { chord: diatonic(o.key, 1), tension: 0 };
-  const d = cands.map(([c]) => dissonance(c.pcs.map((pc) => midiHz(48 + c.pcs[0] + mod12(pc - c.pcs[0])))));
+  const d = cands.map(([c]) => diss(c));
   const lo = Math.min(...d), hi = Math.max(...d);
   const scale = (o.key.minor ? [0, 2, 3, 5, 7, 8, 10, 11] : [0, 2, 4, 5, 7, 9, 11]).map((i) => mod12(o.key.tonic + i));
   const scored = cands.map(([c, w], i) => {
     const dn = hi > lo ? (d[i] - lo) / (hi - lo) : 0.5;
     const fit = Math.exp(-((dn - o.target) ** 2) / (2 * 0.18 ** 2));
     const outside = c.pcs.filter((p) => !scale.includes(p)).length;
-    const wt = w * (1 - o.tensionAmt + o.tensionAmt * fit) * (1 + o.influence * 4 * o.bias(c)) * Math.exp(-o.gravity * 2.5 * outside);
+    const wt = w * (1 - o.tensionAmt + o.tensionAmt * fit) * (1 + o.influence * 4 * o.bias(c)) * Math.exp(-o.gravity * 2.5 * outside) * (o.mood ? o.mood(c) : 1);
     return { c, w: wt, dn, b: brightness(c, o.key) };
   });
   scored.sort((a, b) => a.b - b.b || a.c.name.localeCompare(b.c.name));
@@ -130,7 +157,7 @@ export function choose(prev: Chord, o: ChooseOpts): { chord: Chord; tension: num
   return { chord: withRoman(last.c, o.key), tension: last.dn };
 }
 /** Numerals are always relative to the chain's own key, even for chords borrowed from a neighbouring key. */
-const withRoman = (c: Chord, k: Key): Chord => ({ ...c, roman: roman(c, k.tonic) });
+export const withRoman = (c: Chord, k: Key): Chord => ({ ...c, roman: roman(c, k.tonic) });
 
 // ── composer's tools: reharmonisation ──────────────────────────────────────
 
@@ -176,11 +203,15 @@ export function cadence(chain: Link[], key: Key) {
 
 /** Intervals above the root, with extensions chosen by chord function. */
 export function intervals(c: Chord, key: Key, ext: number): number[] {
+  const sh = SHAPES[c.quality as Q];
+  // sus, add9, sixths, °7 and 7♭9 are colours in themselves: play them as written
+  if (sh && !['M', 'm', 'd', 'A', 'M7', '7', 'm7', 'h7'].includes(c.quality)) return [...sh];
   const iv = [...new Set(c.pcs.map((p) => mod12(p - c.root)))].sort((a, b) => a - b);
-  if (ext === 0 || c.pcs.length > 3) return ext === 0 ? iv.slice(0, 3) : iv;
+  if (!sh) return ext === 0 ? iv.slice(0, 3) : iv;
+  if (ext === 0 && c.pcs.length <= 3) return iv;
   const minor = iv.includes(3) && !iv.includes(4), dim = iv.includes(6) && !iv.includes(7);
-  const dominant = !minor && !dim && mod12(c.root - key.tonic) === 7;
-  const out = [...iv, dim ? 10 : minor || dominant ? 10 : 11];
+  const dominant = c.quality === '7' || (!minor && !dim && mod12(c.root - key.tonic) === 7);
+  const out = [...iv.slice(0, 3), c.pcs.length > 3 ? iv[3] : dim ? 10 : minor || dominant ? 10 : 11];
   if (ext >= 2 && !dim) out.push(14);
   if (ext >= 3) out.push(minor ? 17 : dominant ? 17 : 18); // 11 on minor and sus dominants, ♯11 on major
   if (ext >= 4 && !minor && !dim) out.push(21);
@@ -283,3 +314,81 @@ export function render(chain: Link[], key: Key, o: { beats: number; voicing: num
   });
   return { events: ev, voicings };
 }
+
+// ── moods ───────────────────────────────────────────────────────────────────
+/**
+ * Each mood is a point on Russell's circumplex of affect (valence × arousal,
+ * 1980), realised through the cues listeners use to hear emotion in music
+ * (Juslin & Laukka, Psychological Bulletin 129, 2003): mode, tempo, dissonance,
+ * register and articulation. Valence sets the preferred brightness on the
+ * circle of fifths and major vs minor (Hevner 1935); arousal sets tempo,
+ * rhythmic density and tension.
+ */
+export interface Mood {
+  name: string;
+  valence: number;
+  arousal: number;
+  note: string;
+  bright: number; // preferred place on the circle of fifths, −6 … +6
+  quality: Record<string, number>; // weight multipliers by chord quality
+  set: Record<string, number>; // panel settings
+  after?: Array<'borrow' | 'secdom' | 'tritone'>;
+}
+const S = (bpm: number, minor: number, model: number, curve: number, tensionAmt: number, gravity: number, spice: number, ext: number, voicing: number, pattern: number, bass: number, beats = 2) =>
+  ({ bpm, minor, model, curve, tensionAmt, gravity, spice, ext, voicing, pattern, bass, beats });
+export const MOODS: Mood[] = [
+  { name: 'joyful', valence: 0.9, arousal: 0.6, note: 'Bright major triads, functional motion, syncopated comping.', bright: 2, quality: { M: 1.7, m: 0.7, d: 0.3 }, set: S(124, 0, 1, 1, 0.4, 0.85, 0.15, 0, 0, 6, 2) },
+  { name: 'euphoric', valence: 1, arousal: 1, note: 'Fast, open and rising, with secondary dominants pushing forward.', bright: 3, quality: { M: 1.8, m: 0.8 }, set: S(138, 0, 0, 2, 0.5, 0.7, 0.35, 2, 3, 2, 2), after: ['secdom'] },
+  { name: 'heroic', valence: 0.6, arousal: 0.8, note: 'Major chords in block, tension rising toward the end.', bright: 1, quality: { M: 2, m: 0.6 }, set: S(112, 0, 0, 2, 0.5, 0.65, 0.3, 0, 0, 0, 1) },
+  { name: 'epic', valence: 0.2, arousal: 0.9, note: 'Minor key, but the ♭VI and ♭VII major chords carry it (the Aeolian cadence).', bright: 0, quality: { M: 1.5, m: 1 }, set: S(100, 1, 0, 4, 0.55, 0.7, 0.3, 0, 2, 0, 1) },
+  { name: 'romantic', valence: 0.3, arousal: 0.1, note: 'Ninths, open voicing, Alberti figuration and secondary dominants.', bright: 0, quality: { M: 1.1, m: 1.1 }, set: S(76, 0, 1, 4, 0.5, 0.7, 0.3, 2, 2, 5, 2), after: ['secdom'] },
+  { name: 'serene', valence: 0.6, arousal: -0.6, note: 'Slow, consonant sevenths in open position, rocking arpeggio.', bright: 1, quality: { M: 1.3 }, set: S(70, 0, 1, 0, 0.3, 0.9, 0.1, 1, 2, 4, 1, 3) },
+  { name: 'dreamy', valence: 0.4, arousal: -0.4, note: 'Voice-leading drift, ♯11 colours, a pedal underneath.', bright: 3, quality: { M: 1.4 }, set: S(80, 0, 3, 0, 0.35, 0.45, 0.4, 3, 3, 2, 4) },
+  { name: 'ethereal', valence: 0.2, arousal: -0.8, note: 'Thirteenth chords spread wide, very slow, no bass.', bright: 2, quality: { M: 1.2 }, set: S(60, 0, 3, 0, 0.3, 0.5, 0.35, 4, 3, 0, 0, 3) },
+  { name: 'nostalgic', valence: 0.1, arousal: -0.3, note: 'Major, with chords borrowed from the parallel minor (iv, ♭VI).', bright: 0, quality: { M: 1.1, m: 1 }, set: S(88, 0, 0, 4, 0.45, 0.7, 0.3, 1, 1, 1, 1), after: ['borrow'] },
+  { name: 'melancholic', valence: -0.6, arousal: -0.5, note: 'Minor, falling arpeggios, a golden-section climax.', bright: -2, quality: { m: 1.7, M: 0.8 }, set: S(68, 1, 1, 4, 0.5, 0.8, 0.2, 1, 0, 3, 1) },
+  { name: 'mysterious', valence: -0.2, arousal: -0.1, note: 'Chromatic mediants from P, L and R; augmented colours; pedal bass.', bright: -1, quality: { m: 1.2, A: 1.6 }, set: S(84, 1, 2, 0, 0.5, 0.3, 0.6, 2, 3, 2, 4) },
+  { name: 'tense', valence: -0.6, arousal: 0.7, note: 'Rising dissonance, diminished and dominant chords, tritone substitutions.', bright: -3, quality: { d: 2, '7': 1.6, m: 1.1 }, set: S(128, 1, 3, 2, 0.85, 0.25, 0.7, 3, 1, 6, 3), after: ['tritone'] },
+  { name: 'dark', valence: -0.9, arousal: 0.2, note: 'Flat side of the circle, minor and diminished, a pedal in the bass.', bright: -4, quality: { m: 1.8, d: 1.4, M: 0.6 }, set: S(96, 1, 2, 2, 0.7, 0.4, 0.4, 0, 0, 0, 4) },
+];
+
+/** A mood's pull on a chord: closeness to its preferred brightness × its quality weights. */
+export const moodBias = (m: Mood, key: Key) => (c: Chord) => Math.exp(-((brightness(c, key) - m.bright) ** 2) / (2 * 3 ** 2)) * (m.quality[c.quality] ?? 1);
+
+// ── genres: vocabularies, root motions and idioms ─────────────────────────────
+export interface Genre {
+  name: string;
+  note: string;
+  roots: Record<number, number>; // weight by semitones above the tonic (absent: 0.25)
+  quality: Partial<Record<Q, number>>; // weight by chord quality (absent: 0.03)
+  moves?: Record<number, number>; // root motion in semitones upward → multiplier
+  idiom: Array<[number, Q]>; // the genre's signature loop, in semitones above the tonic
+  cadence: boolean;
+  set: Record<string, number>;
+}
+export const GENRES: Genre[] = [
+  { name: 'pop', note: 'The four-chord axis and its rotations; roots move by fourths and fifths (Burgoyne et al., McGill Billboard corpus, 2011).', roots: { 0: 3, 5: 2.5, 7: 3, 9: 2.5, 2: 1, 4: 0.8 }, quality: { M: 1.6, m: 1.3, sus2: 0.5, sus4: 0.5, add9: 0.6 }, moves: { 5: 1.4, 7: 1.3, 3: 1.1, 9: 1.1 }, idiom: [[0, 'M'], [7, 'M'], [9, 'm'], [5, 'M']], cadence: false, set: S(110, 0, 5, 1, 0.35, 0.85, 0.2, 0, 0, 1, 1) },
+  { name: 'rock', note: 'Mixolydian ♭VII and the double plagal I–♭VII–IV (de Clercq and Temperley, Popular Music 30/1, 2011).', roots: { 0: 3, 5: 2.5, 7: 1.8, 10: 2, 3: 1, 8: 1, 9: 1, 2: 0.5 }, quality: { M: 2, m: 0.8, sus4: 0.7, sus2: 0.5 }, moves: { 5: 1.6, 7: 1.2, 10: 1.2, 2: 1.1 }, idiom: [[0, 'M'], [10, 'M'], [5, 'M'], [0, 'M']], cadence: false, set: S(120, 0, 5, 2, 0.4, 0.6, 0.35, 0, 2, 1, 2) },
+  { name: 'blues', note: 'Twelve bars of dominant sevenths on I, IV and V.', roots: { 0: 3, 5: 2.5, 7: 2, 6: 0.4 }, quality: { '7': 3, '6': 0.8, d7: 0.5 }, moves: { 5: 1.5, 7: 1.5 }, idiom: [[0, '7'], [0, '7'], [0, '7'], [0, '7'], [5, '7'], [5, '7'], [0, '7'], [0, '7'], [7, '7'], [5, '7'], [0, '7'], [7, '7']], cadence: false, set: { ...S(96, 0, 5, 0, 0.3, 0.5, 0.2, 1, 0, 6, 3), len: 1 } },
+  { name: 'jazz', note: 'ii–V–I chains, falling fifths and tritone substitutes (Steedman, Music Perception 2/1, 1984; Rohrmeier 2011).', roots: { 0: 2.5, 2: 2.5, 7: 2.5, 9: 2, 4: 1.2, 5: 1.2, 1: 0.8, 6: 0.6, 10: 0.6, 3: 0.5, 8: 0.5, 11: 0.4 }, quality: { m7: 2.5, '7': 2.5, M7: 2.5, h7: 1.2, d7: 0.8, '7b9': 1, '6': 1, m6: 0.6 }, moves: { 5: 3, 11: 1.6, 0: 0.3 }, idiom: [[2, 'm7'], [7, '7'], [0, 'M7'], [9, '7']], cadence: true, set: S(140, 0, 5, 1, 0.5, 0.45, 0.45, 2, 1, 6, 3) },
+  { name: 'bossa nova', note: 'Major sevenths, chromatic descents and ♭II7, after Jobim.', roots: { 0: 2.5, 2: 2, 1: 1.2, 7: 1.5, 9: 1.2, 5: 1.5 }, quality: { M7: 2.5, '7': 2, m7: 2, '6': 1.5, m6: 1, '7b9': 1, h7: 0.8 }, moves: { 5: 2, 11: 2 }, idiom: [[0, 'M7'], [2, '7'], [2, 'm7'], [1, '7']], cadence: true, set: S(128, 0, 5, 0, 0.45, 0.5, 0.35, 2, 1, 6, 2) },
+  { name: 'gospel', note: 'I–I7–IV with a passing ♯iv°7, then vi–ii–V: the church turnaround.', roots: { 0: 3, 5: 2.5, 6: 1.2, 9: 1.5, 2: 1.5, 7: 1.5, 4: 1 }, quality: { M: 1, '7': 2, d7: 1.5, m7: 1.5, M7: 1, add9: 1, '6': 1 }, moves: { 5: 2, 1: 1.4 }, idiom: [[0, 'M'], [0, '7'], [5, 'M'], [6, 'd7'], [0, 'M'], [9, 'm7'], [2, 'm7'], [7, '7']], cadence: true, set: S(76, 0, 5, 4, 0.5, 0.6, 0.35, 2, 2, 1, 1) },
+  { name: 'neo-soul', note: 'IVmaj7–III7–vi7, the “Just the Two of Us” descent, in ninths and elevenths.', roots: { 5: 2.5, 4: 2, 9: 2, 2: 2, 0: 2, 7: 1, 3: 0.8, 10: 0.8 }, quality: { M7: 2.5, m7: 2.5, '7': 1.5, add9: 1, '6': 1 }, moves: { 5: 1.6, 11: 1.4, 10: 1.4 }, idiom: [[5, 'M7'], [4, '7'], [9, 'm7'], [7, 'm7'], [0, '7']], cadence: false, set: S(84, 0, 5, 0, 0.45, 0.45, 0.45, 3, 1, 6, 1) },
+  { name: 'city pop', note: 'The J-pop royal road IVmaj7–V7–iii7–vi.', roots: { 5: 2.5, 7: 2.5, 4: 2, 9: 2.5, 0: 1.5, 2: 1.2 }, quality: { M7: 2, '7': 1.6, m7: 2, m: 1.2, add9: 0.8 }, moves: { 2: 1.5, 9: 1.4, 5: 1.4 }, idiom: [[5, 'M7'], [7, '7'], [4, 'm7'], [9, 'm']], cadence: false, set: S(116, 0, 5, 1, 0.4, 0.65, 0.3, 2, 1, 6, 2) },
+  { name: 'funk', note: 'One-chord dominant-ninth vamps, a move to IV7 and back.', roots: { 0: 3, 5: 2, 10: 1.2, 7: 1 }, quality: { '7': 3, m7: 2, '6': 0.6 }, moves: { 5: 1.4, 7: 1.4 }, idiom: [[0, '7'], [0, '7'], [5, '7'], [0, '7']], cadence: false, set: S(104, 0, 5, 0, 0.3, 0.5, 0.25, 2, 1, 6, 2) },
+  { name: 'lo-fi hip hop', note: 'Looped major and minor sevenths, soft and falling by step.', roots: { 5: 2.5, 4: 2, 2: 2.5, 0: 2, 9: 2, 7: 1.4 }, quality: { M7: 2.5, m7: 2.5, '7': 1, add9: 1 }, moves: { 5: 1.8, 11: 1.2, 10: 1.3 }, idiom: [[5, 'M7'], [4, 'm7'], [2, 'm7'], [0, 'M7']], cadence: false, set: S(78, 0, 5, 0, 0.35, 0.55, 0.3, 2, 1, 3, 1) },
+  { name: 'trance', note: 'Minor i–♭VI–♭III–♭VII, open voicings, rising.', roots: { 0: 3, 8: 2.5, 3: 2.5, 10: 2.5, 5: 1.2, 7: 0.8 }, quality: { m: 2, M: 2, sus2: 0.8, sus4: 0.6, add9: 0.6 }, idiom: [[0, 'm'], [8, 'M'], [3, 'M'], [10, 'M']], cadence: false, set: S(138, 1, 5, 2, 0.45, 0.8, 0.2, 0, 3, 2, 1) },
+  { name: 'flamenco', note: 'The Andalusian cadence i–♭VII–♭VI–V, ending on the Phrygian dominant (Manuel, JAMS 55/2, 2002).', roots: { 0: 2.5, 10: 2.5, 8: 2.5, 7: 3, 1: 1 }, quality: { M: 2, m: 1.5, '7b9': 1, '7': 1 }, moves: { 10: 2, 11: 1.8 }, idiom: [[0, 'm'], [10, 'M'], [8, 'M'], [7, 'M']], cadence: false, set: S(112, 1, 5, 3, 0.4, 0.6, 0.3, 0, 0, 1, 1) },
+  { name: 'tango', note: 'Harmonic minor: iv6 and V7♭9 returning to i.', roots: { 0: 3, 5: 2, 7: 2.5, 8: 1.2, 2: 0.8, 10: 0.8 }, quality: { m: 2, '7': 1.5, '7b9': 1.5, d7: 1, m6: 1, M: 1 }, moves: { 5: 1.6, 7: 1.4 }, idiom: [[0, 'm'], [5, 'm6'], [7, '7b9'], [0, 'm']], cadence: true, set: S(116, 1, 5, 4, 0.5, 0.75, 0.25, 1, 0, 0, 2) },
+  { name: 'baroque', note: 'Falling-fifth sequences and the Pachelbel ground.', roots: { 0: 3, 2: 1.2, 4: 1, 5: 2, 7: 2.5, 9: 1.5, 11: 0.6 }, quality: { M: 1.5, m: 1.3, d: 0.6, '7': 0.8 }, moves: { 5: 2.5 }, idiom: [[0, 'M'], [7, 'M'], [9, 'm'], [4, 'm'], [5, 'M'], [0, 'M'], [5, 'M'], [7, 'M']], cadence: true, set: S(96, 0, 1, 1, 0.4, 0.9, 0.1, 0, 0, 5, 1) },
+  { name: 'film score', note: 'Chromatic mediants: major chords a third apart, the sound of wonder (Lehman, Hollywood Harmony, 2018).', roots: { 0: 3, 8: 2, 4: 2, 3: 1.6, 9: 1.5, 1: 0.8, 5: 1 }, quality: { M: 2, m: 1.2, A: 0.6, sus4: 0.5, add9: 0.6 }, moves: { 8: 1.8, 4: 1.8, 3: 1.4, 9: 1.4 }, idiom: [[0, 'M'], [8, 'M'], [4, 'M'], [0, 'M']], cadence: false, set: S(72, 0, 2, 4, 0.5, 0.3, 0.55, 1, 3, 4, 1, 3) },
+  { name: 'ambient', note: 'Suspended and added-ninth chords over a pedal, very slow.', roots: { 0: 2.5, 5: 2.5, 9: 2, 7: 1.5, 2: 1.5, 4: 1 }, quality: { add9: 2, sus2: 2, M7: 2, m7: 1.5, sus4: 1.2, '6': 1 }, idiom: [[0, 'add9'], [5, 'sus2'], [9, 'm7'], [5, 'M7']], cadence: false, set: S(64, 0, 5, 0, 0.3, 0.5, 0.35, 2, 3, 4, 4, 3) },
+  { name: 'metal', note: 'Phrygian ♭II, the tritone, minor and diminished.', roots: { 0: 3, 1: 2, 8: 2, 10: 1.8, 6: 1.2, 3: 1, 5: 1 }, quality: { m: 2, M: 1.5, d: 1, sus2: 0.8, sus4: 0.8 }, moves: { 1: 2, 11: 1.5, 6: 1.2 }, idiom: [[0, 'm'], [1, 'M'], [0, 'm'], [6, 'd']], cadence: false, set: S(150, 1, 5, 2, 0.6, 0.55, 0.4, 0, 0, 0, 1, 1) },
+];
+/** A genre's pull on a move prev → c: its vocabulary, its scale degrees, its favourite root motions. */
+export const genreBias = (g: Genre, key: Key) => (prev: Chord, c: Chord) =>
+  (g.roots[mod12(c.root - key.tonic)] ?? 0.25) * (g.quality[c.quality as Q] ?? 0.03) * (g.moves?.[mod12(c.root - prev.root)] ?? 1);
+export const idiomChord = (g: Genre, i: number, key: Key): Chord => {
+  const [off, q] = g.idiom[i % g.idiom.length];
+  return withRoman(chord(key.tonic + off, q), key);
+};
