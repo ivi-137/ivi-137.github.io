@@ -13,7 +13,7 @@ import numpy as np
 from records import RES, load, macs_per_token
 from toy import IMPLICIT, MONITORS
 
-ORDER = ['base', 'base_aux', 'base_frame', 'ledger_nosup', 'ledger_nogate', 'ledger_joint', 'ledger', 'ledger_frame', 'ledger_frame_evict']
+ORDER = ['base', 'base_aux', 'base_frame', 'ledger_nosup', 'ledger_nogate', 'ledger_joint', 'ledger_pre', 'ledger', 'ledger_top', 'ledger_film', 'ledger_logit', 'ledger_frame', 'ledger_frame_evict']
 KS = [4, 7, 10, 13, 16]
 
 
@@ -54,7 +54,7 @@ def main():
             'attention_layers': np.mean([r['summary']['attention'] for r in rs], 0).round(4).tolist(),
             'keys_per_token': round(keys, 1),
             'prompt_tokens': round(n0, 1),
-            'macs_per_token': macs_per_token(keys, v.startswith('ledger')),
+            'macs_per_token': macs_per_token(keys, v),
             'n_samples': len(rs[0]['records']),
         }
         out['variants'][v] = d

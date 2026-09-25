@@ -14,6 +14,14 @@ Variants (cfg['variant']):
   ledger_frame_evict   Ledger + gauge fixing, and written tokens may not attend to the example posts
                  (only the clerk and the frame read them), so their keys and values can be dropped
 
+Where the Ledger enters the network (placement study; everything else as in `ledger`):
+  ledger         read after attention, in every layer above the clerk            ('post')
+  ledger_joint   slots inside the ordinary attention softmax, like context tokens ('joint')
+  ledger_pre     read before attention, so attention in the same layer can use it ('pre')
+  ledger_top     read after attention in the last layer only                      ('top')
+  ledger_film    no read: zero-initialised adaptive layer norm, scale and shift from the ledger ('film')
+  ledger_logit   no read: a zero-initialised bias on the logits from the ledger     ('logit')
+
 The Ledger (K slots):
   clerk    K learned queries attend once over the prompt  ->  o_i          (what is owed)
   status   per written token, a typed accumulator per slot ->  u_i(t)      (how much is paid)
@@ -54,7 +62,22 @@ def has_ledger(cfg):
 
 
 def supervised(cfg):
-    return cfg['variant'] in ('base_aux', 'ledger', 'ledger_joint', 'ledger_nogate', 'ledger_frame', 'ledger_frame_evict')
+    return cfg['variant'] in ('base_aux', 'ledger', 'ledger_joint', 'ledger_nogate', 'ledger_frame', 'ledger_frame_evict', 'ledger_pre', 'ledger_top', 'ledger_film', 'ledger_logit')
+
+
+def placement(cfg):
+    v = cfg['variant']
+    return {'ledger_joint': 'joint', 'ledger_pre': 'pre', 'ledger_top': 'top', 'ledger_film': 'film', 'ledger_logit': 'logit'}.get(v, 'post')
+
+
+def read_layers(cfg):
+    """Layers whose residual stream receives an attention read of the slots."""
+    place = placement(cfg)
+    if place in ('post', 'pre'):
+        return list(range(cfg['clerk_layer'], cfg['L']))
+    if place == 'top':
+        return [cfg['L'] - 1]
+    return []
 
 
 def gauged(cfg):
@@ -102,7 +125,7 @@ def init(key, cfg):
         }
     if has_ledger(cfg):
         Kk = cfg['K']
-        n_read = L - cfg['clerk_layer']
+        n_read = len(read_layers(cfg)) if placement(cfg) != 'joint' else L - cfg['clerk_layer']
         p['ledger'] = {
             'ln_c': _ln(d),
             'q': jax.random.normal(next(ks), (Kk, d)) * 0.5,
@@ -127,6 +150,11 @@ def init(key, cfg):
                 for _ in range(n_read)
             ],
         }
+        nz = 3 * Kk + d  # status of every slot, and the mean slot vector
+        if placement(cfg) == 'film':
+            p['ledger']['film'] = [{'w': jnp.zeros((nz, 4 * d)), 'b': jnp.zeros(4 * d)} for _ in range(L - cfg['clerk_layer'])]
+        if placement(cfg) == 'logit':
+            p['ledger']['bias'] = {'w': jnp.zeros((nz, cfg['V'])), 'b': jnp.zeros(cfg['V'])}
     return p
 
 
@@ -241,18 +269,32 @@ def forward(p, x, gen_mask, cfg, want_attn=False, exm=None):
     extras = {}
     variant = cfg['variant']
     led = has_ledger(cfg)
-    slots = None
+    place = placement(cfg) if led else None
+    rl = read_layers(cfg) if led else []
+    slots = zfeat = None
     attn = []
+    gm = gen_mask[..., None]
     for li, lp in enumerate(p['layers']):
-        joint = variant == 'ledger_joint' and slots is not None
-        a_out, a = self_attn(lp, ln(lp['ln1'], h), pos, valid, H, slots if joint else None, gen_mask > 0 if joint else None, hide)
+        joint = place == 'joint' and slots is not None
+        if slots is not None and place == 'pre' and li in rl:
+            rp = p['ledger']['read'][rl.index(li)]
+            h = h + jnp.tanh(rp['g']) * read(rp, ln(rp['ln'], h), slots, H) * gm
+        x1 = ln(lp['ln1'], h)
+        if zfeat is not None and place == 'film':
+            f = p['ledger']['film'][li - cfg['clerk_layer']]
+            g1, b1, g2, b2 = jnp.split((zfeat @ f['w'] + f['b']) * gm, 4, -1)
+            x1 = x1 * (1 + g1) + b1
+        a_out, a = self_attn(lp, x1, pos, valid, H, slots if joint else None, gen_mask > 0 if joint else None, hide)
         if want_attn:
             attn.append(a)
         h = h + a_out
-        if led and slots is not None and variant != 'ledger_joint':
-            rp = p['ledger']['read'][li - cfg['clerk_layer']]
-            h = h + jnp.tanh(rp['g']) * read(rp, ln(rp['ln'], h), slots, H) * gen_mask[..., None]
-        h = h + mlp(lp, ln(lp['ln2'], h))
+        if slots is not None and place in ('post', 'top') and li in rl:
+            rp = p['ledger']['read'][rl.index(li)]
+            h = h + jnp.tanh(rp['g']) * read(rp, ln(rp['ln'], h), slots, H) * gm
+        x2 = ln(lp['ln2'], h)
+        if zfeat is not None and place == 'film':
+            x2 = x2 * (1 + g2) + b2
+        h = h + mlp(lp, x2)
         if li == cfg['clerk_layer'] - 1:
             if led:
                 P = p['ledger']
@@ -268,6 +310,8 @@ def forward(p, x, gen_mask, cfg, want_attn=False, exm=None):
                 pend = jnp.where(ty == INVARIANT, 0.0, req[:, None, :] * (1 - u))  # (B,T,K)
                 feat = jnp.stack([u, pend, jnp.broadcast_to(req[:, None, :], u.shape)], -1)  # (B,T,K,3)
                 slots = o[:, None, :, :] + feat @ P['ws']  # (B,T,K,d)
+                if place in ('film', 'logit'):
+                    zfeat = jnp.concatenate([feat.reshape(B, T, -1), jnp.broadcast_to(o.mean(1)[:, None, :], (B, T, o.shape[-1]))], -1)
                 extras.update(ext=ext, e=e, u=u, pend=pend, k_hat=k_hat, req=req)
             if variant == 'base_aux':
                 A = p['aux']
@@ -277,6 +321,9 @@ def forward(p, x, gen_mask, cfg, want_attn=False, exm=None):
                 extras['ext'] = [hg @ w for w in A['ext']]
                 extras['e'] = jax.nn.sigmoid(ha @ A['ev'] + A['ev_b'])
     logits = ln(p['lnf'], h) @ p['emb'].T
+    if place == 'logit':
+        bias = p['ledger']['bias']
+        logits = logits + (zfeat @ bias['w'] + bias['b']) * gm
     if gauged(cfg):
         # the output alphabet is the set of orbits: one member per style family
         logits = logits.at[..., jnp.array(NONCANONICAL)].set(-1e9)
