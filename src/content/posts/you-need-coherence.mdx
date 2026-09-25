@@ -135,7 +135,7 @@ $$
 y \models \varphi_i \quad \text{for every } \varphi_i \in \Phi(c).
 $$
 
-The obligations in a blog post come in a few shapes, and linear temporal logic has a name for each. Amir Pnueli introduced the logic for reasoning about programs in 1977; De Giacomo and Vardi gave it the semantics for finite traces in 2013, and a text is a finite trace.
+The obligations in a blog post come in a few shapes, and linear temporal logic has a name for most of them. Amir Pnueli introduced the logic for reasoning about programs in 1977; De Giacomo and Vardi gave it the semantics for finite traces in 2013, and a text is a finite trace. The last row is not a temporal operator, but counting up to a fixed bound is still something a finite automaton can do.
 
 | shape | formula | in this notebook |
 |---|---|---|
@@ -145,7 +145,7 @@ The obligations in a blog post come in a few shapes, and linear temporal logic h
 | last | $$\mathbf{F}\,r \land \mathbf{G}(r \to \mathbf{G}\,s)$$ | once the sources begin, only sources follow |
 | count | $$\#p = n$$, bounded | the requested number of paragraphs |
 
-All of these can be checked while the text is being written. Bauer, Leucker and Schallhart (2011) give a three-valued verdict on a finite prefix $$u$$ of the output: $$\top$$ if every continuation of $$u$$ satisfies $$\varphi$$, $$\bot$$ if none does, and $$?$$ otherwise. An invariant can only move from $$?$$ to $$\bot$$: one slip breaks it for good. An eventuality can only move from $$?$$ to $$\top$$: once paid, it stays paid, and it is judged $$\bot$$ only when the text ends unpaid. Each obligation compiles to a small deterministic automaton that reads the output once.
+All of these can be checked while the text is being written. Bauer, Leucker and Schallhart (2011) give a three-valued verdict on a prefix $$u$$ of a run: $$\top$$ if every continuation of $$u$$ satisfies $$\varphi$$, $$\bot$$ if none does, and $$?$$ otherwise. A text also ends, and at its end every verdict is settled. So, while writing, an invariant can only move from $$?$$ to $$\bot$$ (one slip breaks it for good), and it is kept if the text ends unbroken. An eventuality can only move from $$?$$ to $$\top$$ (once paid, it stays paid), and it is broken if the text ends unpaid. Each of these obligations compiles to a small deterministic automaton that reads the output once.
 
 That puts coherence on the bottom rung of the hierarchy Chomsky set out in 1956 and 1959: these are regular languages, the ones a finite automaton recognises. You don't need a Turing machine to keep a promise. You need a finite automaton that doesn't forget. Keith Duggar has made the matching point about networks on Machine Learning Street Talk: a network of fixed size is a finite-state machine, not a Turing machine. So carrying a handful of obligations is well within what a transformer can represent. What is in question is whether it carries them in practice. Delétang and colleagues trained 20,910 networks on 15 tasks grouped by the Chomsky hierarchy, and the hierarchy predicted which architectures could extend what they had learned to longer inputs. The networks that climbed highest were the ones given an explicit memory, a stack or a tape.
 
@@ -171,7 +171,7 @@ $$
 
 *Proof.* The numerator is at most $$e^B$$ and each of the $$n$$ terms of the denominator is at least $$e^{-B}$$. ∎
 
-So the $$m$$ tokens of an instruction receive at most $$m e^{2B}/n$$ of a head's attention, and their contribution to its output is at most that fraction of the largest value vector. While the model writes, $$n = n_0 + t$$ grows by one with every token. With bounded scores, the influence of a fixed instruction decays like $$1/(n_0 + t)$$.
+So the $$m$$ tokens of an instruction receive at most $$m e^{2B}/n$$ of a head's attention, and their contribution to its output is at most that fraction of the largest value vector. While the model writes, $$n = n_0 + t$$ grows by one with every token. With bounded scores, the most a fixed instruction can contribute therefore shrinks like $$1/(n_0 + t)$$. The lemma is an upper bound: a model can stay below it and still work, but it cannot keep a fixed instruction's share from fading unless its scores grow with $$n$$.
 
 The lemma is not new. Veličković and colleagues proved that softmax attention must disperse as inputs grow, and Nakanishi named the effect *attention fading* and proposed multiplying scores by $$s \log n$$, so that the edge grows with the crowd. Trained models do raise some scores, and they park spare attention on the first few tokens, the *attention sinks* found by Xiao and colleagues. Federico Barbero's "Transformers need glasses!", also discussed on Machine Learning Street Talk, shows a related collapse at the other end: distinct inputs can end with almost identical final representations, which the model then provably cannot tell apart. But a fixed budget shared by a growing crowd remains the default.
 
@@ -187,9 +187,15 @@ $$
 S(L) = \prod_{i=1}^{k} \prod_{t=1}^{L} \bigl(1 - h_i(t)\bigr) \le \exp\!\Bigl(-\sum_{i=1}^{k} \sum_{t=1}^{L} h_i(t)\Bigr).
 $$
 
-If each hazard is a non-increasing function of the attention share its evidence receives, $$h_i(t) = g_i(\text{share}_i(t))$$ with $$g_i(0) = h_i^{\infty} > 0$$, then by Lemma 1 $$h_i(t) \to h_i^{\infty}$$, and $$S(L)$$ falls exponentially in $$L$$, at a rate per token that approaches $$\sum_i h_i^{\infty}$$.
+Suppose further that each hazard is a non-increasing function of the attention share its evidence receives, $$h_i(t) = g_i(\text{share}_i(t))$$, with $$g_i$$ continuous at 0 and $$g_i(0) = h_i^{\infty} > 0$$. Then with bounded scores
 
-*Proof.* The product form is the chain rule for first-failure times, and the bound is $$1 - x \le e^{-x}$$. With bounded scores, $$\text{share}_i(t) \to 0$$ by Lemma 1, so $$h_i(t) \to g_i(0) = h_i^{\infty}$$; past any fixed step, each term of the sum is then within any chosen margin of its limit. ∎
+$$
+\limsup_{L \to \infty} \frac{1}{L} \log S(L) \le -\sum_{i=1}^{k} h_i^{\infty}:
+$$
+
+the chance of keeping every invariant falls exponentially with length, at a rate that adds up over the invariants.
+
+*Proof.* The product form is the chain rule for first-failure times, and the bound is $$1 - x \le e^{-x}$$. By Lemma 1, $$\text{share}_i(t) \le m_i e^{2B}/(n_0 + t) \to 0$$, so by continuity $$h_i(t) \to h_i^{\infty}$$, and the running average $$\frac{1}{L}\sum_{t \le L} h_i(t)$$ converges to the same limit. Divide the logarithm of the bound by $$L$$ and let $$L$$ grow. ∎
 
 The same arithmetic lies behind the collapse Dziri and colleagues measured in multi-step problems, where small per-step error rates multiply. A long post is a many-step problem, and every paragraph is a step for every invariant at once:
 
@@ -213,9 +219,9 @@ The three mechanisms suggest three repairs. Give obligations a channel whose sha
 
 <LedgerDiagram />
 
-**The clerk.** Once the prompt has been read, $$K$$ learned queries attend over the prompt's hidden states at a middle layer $$\ell_c$$, and write $$K$$ slot vectors $$o_1, \dots, o_K$$: what is owed. The clerk runs once per prompt. Small heads read each slot's type and content, which is where training can supervise them.
+**The clerk.** Once the prompt has been read, $$K$$ learned queries attend over the prompt's hidden states at a middle layer $$\ell_c$$, and write $$K$$ slot vectors $$o_1, \dots, o_K$$: what is owed. The clerk runs once per prompt. Small linear heads read what each slot holds (which font, whether sources are expected, how many paragraphs), and that is where training can supervise it.
 
-**Status.** Every token the model writes updates a scalar per slot. With $$h_t$$ the token's state at layer $$\ell_c$$, the event probability is $$e_{t,i} = \sigma\bigl(\langle W_h h_t,\, W_o o_i\rangle/\sqrt{d} + b_i\bigr)$$, and the status $$u_{t,i}$$ accumulates it according to the slot's type:
+**Status.** Every token the model writes updates a scalar per slot. With $$h_t$$ the token's layer-normalised state at layer $$\ell_c$$, the event probability is $$e_{t,i} = \sigma\bigl(\langle W_h h_t,\, W_o o_i\rangle/\sqrt{d} + b_i\bigr)$$, and the status $$u_{t,i}$$ accumulates it according to the slot's type:
 
 $$
 u_{t,i} = \begin{cases}
@@ -225,18 +231,18 @@ u_{t,i} = \begin{cases}
 \end{cases}
 $$
 
-An obligation is *pending* with weight $$\pi_{t,i} = r_i (1 - u_{t,i})$$, where $$r_i$$ is the clerk's estimate that it applies at all.
+An eventuality or count is *pending* with weight $$\pi_{t,i} = r_i (1 - u_{t,i})$$, where $$r_i$$ is the clerk's estimate that it applies at all; an invariant is never pending, only in force.
 
-**Read.** In every layer above $$\ell_c$$, each written token attends to the $$K$$ slots, whose keys and values are built from $$o_i$$ and from $$(u_{t,i}, \pi_{t,i}, r_i)$$. This softmax is normalised over the $$K$$ slots only, never over the context:
+**Read.** In every layer above $$\ell_c$$, each written token attends to the $$K$$ slots, whose keys and values are built from $$o_i$$ and from $$(u_{t,i}, \pi_{t,i}, r_i)$$. This softmax, one per head as in multi-head attention, is normalised over the $$K$$ slots only, never over the context:
 
 $$
 x_t \leftarrow x_t + \tanh(g_\ell)\; W_O \sum_{i=1}^{K} \mathrm{softmax}_i\!\left(\frac{q_t \cdot k_{t,i}}{\sqrt{d_h}}\right) v_{t,i}.
 $$
 
-**Gate.** Pending eventualities hold back the end of the text:
+**Gate.** Pending eventualities and counts hold back the end of the text, with $$\varepsilon = 10^{-3}$$:
 
 $$
-\text{logit}_t(\langle\text{eos}\rangle) \mathrel{+}= \gamma \sum_{i \in \text{eventualities}} \log\bigl(1 - \pi_{t,i} + \varepsilon\bigr).
+\text{logit}_t(\langle\text{eos}\rangle) \mathrel{+}= \gamma \sum_{i \,\in\, \text{eventualities, counts}} \log\bigl(1 - \pi_{t,i} + \varepsilon\bigr).
 $$
 
 **Training.** Checking is cheap, so the checkers can teach. Next to the usual next-token loss, the clerk's heads learn from labels for each obligation, and the status learns from the monitors' verdicts on every prefix of the training text: whether the sources have begun yet, and, for a count, whether a paragraph starts here. Every training token becomes a supervised example of bookkeeping.
@@ -249,9 +255,9 @@ Five properties follow from the definitions.
 
 1. **It changes nothing when inserted.** With $$g_\ell = 0$$ and $$\gamma = 0$$, $$\tanh(g_\ell) = 0$$ and the gate adds 0, so the network computes exactly what it computed before. The zero-initialised tanh gate is Flamingo's trick for grafting new inputs onto a frozen model. In the toy, the first training loss of the Ledger model matched the baseline's to all 16 printed digits.
 2. **Its share does not dilute.** The read is normalised over $$K$$ slots, so by the argument of Lemma 1 a slot with a score edge $$\Delta$$ over the others gets at least $$e^{\Delta}/(e^{\Delta} + K - 1)$$ of the read, whatever $$n$$ and $$t$$ are.
-3. **Paid stays paid.** Eventuality status is monotone in $$t$$, like the $$\top$$ of a monitor, so the gate cannot trap the model once the debt is settled.
+3. **Paid stays paid.** Eventuality and count status never decrease in $$t$$ (a product of factors in $$[0,1]$$ can only shrink; a sum of non-negative terms can only grow), like the $$\top$$ of a monitor, so the gate cannot trap the model once the debt is settled.
 4. **It trains in parallel.** The noisy-OR is a cumulative sum of $$\log(1 - e_{s,i})$$ and the count a cumulative sum of $$e_{s,i}$$, so training needs no back-propagation through time.
-5. **It is cheap.** Per written token and read layer it costs $$O(Kd)$$, against $$O(nd)$$ for self-attention, and its memory is $$K$$ vectors, constant in the length of the text.
+5. **It is cheap.** A slot's state is $$o_i$$ plus a linear function of three numbers, so its keys and values are $$W o_i$$, computed once per prompt, plus a rank-3 correction. Per written token and read layer that leaves one query projection and $$K$$ dot products, $$O(d^2 + Kd)$$, with no term in $$n$$; self-attention costs $$O(d^2 + nd)$$. The Ledger's memory is a few $$K \times d$$ matrices, constant in the length of the text.
 
 ### What is borrowed and what is new
 
@@ -283,7 +289,7 @@ Six variants, identical except for the parts under test: a 3-layer decoder with 
 
 1. **baseline**: the plain decoder.
 2. **baseline + same labels**: the plain decoder with the Ledger's supervision attached to linear probes on its hidden states. If the Ledger wins only because it sees more labels, this variant will win too.
-3. **Ledger**: clerk at layer 1, reads in layers 2 and 3, $$K = 8$$ slots, gate and supervision (212,427 parameters).
+3. **Ledger**: clerk at layer 1, reads in layers 2 and 3, $$K = 8$$ slots (three invariants, two eventualities, one count, two left free and unsupervised), the gate on the eventuality and count slots, and supervision (212,427 parameters).
 4. **Ledger, one shared softmax**: the same slots, but read inside the ordinary attention softmax, as memory tokens would be.
 5. **Ledger, no eos gate.**
 6. **Ledger, no monitor labels**: trained on the next-token loss alone.

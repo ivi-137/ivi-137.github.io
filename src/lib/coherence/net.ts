@@ -137,7 +137,11 @@ export class Net {
   private kHat = 0;
   private logNot: number[] = [];
   private count: number[] = [];
-  private slots: Float32Array[] | null = null;
+  /** per slot: (paid, pending, required), the three numbers the state adds to o_i */
+  private slots: number[][] | null = null;
+  /** per read layer: o_i · W_kv for every slot (once per prompt), and W_s · W_kv (once) */
+  private kvO: Float32Array[][] = [];
+  private kvS: Float32Array[] = [];
   view: LedgerView | null = null;
 
   constructor(meta: Manifest, w: Record<string, T>) {
@@ -203,7 +207,7 @@ export class Net {
       for (let i = 0; i < d; i++) x[i] += proj[i];
       if (this.ledger && this.slots && l >= cl) {
         const R = (n: string) => this.t(`ledger.read.${l - cl}.${n}`);
-        const r = this.read(layerNorm(x, R('ln.g'), R('ln.b')), R('wq'), R('wkv'), R('wo'), attnSlots);
+        const r = this.read(l - cl, layerNorm(x, R('ln.g'), R('ln.b')), R('wq'), R('wo'), attnSlots);
         reads++;
         const gate = Math.tanh(R('g').data[0]);
         for (let i = 0; i < d; i++) x[i] += gate * r[i];
@@ -243,11 +247,20 @@ export class Net {
     return logits;
   }
 
-  private read(x: Float32Array, wq: T, wkv: T, wo: T, acc: number[]) {
+  /**
+   * The read. A slot's state is o_i + f_i · W_s with f_i three numbers, so its keys and values are
+   * o_i · W_kv (precomputed) + f_i · (W_s · W_kv) (precomputed): O(Kd) per token, nothing in n.
+   */
+  private read(r: number, x: Float32Array, wq: T, wo: T, acc: number[]) {
     const { d, H, K } = this.cfg;
     const dh = d / H;
     const q = matvec(x, wq);
-    const kv = this.slots!.map((s) => matvec(s, wkv));
+    const S = this.kvS[r];
+    const kv = this.slots!.map((f, i) => {
+      const v = this.kvO[r][i].slice();
+      for (let k = 0; k < 3; k++) for (let j = 0; j < 2 * d; j++) v[j] += f[k] * S[k * 2 * d + j];
+      return v;
+    });
     const out = new Float32Array(d);
     const a = new Float32Array(K);
     for (let h = 0; h < H; h++) {
@@ -294,6 +307,18 @@ export class Net {
       for (let j = 0; j < d; j++) oi[j] += slot[i * d + j];
       this.o.push(layerNorm(oi, this.t('ledger.ln_o.g'), this.t('ledger.ln_o.b')));
     }
+    // keys and values of every slot's fixed part, and of the three-number correction, per read layer
+    const reads = this.cfg.L - this.cfg.clerk_layer;
+    this.kvO = [];
+    this.kvS = [];
+    for (let r = 0; r < reads; r++) {
+      const wkv = this.t(`ledger.read.${r}.wkv`);
+      this.kvO.push(this.o.map((o) => matvec(o, wkv)));
+      const ws = this.t('ledger.ws');
+      const rows = new Float32Array(3 * 2 * d);
+      for (let k = 0; k < 3; k++) rows.set(matvec(ws.data.subarray(k * d, (k + 1) * d) as Float32Array, wkv), k * 2 * d);
+      this.kvS.push(rows);
+    }
     const pr = [0, 1, 2, 3, 4, 5].map((i) => Array.from(softmaxInPlace(matvec(this.o[i], this.t(`ledger.ext.${i}`)))));
     const [kMin] = this.meta.k;
     this.kHat = pr[5].reduce((s, p, j) => s + p * (j + kMin), 0);
@@ -317,7 +342,6 @@ export class Net {
     const { d, K } = this.cfg;
     const hz = matvec(layerNorm(h, this.t('ledger.ln_c.g'), this.t('ledger.ln_c.b')), this.t('ledger.wz_h'));
     const bz = this.t('ledger.bz').data;
-    const ws = this.t('ledger.ws').data;
     const u: number[] = [], pend: number[] = [];
     this.slots = [];
     for (let i = 0; i < K; i++) {
@@ -332,10 +356,7 @@ export class Net {
       const pi = ty === INVARIANT ? 0 : this.req[i] * (1 - ui);
       u.push(ui);
       pend.push(pi);
-      const s = this.o[i].slice();
-      const f = [ui, pi, this.req[i]];
-      for (let r = 0; r < 3; r++) for (let j = 0; j < d; j++) s[j] += f[r] * ws[r * d + j];
-      this.slots.push(s);
+      this.slots.push([ui, pi, this.req[i]]);
     }
     if (this.view) Object.assign(this.view, { u, pend });
   }
