@@ -92,7 +92,22 @@ BATCH=64 ./run_all.sh full                                # the study
   float32 parameters and compute their state in float32. Training batches are capped at 3,072 tokens and evaluation
   batches at 32,768, which fits a 4 GB laptop GPU with about 2.5 GB free: close other programs that use the GPU
   (games, browsers with hardware acceleration, chat apps) before a long run.
-- Everything is resumable: rerunning skips finished steps. Outputs go to `work/<preset>/`.
+- Everything is resumable: rerunning skips finished steps, down to each context length of an evaluation. Outputs go
+  to `work/<preset>/`.
+
+### Google Colab
+
+Open [`colab.ipynb` in Colab](https://colab.research.google.com/github/ivi-137/ivi-137.github.io/blob/main/research/ledger-smollm/colab.ipynb),
+choose *Runtime → Change runtime type → T4 GPU*, and run its four cells in order. It installs everything, runs the
+tests, saves every result to Google Drive (so a disconnected session resumes where it stopped: run cell 1, then the
+cell you were on), runs the pilot, then the `colab` preset, and downloads a zip of the results.
+
+The `colab` preset keeps the full study's data and training (3,000 prompts, two epochs) and the comparisons that
+decide the claims: `base`, `lora`, `ledger` and `ledger_joint`, two seeds, all 541 IFEval prompts at 0 and 6,000
+tokens of background (the endpoints of prediction 3). It leaves out the no-gate ablation, the third seed and the
+intermediate lengths, which `full` adds. On a T4 (no native bfloat16) the frozen model runs in float32; on an L4 or
+A100, in bfloat16. `EVAL_TOKENS` sets the size of evaluation batches; the notebook picks it from the GPU's memory and
+halves it if a step runs out of memory.
 
 ### Windows (PowerShell, NVIDIA GPU)
 
@@ -145,5 +160,6 @@ and push, or paste `summary.md`.
 | `batching.py` | training examples and batches |
 | `data.py` | prompts, targets (samples and exact repairs), background passages |
 | `train.py`, `evaluate.py`, `analyze.py` | training, official IFEval at several lengths, statistics (Wilson, exact McNemar, paired bootstrap) |
-| `run_all.sh`, `run_all.ps1` | the whole study (`smoke`, `pilot`, `full`), for bash and for Windows PowerShell |
+| `run_all.sh`, `run_all.ps1` | the whole study (`smoke`, `pilot`, `full`; `colab` in bash), for bash and for Windows PowerShell |
+| `colab.ipynb` | the study on a Colab GPU, with results kept on Google Drive and downloaded as a zip |
 | `tests/` | label agreement with the checkers; identity at insertion (float32 and bfloat16); open gates change the function; decoding equals a full pass; batched equals single generation; gradients reach only the Ledger; monotone state; blocked and recomputed attention equal whole, gradients included |

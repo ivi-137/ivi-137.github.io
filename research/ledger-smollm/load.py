@@ -25,11 +25,14 @@ def matched_lora_rank(mcfg, lcfg):
 
 
 def resolve_dtype(dtype, device):
-    """'auto': bfloat16 for the frozen model on a GPU that supports it (half the memory), float32 otherwise.
+    """'auto': bfloat16 for the frozen model on a GPU that computes it natively (half the memory), float32 otherwise.
     The Ledger and the LoRA adapters always keep float32 parameters."""
     if dtype != 'auto':
         return getattr(torch, dtype) if isinstance(dtype, str) else dtype
-    return torch.bfloat16 if device.type == 'cuda' and torch.cuda.is_bf16_supported() else torch.float32
+    # native bfloat16 needs compute capability 8.0 (A100, L4, RTX 30xx and later); older GPUs such as Colab's T4
+    # only emulate it, so they keep float32
+    native = device.type == 'cuda' and torch.cuda.get_device_capability(device)[0] >= 8
+    return torch.bfloat16 if native else torch.float32
 
 
 def build(model, variant, device, lcfg=None, lora_rank=None, dtype='auto'):

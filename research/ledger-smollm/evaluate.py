@@ -47,6 +47,7 @@ def main():
     ap.add_argument('--out', default='results')
     ap.add_argument('--device', default='auto')
     ap.add_argument('--dtype', default='auto', help='frozen model precision: auto (bfloat16 on a GPU), float32, bfloat16')
+    ap.add_argument('--overwrite', action='store_true', help='recompute lengths whose results are already saved')
     a = ap.parse_args()
     dev = device_auto(a.device)
     if a.run:
@@ -62,6 +63,10 @@ def main():
     out = pathlib.Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     for L in a.lengths:
+        path = out / f'{name}-L{L}.jsonl'
+        if path.exists() and not a.overwrite:  # resumable: an interrupted run keeps the lengths it finished
+            print(f'{name} L={L}: already done -> {path}', flush=True)
+            continue
         t0 = time.time()
         bg = backgrounds(tok, passages, len(examples), L)
         inputs = [with_distractor(e['prompt'], b) for e, b in zip(examples, bg)]
@@ -73,7 +78,6 @@ def main():
             s = score(e, r)
             rows.append({'key': e['key'], 'length': L, 'variant': info['variant'], 'seed': info.get('seed'),
                          'instruction_id_list': e['instruction_id_list'], **s, 'response': r})
-        path = out / f'{name}-L{L}.jsonl'
         path.write_text(''.join(json.dumps(r) + '\n' for r in rows), encoding='utf-8')
         acc = sum(r['strict_all'] for r in rows) / len(rows)
         ins = sum(sum(r['strict']) for r in rows) / sum(len(r['strict']) for r in rows)
