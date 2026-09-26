@@ -12,9 +12,27 @@ import FrameDiagram from '../../components/coherence/FrameDiagram.astro';
 import ToyResults from '../../components/coherence/ToyResults.astro';
 import Audit from '../../components/coherence/Audit.astro';
 
-Ask a language model to read this notebook and write the next entry. It will get the topic right and the voice roughly right. Then, often somewhere around the fourth paragraph, a formula will appear between single dollar signs, although every formula here sits between two. A heading will arrive in Title Case. "Behaviour" will lose its u. And the post will stop one section early, without the sources that close this one. None of this is hard. Each is a promise the earlier posts made, and each gets broken anyway.
+Ask a language model to read this notebook and write the next entry, nine paragraphs long. It will get the topic right and the voice roughly right. Then, often somewhere around the fourth paragraph, a formula will appear between single dollar signs, although every formula here sits between two. A heading will arrive in Title Case. "Behaviour" will lose its u. And the post will end after seven paragraphs, without the sources that close this one. None of this is hard. Each is a promise the context made, and each gets broken anyway.
 
-I'll call the property that breaks *coherence*: a text is coherent when it keeps the obligations its context created, from the first token to the last. This post makes one argument about it. A transformer has memory but no state. It keeps every token it has seen, but it carries nothing forward from one step to the next except those tokens, so every obligation has to be re-derived, at every step, by attention. And attention pays for everything out of a single budget that sums to 1 and is shared with a context that grows by one token per step. Three failures follow, each provable: the obligation's share of attention *dilutes*, small per-step slips *compound* over a long text, and the decision to stop is made *blind* to what is still owed. The repair is to give obligations what the transformer lacks: a small state of their own, read through a budget of its own, connected to the decision to stop. I call it the *Ledger*. For one important class of obligations, those that pick one variant among interchangeable ones, group theory goes further: the state collapses to a single symmetry, read once, and those obligations can no longer fail at any length.
+Five promises, then, and this post follows them through every section:
+
+1. **the double dollars**: every formula sits between two dollar signs;
+2. **sentence case**: every heading is written like a sentence;
+3. **the u in behaviour**: the spelling is British;
+4. **nine paragraphs**: the length the request asked for;
+5. **sources last**: every post closes with its sources.
+
+<p class="cx-narrator">The Model had read every word of the notebook, and meant to keep faith with all of it. It very nearly did.</p>
+
+<div class="cx-talk">
+<p class="reader"><span class="who">Reader</span>Five promises, and you broke all five.</p>
+<p class="model"><span class="who">Model</span>I kept the topic. And the voice, mostly.</p>
+<p class="reader"><span class="who">Reader</span>You kept what is easy to guess. The rest had to be looked up, thousands of tokens back.</p>
+<p class="model"><span class="who">Model</span>I could see those tokens. I can see every token. That is rather the point of me.</p>
+<p class="reader"><span class="who">Reader</span>Then why couldn't you find them when it mattered?</p>
+</div>
+
+I'll call the property at stake *coherence*: a text is coherent when it keeps the obligations its context created, from the first token to the last. This post makes one argument about it, and the argument answers the Reader's question. A transformer has memory but no state. It keeps every token it has seen, but it carries nothing forward from one step to the next except those tokens, so every obligation has to be re-derived, at every step, by attention. And attention pays for everything out of a single budget that sums to 1 and is shared with a context that grows by one token per step. Three failures follow, each provable: the obligation's share of attention *dilutes*, small per-step slips *compound* over a long text, and the decision to stop is made *blind* to what is still owed. The repair is to give obligations what the transformer lacks: a small state of their own, read through a budget of its own, connected to the decision to stop. I call it the *Ledger*. For one important class of obligations, those that pick one variant among interchangeable ones, group theory goes further: the state collapses to a single symmetry, read once, and those obligations can no longer fail at any length.
 
 The contributions, each with its evidence:
 
@@ -26,22 +44,62 @@ The contributions, each with its evidence:
 
 The experiment is a toy trained on four CPU cores, and I say so wherever it matters. The mathematics carries the argument; the toy checks that the mechanisms do what the mathematics says.
 
-### The argument in one table
+### How the argument runs
+
+The sections form one chain, and each link is a question the previous section leaves open. Two voices ask those questions out loud at the start of each section: the Model, which wrote the draft above, and a Reader, who wants to know why the next part matters. From the Ledger on, a third voice joins them, its Clerk. What follows each exchange answers it. The whole chain, promise by promise:
 
 <div class="cx-text">
 
-| what goes wrong | evidence | why (proved below) | repair | where | in the toy |
-|---|---|---|---|---|---|
-| an instruction fades as the text grows | RULER, NoLiMa, persona drift | dilution: Lemma 1, Corollary 1 | a read with its own softmax | inside the network | slots in the shared softmax 74.0%, in their own 90.0% |
-| a rule is kept for a while, then broken | IFEval, IFScale, style imitation | compounding: Proposition 2 | a state per obligation; for symmetric rules, gauge fixing | along the sequence; at the output | maths slip per formula 3.96% → 1.51% → 0 |
-| the text stops before a promise is paid | ALCE, the empty-output bias | blind stopping: Proposition 3 | a gate on stopping, tied to what is owed | at the output | sources kept 97.5% → 99.0% |
-| a requested count is missed | IFEval's length rules | nothing to count with | a counter in the state, read inside | along the sequence, inside | right length 38.5% → 98.5% |
+| the promise | its shape | how it breaks | why (proved below) | the repair | where it acts | in the toy |
+|---|---|---|---|---|---|---|
+| the double dollars, sentence case | invariant: one choice among variants | a slip, likelier as the draft grows | dilution, then compounding (Lemma 1, Proposition 2) | the frame: chosen once, it cannot slip (Theorem 1) | at the output | no break in 4,526 chances |
+| the u in behaviour | invariant, but not a clean choice for the tokeniser | the same | the same | a state per promise, read through its own softmax | inside the network | not tested |
+| nine paragraphs | count | never counted | memory without state (Fact 2) | a counter in the state, read inside | along the text, and inside | right length 38.5% → 98.5% |
+| sources last | eventuality | the text stops first | blind stopping (Proposition 3) | a gate on stopping, tied to what is owed | at the output | sources kept 97.5% → 99.0% |
+| any of them, as the context grows | | its share of attention shrinks | dilution (Corollary 1) | a read with its own softmax | inside the network | shared softmax 74.0%, own 90.0% |
 
 </div>
 
-The rest of the post fills in each column: the machine, the evidence, a precise definition, the three failures, the repair, its symmetric limit, its placement, and the experiment.
+## How often models lose the thread
+
+<div class="cx-talk">
+<p class="model"><span class="who">Model</span>One notebook. One bad afternoon. You cannot build a theory on that.</p>
+<p class="reader"><span class="who">Reader</span>Agreed. So let's count the afternoons.</p>
+</div>
+
+No single benchmark measures coherence as I have defined it. The nearest measurements come from three directions: instructions a program can check, long inputs, and imitation of a style.
+
+<div class="cx-text">
+
+| study | what was measured | what they found |
+|---|---|---|
+| IFEval, Zhou et al. 2023 | about 500 prompts with 25 kinds of verifiable instruction, such as "no commas" or "at least 3 sections" | GPT-4 kept every instruction of a prompt 76.9% of the time: roughly one prompt in four broke something a program could check |
+| Multi-IF, He et al. 2024 | instructions of the same kind over three turns, in eight languages | o1-preview fell from 0.877 at the first turn to 0.707 at the third |
+| Laban et al. 2025 | 15 models, over 200,000 simulated conversations, six tasks | when a task arrived over several turns, performance dropped by 39% on average; unreliability rose by 112% |
+| IFScale, Jaroslawicz et al. 2025 | up to 500 keyword instructions for one report | the best frontier models reached 68% at 500, with a bias towards earlier instructions |
+| Li et al. 2024 | two chatbots talking, each given a persona by its system prompt | significant drift from the system prompt within eight rounds, traced to attention decay |
+| Liu et al. 2024, "Lost in the middle" | an answer placed at different depths of a long context | U-shaped accuracy; with the answer in the middle, GPT-3.5-Turbo did worse than with no documents at all (56.1%) |
+| RULER, Hsieh et al. 2024 | synthetic long-context tasks | of the models claiming 32K tokens or more, only half kept satisfactory performance at 32K |
+| NoLiMa, Modarressi et al. 2025 | retrieval where question and answer share no words | at 32K tokens, 11 models fell below half of their short-context score; GPT-4o went from 99.3% to 69.7% |
+| ALCE, Gao et al. 2023 | answers that must cite their sources | on ELI5, even the best models lacked complete citation support half of the time |
+| Levy, Jacoby and Goldberg 2024 | the same reasoning questions, padded to different lengths | reasoning degraded at input lengths far below the models' technical maximum |
+| Wang et al. 2025 | imitating more than 400 everyday authors from a few samples, over 40,000 generations per model | style approximated in news and email; blogs and forums remained hard |
+
+</div>
+
+The rows sort into the lines of the table above. Failures that grow with the length of the context (RULER, NoLiMa, lost in the middle, persona drift, Levy et al.) are what dilution predicts. Failures that grow with the number of rules and turns (IFEval, Multi-IF, IFScale, Laban et al.) are what compounding predicts: every extra rule and every extra step is another chance to slip. Failures at the end, missing citations above all, are what blind stopping predicts. And the hardest case, imitation from examples, combines all three with a fourth difficulty: nobody states the rules, so they must first be read off the examples.
+
+Two more observations shape the repair. Laban et al. separate *aptitude*, which barely moved, from *reliability*, which collapsed: the models could do the task, they just did not do it every time. That points at the mechanism, not the knowledge. And newer models do better on every row, but each study found failures that grow with length, turns or the number of rules, across models, labs and years. A pattern that stable points to the architecture.
 
 ## The machine
+
+<div class="cx-talk">
+<p class="reader"><span class="who">Reader</span>Every lab, every year, the same three places: long contexts, many rules, the end of the text.</p>
+<p class="model"><span class="who">Model</span>And every lab builds on the same design, from 2017.</p>
+<p class="reader"><span class="who">Reader</span>Then that is where to look. Show me where a promise lives inside it.</p>
+</div>
+
+What follows is the Transformer as its first paper built it, and each part is here for what the argument needs from it later: the softmax gives Fact 1, the way the model writes gives Fact 2, and the residual stream decides where a repair can go.
 
 ### Tokens and positions
 
@@ -59,7 +117,7 @@ $$
 
 <div data-posenc data-caption="Sinusoidal positions: 96 positions by 128 dimensions, green positive and blue negative. Below, one position's similarity with all the others. Move the slider and the curve only shifts."></div>
 
-Most current models use a descendant, rotary embeddings, which apply the same rotations to queries and keys instead of adding them to the input. The toy model later in this post does too.
+Most current models use a descendant, rotary embeddings, which apply the same rotations to queries and keys instead of adding them to the input. The toy model later in this post does too. Two things from this part return later. Rotary attention decays with distance, a second tax on an instruction set far back (in Dilution). And without positions, attention cannot tell one order of tokens from another: that is a symmetry, and the section on symmetry puts symmetries to work.
 
 ### Attention
 
@@ -69,7 +127,7 @@ $$
 \mathrm{Attention}(Q, K, V) = \mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V.
 $$
 
-Read it one row at a time. One token's query is compared with every key by a dot product. The scores $$s_j$$ become weights through the softmax, $$a_j = e^{s_j} / \sum_i e^{s_i}$$, and the output is the weighted average of the values. Every weight is positive, and the weights in a row add up to 1. Keep that last fact in view. Most of this post follows from it.
+Read it one row at a time. One token's query is compared with every key by a dot product. The scores $$s_j$$ become weights through the softmax, $$a_j = e^{s_j} / \sum_i e^{s_i}$$, and the output is the weighted average of the values. Every weight is positive, and the weights in a row add up to 1. Keep that last fact in view: it becomes Fact 1 below, and most of this post follows from it.
 
 Why divide by $$\sqrt{d_k}$$? If the components of $$q$$ and $$k$$ are independent with mean 0 and variance 1, their dot product has variance $$d_k$$ (the paper's footnote 4). Without the division, scores grow with the width of the head, the softmax saturates towards a single winner, and its gradients vanish. Try it:
 
@@ -85,9 +143,14 @@ $$
 \mathrm{MultiHead}(Q, K, V) = \mathrm{Concat}(\mathrm{head}_1, \dots, \mathrm{head}_h)\, W^O, \qquad \mathrm{head}_i = \mathrm{Attention}(QW_i^Q, KW_i^K, VW_i^V).
 $$
 
-Each head is free to look for something different: the previous word, the subject of a verb, a matching bracket. After attention, every position passes on its own through a two-layer network, $$\mathrm{FFN}(x) = \max(0,\, xW_1 + b_1)\,W_2 + b_2$$, with an inner width of 2048. Each of these sub-layers is wrapped as $$\mathrm{LayerNorm}(x + \mathrm{Sublayer}(x))$$: a residual connection, so information can pass a layer untouched, and a normalisation. Six such layers make the encoder. The decoder has six more, with a third sub-layer that attends to the encoder's output.
+Each head is free to look for something different: the previous word, the subject of a verb, a matching bracket. After attention, every position passes on its own through a two-layer network, $$\mathrm{FFN}(x) = \max(0,\, xW_1 + b_1)\,W_2 + b_2$$, with an inner width of 2048. Each of these sub-layers is wrapped as $$\mathrm{LayerNorm}(x + \mathrm{Sublayer}(x))$$: a residual connection, so information can pass a layer untouched, and a normalisation. The residual connection returns in the section on placement: it is why a repair can be added at any depth and still reach the output. Six such layers make the encoder. The decoder has six more, with a third sub-layer that attends to the encoder's output.
 
 <TransformerDiagram />
+
+The Transformer was built to translate one sentence at a time: inputs of a few dozen tokens, where one budget is plenty and nothing has to be remembered for long. The failures in this post appear when the same design writes thousands of tokens against rules set far back.
+
+<details class="cx-side">
+<summary>Aside: how the 2017 model was trained</summary>
 
 Training used Adam with $$\beta_1 = 0.9$$, $$\beta_2 = 0.98$$ and a learning rate that rises for 4,000 steps and then decays with the inverse square root of the step,
 
@@ -96,6 +159,8 @@ $$
 $$
 
 with dropout and label smoothing both at 0.1. The big model reached 28.4 BLEU on English to German and 41.8 on English to French, after 3.5 days on eight P100 GPUs.
+
+</details>
 
 For this post, the most important part of the paper is its Table 1, which compares layer types:
 
@@ -121,35 +186,18 @@ and they write by sampling one token at a time and feeding it back in. Every rul
 
 **Fact 2: memory without state.** Between two steps, a decoder carries nothing forward except the tokens themselves, together with their keys and values, which are fixed views of those tokens. There is no small running summary, of the kind a finite automaton keeps, that the next step inherits. So anything the text has committed to, a font, a count, a debt of sources, must be found again at every step by attention over the whole context. The transformer's great strength, that any token can read any other directly, is also the reason it has to.
 
-Everything below is a consequence of these two facts, and the repair adds exactly what the second one says is missing.
-
-## How often models lose the thread
-
-No single benchmark measures coherence as I have defined it. The nearest measurements come from three directions: instructions a program can check, long inputs, and imitation of a style.
-
-<div class="cx-text">
-
-| study | what was measured | what they found |
-|---|---|---|
-| IFEval, Zhou et al. 2023 | about 500 prompts with 25 kinds of verifiable instruction, such as "no commas" or "at least 3 sections" | GPT-4 kept every instruction of a prompt 76.9% of the time: roughly one prompt in four broke something a program could check |
-| Multi-IF, He et al. 2024 | instructions of the same kind over three turns, in eight languages | o1-preview fell from 0.877 at the first turn to 0.707 at the third |
-| Laban et al. 2025 | 15 models, over 200,000 simulated conversations, six tasks | when a task arrived over several turns, performance dropped by 39% on average; unreliability rose by 112% |
-| IFScale, Jaroslawicz et al. 2025 | up to 500 keyword instructions for one report | the best frontier models reached 68% at 500, with a bias towards earlier instructions |
-| Li et al. 2024 | two chatbots talking, each given a persona by its system prompt | significant drift from the system prompt within eight rounds, traced to attention decay |
-| Liu et al. 2024, "Lost in the middle" | an answer placed at different depths of a long context | U-shaped accuracy; with the answer in the middle, GPT-3.5-Turbo did worse than with no documents at all (56.1%) |
-| RULER, Hsieh et al. 2024 | synthetic long-context tasks | of the models claiming 32K tokens or more, only half kept satisfactory performance at 32K |
-| NoLiMa, Modarressi et al. 2025 | retrieval where question and answer share no words | at 32K tokens, 11 models fell below half of their short-context score; GPT-4o went from 99.3% to 69.7% |
-| ALCE, Gao et al. 2023 | answers that must cite their sources | on ELI5, even the best models lacked complete citation support half of the time |
-| Levy, Jacoby and Goldberg 2024 | the same reasoning questions, padded to different lengths | reasoning degraded at input lengths far below the models' technical maximum |
-| Wang et al. 2025 | imitating more than 400 everyday authors from a few samples, over 40,000 generations per model | style approximated in news and email; blogs and forums remained hard |
-
-</div>
-
-The rows sort into the four lines of the table at the top. Failures that grow with the length of the context (RULER, NoLiMa, lost in the middle, persona drift, Levy et al.) are what dilution predicts. Failures that grow with the number of rules and turns (IFEval, Multi-IF, IFScale, Laban et al.) are what compounding predicts: every extra rule and every extra step is another chance to slip. Failures at the end, missing citations above all, are what blind stopping predicts. And the hardest case, imitation from examples, combines all three with a fourth difficulty: nobody states the rules, so they must first be read off the examples.
-
-Two more observations shape the repair. Laban et al. separate *aptitude*, which barely moved, from *reliability*, which collapsed: the models could do the task, they just did not do it every time. That points at the mechanism, not the knowledge. And newer models do better on every row, but each study found failures that grow with length, turns or the number of rules, across models, labs and years. A pattern that stable points to the architecture.
+The draft in the opening is both facts at work. The double dollars were set in the example posts, thousands of tokens before the fourth paragraph, and every token written since has joined the crowd they must be found in (Fact 1). And nothing was keeping count of the paragraphs, or of the sources still owed (Fact 2). Everything below is a consequence of these two facts, and the repair adds exactly what the second one says is missing.
 
 ## What coherence means
+
+<div class="cx-talk">
+<p class="reader"><span class="who">Reader</span>So you keep a perfect archive, and no memory.</p>
+<p class="model"><span class="who">Model</span>I prefer "stateless". It sounds deliberate.</p>
+<p class="reader"><span class="who">Reader</span>It sounds expensive: every step, you reread the archive to find out what you owe. But first, what exactly do you owe?</p>
+<p class="model"><span class="who">Model</span>Say it precisely, and I will tell you which of it I can even express.</p>
+</div>
+
+This section turns the five promises into formulas, for two reasons. A promise stated exactly can be checked by a program, and later those checkers become the teachers. And the formulas fall into a few shapes, each of which breaks at its own moment, which is what the next section proves.
 
 ### Obligations
 
@@ -165,17 +213,17 @@ The obligations come in a few shapes, and linear temporal logic names most of th
 
 | shape | formula | in this notebook | how it fails |
 |---|---|---|---|
-| invariant | $$\mathbf{G}\,p$$, always $$p$$ | every formula uses the double-dollar delimiter | at any step: a slip, then compounding |
-| eventuality | $$\mathbf{F}\,q$$, eventually $$q$$ | some section explains the complexity class | only at the end: stopping unpaid |
-| order | $$\lnot r \;\mathbf{U}\; q$$, no $$r$$ until $$q$$ | that section comes before the sources | when the second arrives first |
+| invariant | $$\mathbf{G}\,p$$, always $$p$$ | the double dollars; sentence case; the u in behaviour | at any step: a slip, then compounding |
+| eventuality | $$\mathbf{F}\,q$$, eventually $$q$$ | sources last: a sources section appears | only at the end: stopping unpaid |
+| order | $$\lnot r \;\mathbf{U}\; q$$, no $$r$$ until $$q$$ | the section explaining the class comes before the sources | when the second arrives first |
 | last | $$\mathbf{F}\,r \land \mathbf{G}(r \to \mathbf{G}\,s)$$ | once the sources begin, only sources follow | as eventuality, then as invariant |
-| count | $$\#p = n$$, bounded | the requested number of paragraphs | at the end, if nothing counted |
+| count | $$\#p = n$$, bounded | nine paragraphs | at the end, if nothing counted |
 
 </div>
 
 The last row is not a temporal operator, but counting to a fixed bound is still something a finite automaton can do. The last column is the point of the table: each shape fails through a different mechanism, and the next section proves one result per mechanism.
 
-All of these can be checked while the text is written. Bauer, Leucker and Schallhart (2011) give a three-valued verdict on a prefix $$u$$ of a run: $$\top$$ if every continuation satisfies $$\varphi$$, $$\bot$$ if none does, and $$?$$ otherwise. A text ends, and at its end every verdict is settled. So an invariant can only move from $$?$$ to $$\bot$$, and is kept if the text ends unbroken; an eventuality can only move from $$?$$ to $$\top$$, and is broken if the text ends unpaid. Each obligation compiles to a small deterministic automaton that reads the output once, keeping a few bits of state as it goes.
+All of these can be checked while the text is written. Bauer, Leucker and Schallhart (2011) give a three-valued verdict on a prefix $$u$$ of a run: $$\top$$ if every continuation satisfies $$\varphi$$, $$\bot$$ if none does, and $$?$$ otherwise. A text ends, and at its end every verdict is settled. So an invariant can only move from $$?$$ to $$\bot$$, and is kept if the text ends unbroken; an eventuality can only move from $$?$$ to $$\top$$, and is broken if the text ends unpaid. Each obligation compiles to a small deterministic automaton that reads the output once, keeping a few bits of state as it goes. That matters later: a monitor that gives a verdict on every prefix can teach, token by token, a network that has to keep the same books.
 
 ### What a transformer can and cannot do with them
 
@@ -193,7 +241,16 @@ The expressivity results above are a competence statement; the three failures be
 
 ## Three ways to lose the thread
 
+<div class="cx-talk">
+<p class="model"><span class="who">Model</span>So I can express every promise. Competence is not my problem.</p>
+<p class="reader"><span class="who">Reader</span>Performance is. And each shape breaks at its own moment: an invariant at any step, a debt only at the end, a count when you stop without counting.</p>
+<p class="model"><span class="who">Model</span>Three moments.</p>
+<p class="reader"><span class="who">Reader</span>Three mechanisms. Each has a proof, and each is built from your two facts.</p>
+</div>
+
 ### Dilution
+
+This is how the double dollars fade. They were set in the example posts, thousands of tokens before the fourth paragraph, and every token written since has joined the crowd they compete with.
 
 **Lemma 1.** Suppose every attention score in a row satisfies $$|s_j| \le B$$. Then every weight satisfies
 
@@ -221,7 +278,7 @@ The edge an instruction needs grows like $$\log n$$. A network whose scores are 
 
 ### Compounding
 
-An invariant must hold at every opportunity to break it. Let $$h_i(t)$$ be the probability that invariant $$i$$ breaks for the first time at step $$t$$, given that it has held so far: its *hazard*.
+This is how a promise kept for three paragraphs breaks in the fourth. An invariant must hold at every opportunity to break it. Let $$h_i(t)$$ be the probability that invariant $$i$$ breaks for the first time at step $$t$$, given that it has held so far: its *hazard*.
 
 **Proposition 2.** Treating $$k$$ invariants as independent, the probability that all of them survive $$L$$ tokens is
 
@@ -249,7 +306,7 @@ Two predictions follow, and the experiment tests both. First, *per opportunity t
 
 ### Blind stopping
 
-Eventualities are judged only at the end, and the end is itself a token, $$\langle\text{eos}\rangle$$.
+This is how the post ends after seven paragraphs, and without its sources. Eventualities and counts are judged only at the end, and the end is itself a token, $$\langle\text{eos}\rangle$$.
 
 **Proposition 3.** Suppose that at each step while an eventuality $$q$$ is owed, the model ends the text with probability $$e$$, and otherwise pays $$q$$ with probability $$d$$. Then
 
@@ -265,7 +322,15 @@ With time-varying rates the same sum holds term by term. The probability of endi
 
 ## The Ledger
 
-The three fixes are one design. The Ledger gives the obligations a state (against compounding, and to count with), reads that state through a softmax of its own (against dilution), and lets the state hold back the end of the text (against blind stopping). It sits beside an ordinary decoder and changes nothing about it:
+<div class="cx-talk">
+<p class="model"><span class="who">Model</span>A channel the crowd cannot dilute. A state that carries each promise. A say in when I stop.</p>
+<p class="reader"><span class="who">Reader</span>Three fixes.</p>
+<p class="model"><span class="who">Model</span>One design. And it needs someone to keep the book.</p>
+</div>
+
+<p class="cx-narrator">So a clerk was brought in, to read the promises once, keep one line for each, and answer to no crowd.</p>
+
+The Ledger gives the obligations a state (against compounding, and to count with), reads that state through a softmax of its own (against dilution), and lets the state hold back the end of the text (against blind stopping). It sits beside an ordinary decoder and changes nothing about it:
 
 <LedgerDiagram />
 
@@ -297,6 +362,14 @@ $$
 
 While a debt is fully owed ($$\pi = 1$$), this multiplies the odds of stopping by $$\varepsilon^{\gamma} = 10^{-3\gamma}$$, which is exactly the lever Proposition 3 asks for. The toy learned $$\gamma$$ between 0.30 and 0.42 across runs: the odds of stopping with a debt outstanding are cut by a factor of 8 to 18.
 
+Here is the Clerk's book for the draft of the opening, as its seventh paragraph ends:
+
+<div class="cx-talk">
+<p class="clerk"><span class="who">Clerk</span>Paragraph seven of nine. The double dollars, sentence case, the u in behaviour: in force. Nine paragraphs: seven paid. Sources: owed.</p>
+<p class="model"><span class="who">Model</span>I was going to stop here.</p>
+<p class="clerk"><span class="who">Clerk</span>I know. You may not.</p>
+</div>
+
 **Training.** Checking is cheap, so the checkers can teach. Next to the usual next-token loss, the clerk's heads learn from labels for each obligation, and the state learns from the monitors' verdicts on every prefix of the training text: whether the sources have begun yet, and, for a count, whether a paragraph starts here. Every training token becomes a supervised example of bookkeeping.
 
 $$
@@ -313,7 +386,7 @@ Five properties follow from the definitions.
 4. **It trains in parallel.** The noisy-OR is a cumulative sum of $$\log(1 - e_{s,i})$$ and the count a cumulative sum of $$e_{s,i}$$, so training needs no back-propagation through time, even though the state is a recurrence.
 5. **It is cheap, and it is readable.** A slot's state is $$o_i$$ plus a linear function of three numbers, so its keys and values are $$W o_i$$, computed once per prompt, plus a rank-3 correction. Per written token and read layer that leaves one query projection and $$K$$ dot products, $$O(d^2 + Kd)$$, with no term in $$n$$; self-attention costs $$O(d^2 + nd)$$. And the slots can be read out: what the clerk believes is owed, and what the model believes it has paid.
 
-The advantages are clearest against the alternatives, each of which fixes part of the problem:
+Why not something simpler? Each simpler repair answers part of the problem, and only part:
 
 <div class="cx-text">
 
@@ -328,7 +401,10 @@ The advantages are clearest against the alternatives, each of which fixes part o
 
 </div>
 
-Only the last row answers all three failures at once, and it does so inside the network, for rules nobody wrote down. Where it sits among earlier ideas:
+Only the last row answers all three failures at once, and it does so inside the network, for rules nobody wrote down.
+
+<details class="cx-side">
+<summary>Aside: where the Ledger sits among earlier work</summary>
 
 <div class="cx-text">
 
@@ -346,15 +422,24 @@ Only the last row answers all three failures at once, and it does so inside the 
 
 </div>
 
+</details>
+
 ## Symmetry: when the state collapses
 
-The Ledger keeps an invariant alive with a state and a read, which lowers its hazard; it cannot make it zero. For one large class of invariants, more is possible, and mathematics has a name for the reason.
+<div class="cx-talk">
+<p class="reader"><span class="who">Reader</span>Your Clerk lowers the chance of a slip. It cannot make it zero.</p>
+<p class="clerk"><span class="who">Clerk</span>Not for everything in my book. But some promises are only choices: two dollar signs or one, this case or that.</p>
+<p class="model"><span class="who">Model</span>Those I would swear on the Styx. Unbreakable.</p>
+<p class="clerk"><span class="who">Clerk</span>Then stop choosing. Choose once, before the first word, and let the alphabet forget the alternatives.</p>
+</div>
+
+For one large class of invariants, more is possible than a lower hazard, and mathematics has a name for the reason.
 
 ### Coherence in mathematics
 
 Mathematics has used the word *coherence* for a long time, with a precise meaning. In a monoidal category there are many ways to rebracket a product such as $$(a \otimes b) \otimes (c \otimes d)$$, each a chain of associativity isomorphisms. Mac Lane's coherence theorem (1963) says that any two such chains between the same two bracketings are equal: every diagram built from them commutes. An equivalent form says that every monoidal category is equivalent to a *strict* one, in which those isomorphisms are identities and there is nothing left to choose. Coherence, there, is the guarantee that choices made in different places agree, and strictification makes the agreement automatic.
 
-Many conventions are choices of exactly this kind: among interchangeable variants, which font, which delimiter, "colour" or "color". The text keeps such a convention when it makes the same choice everywhere. The Ledger helps the network remember its choice. Strictification suggests something better: make the choice once, outside the network, and leave nothing to remember.
+Many conventions are choices of exactly this kind, the double dollars and sentence case among them: among interchangeable variants, which font, which delimiter, "colour" or "color". The text keeps such a convention when it makes the same choice everywhere. The Ledger helps the network remember its choice. Strictification suggests something better: make the choice once, outside the network, and leave nothing to remember.
 
 ### A group acting on words
 
@@ -410,9 +495,20 @@ Gauge fixing also saves work. Once the clerk and the frame have read the example
 
 There are limits. The group must act on the units the model writes: "colour" and "color" can be tokenised differently, and lower-casing a heading is not invertible, so not every convention is a permutation of tokens. Examples that carry content, such as voice, topic and facts, cannot be dropped wholesale; only their conventions can be factored out. And obligations with no symmetry, like "end with sources" or "write nine paragraphs", stay with the Ledger.
 
+<div class="cx-talk">
+<p class="reader"><span class="who">Reader</span>And the u in behaviour?</p>
+<p class="clerk"><span class="who">Clerk</span>Not a clean choice. The two spellings are cut into different pieces, so no permutation of tokens swaps them. That one stays in my book.</p>
+</div>
+
 ## Where coherence belongs
 
-Each part of the repair answers one failure, and each failure happens in one place in the network, so placement is not a free choice.
+<div class="cx-talk">
+<p class="reader"><span class="who">Reader</span>You keep saying "at the output", "inside", "along the text". Where, exactly?</p>
+<p class="model"><span class="who">Model</span>Wherever each promise breaks. The double dollars break on a single token. The sources break at the stop. The nine paragraphs break because nothing counted.</p>
+<p class="reader"><span class="who">Reader</span>Then put each repair where its promise breaks, and nowhere else.</p>
+</div>
+
+Each part of the repair answers one failure, and each failure happens in one place in the network, so placement is not a free choice: it follows from the failures.
 
 Start from the residual stream. Elhage and colleagues describe a transformer as a shared channel that every attention layer and feed-forward layer reads from and adds to; the logits read its final sum. Anything written into the stream at any depth reaches the output directly. What depends on the depth is what the rest of the network can do with it.
 
@@ -432,8 +528,8 @@ The rule that follows: act on an obligation at the lowest place where it can be 
 
 | obligation | where it breaks | where to act |
 |---|---|---|
-| a choice among interchangeable variants | one output token | after: restrict the alphabet (the frame) |
-| an eventuality or a count | the decision to stop | across: a status; inside: a read of it; after: a gate on stopping |
+| a choice among interchangeable variants (the double dollars, sentence case) | one output token | after: restrict the alphabet (the frame) |
+| an eventuality or a count (sources last, nine paragraphs) | the decision to stop | across: a status; inside: a read of it; after: a gate on stopping |
 | an order, or anything that needs content retrieved | what is looked up next | inside, before attention |
 | voice, topic, facts | everywhere | inside, by ordinary attention |
 
@@ -443,11 +539,17 @@ The second row carries a correction from the experiment: a count needs its statu
 
 ## An experiment
 
+<div class="cx-talk">
+<p class="reader"><span class="who">Reader</span>A rule, and a prediction for every part of it. Now test it somewhere nothing else can move.</p>
+<p class="model"><span class="who">Model</span>Frontier models do not fit on four CPU cores.</p>
+<p class="reader"><span class="who">Reader</span>Then shrink the opening scene until it does.</p>
+</div>
+
 A claim about architecture should be tested where everything else is held still. Frontier models cannot be retrained here, so I built the smallest world that has the problem, and designed it so that each numbered result above has a measurement that could have come out against it.
 
 ### The task
 
-An *author* has a house style: one of six paragraph fonts, one of four heading styles, one of three formula delimiters, and two habits, a closing "why" section and a sources section, each present or absent. The context shows two or three of the author's posts, then a request: a line in the *default* style (plain serif, single-dollar formulas) that says how many paragraphs to write. Then the model writes. The style is never stated. It has to be read off the posts and held against the request, which sits right next to the point where writing begins. The words themselves come from a fixed random chain over 48 words and mean nothing. Chomsky's ideas are colourless on purpose: only form is under test.
+An *author* has a house style: one of six paragraph fonts, one of four heading styles, one of three formula delimiters, and two habits, a closing "why" section and a sources section, each present or absent. It is the opening scene, shrunk: the fonts, heading styles and delimiters play the double dollars and sentence case, the two habits play sources last, and the request below plays the nine paragraphs. The context shows two or three of the author's posts, then a request: a line in the *default* style (plain serif, single-dollar formulas) that says how many paragraphs to write. Then the model writes. The style is never stated. It has to be read off the posts and held against the request, which sits right next to the point where writing begins. The words themselves come from a fixed random chain over 48 words and mean nothing. Chomsky's ideas are colourless on purpose: only form is under test.
 
 Most authors in the training data use the default style (40% of fonts, half of all delimiters), so a model that stops looking at the evidence drifts towards the request's style. Seven monitors check each post for the implicit rules: font, headings and maths (the three invariants), the why-section and the sources (eventualities, with sources required to come last), their order, and form (no token that belongs to the prompt, such as a stray request marker). An eighth checks the requested length, the one explicit instruction and the one count.
 
@@ -512,17 +614,27 @@ Each cell is predicted / measured, in percent. The Ledger lowers every hazard (m
 
 Slots in the context did no better than no slots at all (20% against 17%), as Corollary 1 predicts for anything that shares the softmax. Every placement with its own channel roughly doubled the baseline (30% to 44%), and the screen cannot separate them from one another: with 100 prompts, a difference of ten points is within noise. One contrast is large enough to read. On the logits alone, the Ledger kept the surface rules best (maths 89%, form 98%) but counted worst (17% of posts had the right length), while the read before attention counted best (76%). A count needs its status read inside the network, not only a gate at the end; the placement table above now says so.
 
+<div class="cx-talk">
+<p class="model"><span class="who">Model</span>So it works in a toy.</p>
+<p class="reader"><span class="who">Reader</span>In a toy built so that every claim could fail. One had to be corrected; none failed.</p>
+</div>
+
 ### Try it
 
 <div data-ledger-demo data-src="/coherence" data-caption="The baseline and the Ledger with a frame, seed 0 of each, running in your browser on the weights trained above. The same prompt goes to both; red marks a token a monitor caught. The second model reads the example posts once, through its frame and clerk, and never attends to them while it writes; under it, the frame it counted and what each slot still owes."></div>
 
 ## Putting it in a real model
 
+<div class="cx-talk">
+<p class="model"><span class="who">Model</span>"Works in a toy" is what everyone says just before a real model humbles them.</p>
+<p class="reader"><span class="who">Reader</span>Then go and be humbled, with your predictions written down first, so the target cannot move afterwards.</p>
+</div>
+
 The toy leaves open the question that matters: does any of this help a model that already speaks? I have built the test on SmolLM2-135M-Instruct, a pretrained instruction model with 30 layers and a context of 8,192 tokens, measured on IFEval, the standard benchmark of verifiable instructions. The code is public and tested. The runs are not done yet, so this section gives the design and, before any number exists, what the theory predicts.
 
 ### IFEval is already written in the three shapes
 
-Every IFEval instruction type but two is one of the obligations of the toy.
+Every IFEval instruction type but two is one of the obligations of the toy. "No commas" is a promise like the double dollars, "end with a postscript" like sources last, "at least 300 words" like nine paragraphs.
 
 <div class="cx-text">
 
@@ -565,7 +677,11 @@ The model stays frozen; only the new parameters learn. The clerk reads the outpu
 4. The shared-softmax slots never beat the Ledger, and fall further behind as the context grows.
 5. Without its gate, the Ledger loses most on obligations that must be paid before the end: postscripts, end phrases, minimum counts.
 
-If the third prediction fails, then either dilution is not what limits a 135-million-parameter model on IFEval, or the retrofit does not carry the state, and the next version of this post will say which. The code, its tests and the commands are in [research/ledger-smollm](https://github.com/ivi-137/ivi-137.github.io/tree/main/research/ledger-smollm).
+If the third prediction fails, then either dilution is not what limits a 135-million-parameter model on IFEval, or the retrofit does not carry the state, and the next version of this post will say which. The code, its tests and the commands are in [research/ledger-smollm](https://github.com/ivi-137/ivi-137.github.io/tree/main/research/ledger-smollm/).
+
+<div class="cx-talk">
+<p class="clerk"><span class="who">Clerk</span>Predictions entered. Results: blank. I do not fill in columns I have not seen.</p>
+</div>
 
 IFEval has no example posts to imitate, so gauge fixing waits for an imitation benchmark. The recipe carries over unchanged: declare the families of interchangeable variants the model writes (delimiters, quotation marks, list markers, spelling pairs that tokenise alike), read the frame by counting them in the examples, and restrict the output to one member per family. That part needs no training at all.
 
@@ -603,6 +719,11 @@ The toy is tiny, its prose is noise, and its style has five dimensions where a r
 
 ## The ledger of this notebook
 
+<div class="cx-talk">
+<p class="reader"><span class="who">Reader</span>And this post? It made promises too.</p>
+<p class="clerk"><span class="who">Clerk</span>Four of them in its first paragraph, and a few more besides. Paste a draft, and I will read you the accounts.</p>
+</div>
+
 The monitors are the easy half of all this, and the easy half is useful on its own: they are the same kind of checker that supervised the Ledger during training. Here are the conventions of this notebook as monitors, learned from the other posts: each rule counts how many of them keep it, and it is owed when at least two thirds do. One rule is owed regardless. Only one of the three earlier posts ends with further reading, so the corpus alone would not have made it a rule; I made it one, because an author can promote a habit to a rule, and that is an obligation too. Paste a draft, from a model or not:
 
 <Audit self="you-need-coherence" caption="The house style as monitors, checked in one pass. G always, F eventually, L last, S shape. Click a finding to jump to its line." />
@@ -610,6 +731,13 @@ The monitors are the easy half of all this, and the easy half is useful on its o
 ## Why the class is NP
 
 Checking whether a draft keeps a set of obligations takes one pass of a few small automata: time linear in the length of the draft. Writing a draft that keeps them all while also being worth reading is a search through an enormous space, and nothing makes it easy. A proposed answer is easy to verify, a good one is hard to find, and that shape is NP, the same shape as running Life backwards in [Gliders are messages](/posts/gliders-are-messages/). The Ledger's bet is that the easy side can teach the hard one, during training, one token at a time; the frame's is that, for some obligations, the hard side can be made to disappear.
+
+<div class="cx-talk">
+<p class="model"><span class="who">Model</span>Checking is easy. Writing well is not.</p>
+<p class="clerk"><span class="who">Clerk</span>Then let the easy half teach the hard one.</p>
+</div>
+
+<p class="cx-narrator">And the Model wrote the next entry: nine paragraphs, sources last. This time, something kept count.</p>
 
 ---
 

@@ -362,3 +362,64 @@
 .prose .cx-text td:first-child {
   font-weight: 600;
 }
+
+/* ── the voices between sections: the Model, the Reader, the Clerk ── */
+.prose .cx-talk {
+  margin: 1.8rem 0 2rem;
+  padding: 0.85rem 1.1rem;
+  border-left: 3px solid var(--ink);
+  background: rgba(22, 20, 15, 0.045);
+}
+.prose .cx-talk p {
+  display: grid;
+  grid-template-columns: 5.2em 1fr;
+  column-gap: 0.7em;
+  align-items: baseline;
+  margin: 0.4rem 0;
+  line-height: 1.55;
+}
+.prose .cx-talk .who {
+  font-family: var(--f-mono);
+  font-size: 0.7em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.prose .cx-talk .model .who {
+  color: var(--c-np);
+}
+.prose .cx-talk .reader .who {
+  color: var(--c-exp);
+}
+.prose .cx-talk .clerk .who {
+  color: var(--c-p);
+}
+.prose .cx-narrator {
+  max-width: 32em;
+  margin: 1.8rem auto;
+  text-align: center;
+  font-style: italic;
+  color: var(--ink-2);
+}
+.prose details.cx-side {
+  margin: 1.5rem 0;
+  padding: 0.6rem 1rem;
+  border: 1px dashed var(--ink-2);
+}
+.prose details.cx-side > summary {
+  cursor: pointer;
+  font-family: var(--f-mono);
+  font-size: 0.75em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+@media (max-width: 560px) {
+  .prose .cx-talk p {
+    display: block;
+  }
+  .prose .cx-talk .who {
+    display: block;
+    margin: 0 0 0.1rem;
+  }
+}
