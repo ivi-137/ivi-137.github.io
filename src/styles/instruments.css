@@ -996,9 +996,14 @@
 .toc {
   position: fixed;
   z-index: 3;
-  top: 24vh;
+  top: 96px;
   left: max(16px, calc(50vw - 430px - 250px));
+  display: flex;
+  flex-direction: column;
   width: 210px;
+  /* stays clear of the HUD at the bottom left; long lists scroll inside */
+  max-height: calc(100vh - 168px);
+  max-height: calc(100dvh - 168px);
   font-size: 11px;
   line-height: 1.45;
   opacity: 0.8;
@@ -1010,9 +1015,18 @@
   color: var(--acid);
 }
 .toc ol {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 229, 211, 0.25) transparent;
+  /* items fade out at the edges instead of being cut in half */
+  -webkit-mask-image: linear-gradient(transparent, #000 12px, #000 calc(100% - 12px), transparent);
+  mask-image: linear-gradient(transparent, #000 12px, #000 calc(100% - 12px), transparent);
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 8px 0;
   border-left: 1px solid rgba(236, 229, 211, 0.18);
 }
 .toc li a {
@@ -1568,9 +1582,17 @@ main,
 
 /* ── Hilbert reading gauge in the TOC ── */
 .toc__hilbert {
+  flex: none;
   width: 84px;
   height: 84px;
   margin-bottom: 14px;
+}
+@media (max-height: 760px) {
+  .toc__hilbert {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 8px;
+  }
 }
 .toc__hilbert path {
   fill: none;

@@ -196,20 +196,49 @@ function reading() {
   const toc = document.querySelector<HTMLElement>('[data-toc]');
   if (toc) {
     const links = new Map([...toc.querySelectorAll<HTMLAnchorElement>('a')].map((a) => [a.hash.slice(1), a]));
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries)
-          if (e.isIntersecting) {
-            links.forEach((a) => a.removeAttribute('aria-current'));
-            links.get(e.target.id)?.setAttribute('aria-current', 'true');
-          }
-      },
-      { rootMargin: '0px 0px -70% 0px' },
-    );
-    links.forEach((_, id) => {
-      const h = document.getElementById(id);
-      if (h) io.observe(h);
-    });
+    const list = toc.querySelector<HTMLElement>('ol');
+    // a long contents list scrolls inside the panel: keep the current section in view
+    const reveal = (a: HTMLElement) => {
+      if (!list || list.scrollHeight <= list.clientHeight) return;
+      const r = a.getBoundingClientRect();
+      const o = list.getBoundingClientRect();
+      if (r.top >= o.top && r.bottom <= o.bottom) return;
+      // instant: a smooth scroll still in flight would carry the list past a mark set during it
+      list.scrollTop += r.top - o.top - o.height / 3;
+    };
+    // the current section is the last heading above the top 30% of the viewport; computed from the scroll
+    // position, so jumps and figures that grow as they mount cannot leave a stale mark
+    const heads = [...links.keys()].map((id) => document.getElementById(id)).filter((h): h is HTMLElement => !!h);
+    let current: HTMLElement | null = null;
+    let queued = false;
+    const update = () => {
+      queued = false;
+      const line = innerHeight * 0.3;
+      let here: HTMLElement | null = null;
+      for (const h of heads) {
+        if (h.getBoundingClientRect().top > line) break;
+        here = h;
+      }
+      if (here === current) return;
+      current = here;
+      links.forEach((a) => a.removeAttribute('aria-current'));
+      const a = here && links.get(here.id);
+      if (a) {
+        a.setAttribute('aria-current', 'true');
+        reveal(a);
+      }
+    };
+    const schedule = () => {
+      if (!queued) {
+        queued = true;
+        requestAnimationFrame(update);
+      }
+    };
+    const stop = new AbortController();
+    addEventListener('scroll', schedule, { passive: true, signal: stop.signal });
+    addEventListener('resize', schedule, { signal: stop.signal });
+    document.addEventListener('astro:before-swap', () => stop.abort(), { once: true });
+    update();
   }
 }
 
