@@ -15,6 +15,7 @@
 #              BATCH (prompts generated together, default 16; 64 suits a GPU with 8 GB or more),
 #              EVAL_TOKENS (cap on tokens per evaluation batch, default 32768 for a 4 GB GPU; raise it on larger GPUs),
 #              STEPS (which steps to run, default "data train base eval analyze"), SEEDS (overrides the preset's seeds),
+#              PROMPTS (overrides the preset's number of training prompts; each gets SAMPLES generations),
 #              PLAN=1 (print the preset's seeds, variants and lengths, one per line, and stop)
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -28,6 +29,7 @@ OUT=${OUT:-work/$PRESET}
 EVAL_TOKENS=${EVAL_TOKENS:-32768}
 STEPS=" ${STEPS:-data train base eval analyze} "
 SEEDS_OVERRIDE=${SEEDS:-}
+PROMPTS_OVERRIDE=${PROMPTS:-}
 want() { [[ "$STEPS" == *" $1 "* ]]; }
 case "$PRESET" in
   pilot) PROMPTS=300;  SAMPLES=2; PASSAGES=20;  GEN=256; EPOCHS=1; SEEDS="0";     LENGTHS="0 1000";                 LIMIT=100; MAXNEW=384;  VARIANTS="lora ledger ledger_joint" ;;
@@ -37,6 +39,7 @@ case "$PRESET" in
   *) echo "usage: $0 pilot|full|colab|kaggle|smoke"; exit 1 ;;
 esac
 if [ -n "$SEEDS_OVERRIDE" ]; then SEEDS=$SEEDS_OVERRIDE; fi
+if [ -n "$PROMPTS_OVERRIDE" ]; then PROMPTS=$PROMPTS_OVERRIDE; fi
 if [ "${PLAN:-0}" = 1 ]; then printf '%s\n' "$SEEDS" "$VARIANTS" "$LENGTHS"; exit 0; fi
 
 [ -d vendor/instruction_following_eval ] || $PY setup_ifeval.py

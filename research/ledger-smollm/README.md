@@ -102,7 +102,8 @@ choose *Runtime → Change runtime type → T4 GPU*, and run its four cells in o
 tests, saves every result to Google Drive (so a disconnected session resumes where it stopped: run cell 1, then the
 cell you were on), runs the pilot, then the `colab` preset, and downloads a zip of the results.
 
-The `colab` preset keeps the full study's data and training (3,000 prompts, two epochs) and the comparisons that
+The notebook's `colab` run uses 2,000 training prompts × 4 samples (8,000 generations; `TRAIN_PROMPTS` in cell 3, or
+`PROMPTS` for `run_all.sh`), where the preset itself uses 3,000 × 4, and keeps two epochs and the comparisons that
 decide the claims: `base`, `lora`, `ledger` and `ledger_joint`, two seeds, all 541 IFEval prompts at 0 and 6,000
 tokens of background (the endpoints of prediction 3). It leaves out the no-gate ablation, the third seed and the
 intermediate lengths, which `full` adds. On a T4 (no native bfloat16) the frozen model runs in float32; on an L4 or
