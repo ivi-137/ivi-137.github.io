@@ -345,6 +345,11 @@
 }
 
 /* ── tables of prose (the argument, the evidence, comparisons) ── */
+/* wider than a phone: the wrapper scrolls sideways, instead of the page clipping the table */
+.prose .cx-text {
+  max-width: 100%;
+  overflow-x: auto;
+}
 .prose .cx-text table {
   min-width: 700px;
   text-align: left;
