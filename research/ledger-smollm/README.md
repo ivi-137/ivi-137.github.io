@@ -109,6 +109,17 @@ intermediate lengths, which `full` adds. On a T4 (no native bfloat16) the frozen
 A100, in bfloat16. `EVAL_TOKENS` sets the size of evaluation batches; the notebook picks it from the GPU's memory and
 halves it if a step runs out of memory.
 
+### Kaggle
+
+[`kaggle.ipynb`](kaggle.ipynb) is one cell: import it (*File → Import Notebook*, from this repository's GitHub link)
+or paste the cell into a new notebook. In the settings panel choose *Accelerator: GPU T4 x2* and *Internet: on*. Run
+it once with `STUDY = 'pilot'`; then set `STUDY = 'kaggle'` (the same study as `colab`) and use *Save Version → Save &
+Run All (Commit)*, which keeps running with the browser closed and saves the results as the version's output. With two
+GPUs, one builds the data while the other scores the frozen model, then each trains and scores its share of the seeds.
+The run stops itself and packs what is done before its time budget (`TIME_BUDGET_H`, 8.5 hours); to continue, add
+the notebook's previous version as an input (*Add Input → Your Work*) and run it again: finished steps are copied and
+skipped. Files are written whole and then renamed, so a stopped run never leaves a partial result behind.
+
 ### Windows (PowerShell, NVIDIA GPU)
 
 Open PowerShell (not as administrator) and run one line at a time. `run_all.ps1` does what `run_all.sh` does and uses
@@ -160,6 +171,7 @@ and push, or paste `summary.md`.
 | `batching.py` | training examples and batches |
 | `data.py` | prompts, targets (samples and exact repairs), background passages |
 | `train.py`, `evaluate.py`, `analyze.py` | training, official IFEval at several lengths, statistics (Wilson, exact McNemar, paired bootstrap) |
-| `run_all.sh`, `run_all.ps1` | the whole study (`smoke`, `pilot`, `full`; `colab` in bash), for bash and for Windows PowerShell |
+| `run_all.sh`, `run_all.ps1` | the whole study (`smoke`, `pilot`, `full`; `colab` and `kaggle` in bash), for bash and for Windows PowerShell |
 | `colab.ipynb` | the study on a Colab GPU, with results kept on Google Drive and downloaded as a zip |
+| `kaggle.ipynb` | the study on Kaggle's two T4 GPUs in parallel, with a time budget and resuming from a previous version's output |
 | `tests/` | label agreement with the checkers; identity at insertion (float32 and bfloat16); open gates change the function; decoding equals a full pass; batched equals single generation; gradients reach only the Ledger; monotone state; blocked and recomputed attention equal whole, gradients included |

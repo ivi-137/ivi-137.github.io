@@ -15,6 +15,7 @@ passes. Every variant, the LoRA control included, trains on the same records.
 import argparse
 import collections
 import json
+import os
 import pathlib
 import random
 import re
@@ -62,6 +63,13 @@ REPAIR_ORDER = [
     'startend:end_checker', 'combination:two_responses', 'combination:repeat_prompt', 'change_case:english_lowercase',
     'change_case:english_capital', 'punctuation:no_comma', 'detectable_format:json_format', 'startend:quotation',
 ]
+
+
+def write_whole(path, text):
+    """Write to a temporary name, then rename: other steps never see a partial file, even if this one is stopped."""
+    tmp = path.with_name(path.name + '.tmp')
+    tmp.write_text(text, encoding='utf-8')
+    os.replace(tmp, path)
 
 
 def make_prompts(n, seed):
@@ -254,7 +262,7 @@ def main():
     topics = [rng.choice(TOPICS) for _ in range(a.passages)]
     passages = generate(lm, tok, [f'Write a long, detailed article about {t}.' for t in topics], max_new_tokens=a.max_new_tokens,
                         temperature=a.temperature, top_p=0.95, batch_size=a.batch_size, seed=a.seed, log=log)
-    (out / 'distractors.jsonl').write_text(''.join(json.dumps({'topic': t, 'text': p}) + '\n' for t, p in zip(topics, passages)), encoding='utf-8')
+    write_whole(out / 'distractors.jsonl', ''.join(json.dumps({'topic': t, 'text': p}) + '\n' for t, p in zip(topics, passages)))
     log(f'{len(passages)} background passages')
 
     recs = make_prompts(a.prompts, a.seed)
@@ -288,10 +296,10 @@ def main():
     rng.shuffle(kept)
     n_dev = max(1, len(kept) // 20)
     (out / 'dev.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in kept[:n_dev]), encoding='utf-8')
-    (out / 'train.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in kept[n_dev:]), encoding='utf-8')
     summary = {'prompts': len(recs), 'kept': len(kept), 'how': dict(stats), 'by_type': {k: dict(v) for k, v in sorted(by_type.items())},
                'seconds': round(time.time() - t0), 'args': vars(a)}
     (out / 'stats.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
+    write_whole(out / 'train.jsonl', ''.join(json.dumps(r) + '\n' for r in kept[n_dev:]))  # last: marks finished data
     log(f'kept {len(kept)}/{len(recs)} ({dict(stats)}); wrote {out}')
 
 

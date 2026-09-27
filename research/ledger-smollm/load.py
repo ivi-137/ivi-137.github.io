@@ -1,6 +1,7 @@
 """Load the frozen model and wrap it as one of the variants; save and restore the trained parameters of a run."""
 import dataclasses
 import json
+import os
 import pathlib
 
 import torch
@@ -47,8 +48,9 @@ def build(model, variant, device, lcfg=None, lora_rank=None, dtype='auto'):
 def save_run(path, lm, info):
     path = pathlib.Path(path)
     path.mkdir(parents=True, exist_ok=True)
-    torch.save(lm.trainable_state(), path / 'weights.pt')
+    torch.save(lm.trainable_state(), path / 'weights.pt.tmp')
     (path / 'run.json').write_text(json.dumps(info, indent=2), encoding='utf-8')
+    os.replace(path / 'weights.pt.tmp', path / 'weights.pt')  # last: weights.pt marks a finished run
 
 
 def load_run(path, device, model=None, dtype='auto'):

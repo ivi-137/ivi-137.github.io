@@ -10,6 +10,7 @@ share of attention left for the instructions shrinks with L (Lemma 1), the Ledge
 """
 import argparse
 import json
+import os
 import pathlib
 import time
 
@@ -78,7 +79,9 @@ def main():
             s = score(e, r)
             rows.append({'key': e['key'], 'length': L, 'variant': info['variant'], 'seed': info.get('seed'),
                          'instruction_id_list': e['instruction_id_list'], **s, 'response': r})
-        path.write_text(''.join(json.dumps(r) + '\n' for r in rows), encoding='utf-8')
+        tmp = path.with_name(path.name + '.tmp')  # written whole, then renamed: a stopped run leaves no partial file
+        tmp.write_text(''.join(json.dumps(r) + '\n' for r in rows), encoding='utf-8')
+        os.replace(tmp, path)
         acc = sum(r['strict_all'] for r in rows) / len(rows)
         ins = sum(sum(r['strict']) for r in rows) / sum(len(r['strict']) for r in rows)
         print(f'{name} L={L}: prompt-level strict {acc:.3f}, instruction-level strict {ins:.3f} '
