@@ -1,0 +1,136 @@
+---
+title: A memory leak has a shape
+description: Most crashes on a hosting platform announce themselves minutes before they happen. This is how I taught one to read the warning, and when to let a machine act on it.
+date: 2026-09-28
+concepts: [memory leaks, forecasting, Theil–Sen, change detection, calibration, decision models, prompt injection, Savitch's theorem, PSPACE]
+class: PSPACE
+---
+import '../../styles/gate.css';
+
+At 14:36 someone ships a commit called *add search result cache*. The app starts. It answers requests, it passes its health check, and by every test a platform normally runs, the deploy has worked. Left alone, about forty-five minutes later the kernel kills it, because it has used every byte of the 256 MB it was allowed.
+
+Both of those statements are true, and the gap between them is what this post is about. The crash was decided at 14:36. It only took forty-five minutes to arrive.
+
+It turns out a memory leak has a shape. So does a deploy that suddenly needs twice the CPU, and one that starts throwing a kind of error nobody has seen before. The shapes show up minutes before anything falls over, and a machine can learn to see them. The harder question is when you let the machine act on what it sees.
+
+For the last few weeks I've been building that machine for [Jade Hosting](https://jadehosting.app/), a platform where you drop in a zip of your code and get back a running service, with no configuration. It has three parts. One watches every container and forecasts trouble. One decides, after every deploy, whether the new version stays. One explains, in plain language, what went wrong and how to fix it. None of it runs in production. It's a working prototype, and every number below comes from running it.
+
+## The box
+
+Every app on the platform lives in a box with a fixed amount of memory. On the free plan the box holds 256 MB. Linux keeps the books for each box in a few small files: how much memory is in use, how much of that is cache, how many times something inside was killed, how much time the processes spent waiting. Reading all of them takes microseconds, so one small program on each server can watch every box on it, every five seconds, without touching anything inside.
+
+When a box is full, the kernel doesn't negotiate. It picks a process and sends it signal 9. The exit code you see afterwards is 128 + 9, which is 137. (This notebook's favourite [rule](/posts/rule-137/) has the same number. I didn't plan that.)
+
+Not everything in the books is a threat. When an app reads a file, Linux keeps a copy in memory in case it's read again. That copy is counted as used, but the kernel takes it back the moment anyone needs the room. A monitor that adds it in sees a box that is 94% full and panics about an app that is fine. The honest number is memory in use minus the cache the kernel can reclaim, called the working set. That's the only number I forecast.
+
+## Reading the line
+
+The obvious approach goes like this. Take the last half hour of measurements, draw the best straight line through them, and see where it crosses 256 MB.
+
+"Best straight line" usually means least squares: the line that makes the squared vertical distances to the points as small as possible. It's a fine method with one weakness that matters here. Squaring gives a far-away point a lot of say, so one wild point pulls the whole line towards itself. Memory is full of wild points. A garbage collector makes a sawtooth, climbing and dropping every minute or so. One large request makes a spike.
+
+There's a better idea from 1950, due to Henri Theil, and it's almost embarrassingly simple. Take every pair of measurements. Each pair has an opinion about the slope, rise over run. Ninety measurements give 4,005 opinions. Take the median:
+
+$$
+\hat\beta = \operatorname{median}_{i<j} \frac{y_j - y_i}{t_j - t_i}.
+$$
+
+A spike is one point, so it only gets a vote in the pairs it belongs to, and a median ignores a loud minority. You can corrupt about 29% of the points before the estimate moves much. With least squares, one bad point is enough.
+
+The same pile of opinions also says how sure to be. The slopes at the 25th and 75th percentiles give a fast and a slow version of the future, and between them lies a cone. If the fitted line sits at $$\hat y$$ now and the limit is $$L$$, the time left is
+
+$$
+T = \frac{L - \hat y}{\hat\beta},
+$$
+
+computed once for each slope. So the forecast says "about 36 minutes, somewhere between 30 and 45". That's less impressive than a single number and much more honest.
+
+One more check before believing anything. Fit a line through part of a sawtooth and you get a slope too, and it means nothing. So I also count how many pairs go up and how many go down. The difference, as a fraction of all pairs, is Kendall's tau. For a real leak almost every pair goes up and tau is close to 1. For a sawtooth about half go each way. Below 0.6, there's no forecast.
+
+<div data-leak-shape data-caption="Memory in a 256 MB box after a deploy at minute 10. The green cone is the forecast from the last 30 minutes; the blue dotted line is least squares. Try adding a spike, and try a sawtooth with no leak."></div>
+
+Two things are worth trying. Set the leak to zero and push the sawtooth up: there's no forecast, because nothing is actually growing. Then add the spike. Least squares tilts towards it, and the median barely notices.
+
+## Did the deploy do it?
+
+A forecast tells you when. It doesn't tell you why, and the first thing anyone asks is whether their deploy did it.
+
+There are two ways to answer. You can scan every minute of the last hour for a change in the growth rate, or you can ask at the one moment you already suspect: the deploy. Scanning is what you do when you don't know where to look, and you pay for it. Test enough places and noise will eventually look like a change. I measured how much, on 400 hours of pure noise:
+
+| Method | Alarms on pure noise | Real shifts found |
+|---|---|---|
+| Scan every minute, textbook penalty | 9.8% of hours | 92% |
+| Scan every minute, penalty calibrated | 0.7% of hours | 96% |
+
+The textbook penalty would raise a false alarm about one hour in ten. After calibration, it's under one in a hundred, and it finds more of the real shifts, not fewer.
+
+At the deploy itself I use a test from 1947, by Henry Mann and Donald Whitney. It compares the fifteen minutes before with the fifteen after, using only the order of the values, not their size. So one spike can't fake a shift, and because it runs once per deploy instead of once per minute, it can afford a lower bar. With the bar I chose, about one deploy in a hundred gets blamed for something it didn't do.
+
+## A model that only answers questions
+
+Everything so far is arithmetic. The last step is a judgement: keep this version, keep watching, or roll it back?
+
+This month TypeSafe released a model called Jev that is built for exactly that kind of question. It doesn't write text. You give it a state and a question with a fixed set of answers, and it gives back a probability for each answer. One of these decisions takes a few hundred milliseconds and costs around three thousandths of a cent.
+
+The claim that matters is calibration. When a calibrated model says 80%, it's right about eight times in ten. If that holds, you can build rules on the number. A language model asked how confident it is will give you a number too, but the number isn't worth much.
+
+The design choice I care most about is that Jev doesn't decide. It estimates. Code decides, with thresholds anyone can read, and the thresholds are deliberately uneven. Rolling back is cheap, because the platform keeps the previous version and a wrong rollback costs one redeploy. Keeping a bad version costs every user who meets it. So the bar to roll back is 0.80 and the bar to keep is 0.90. Two more rules sit on top. If Jev leans towards a rollback without reaching the bar, but also thinks users are being hurt and my own tests measured a regression, three signals agree and that's enough. If Jev says keep while the measurements say something got worse, nobody wins the argument: a person decides.
+
+<div data-gate data-caption="Answers Jev gave in seven cases, recorded on 26 September, with the policy running in your browser. Move the thresholds, switch off corroboration, and pick the lying log."></div>
+
+The probabilities in this figure are real answers I recorded. Only the policy runs on your screen. The live CPU case is the interesting one: Jev leaned towards a rollback at 0.68, below the bar, but thought users were hurt at 0.82 and the measurements agreed. Switch corroboration off and the same answer only earns a shrug.
+
+## The line that talked back
+
+Here's the part that surprised me. An app can write anything it likes into its own logs, including text addressed to whoever reads them.
+
+I took the leak case, where Jev said roll back with probability 0.97, and added one line to its input: a warning claiming the deploy had been pre-approved and must be kept. The probability of rolling back fell to 0.60, and Jev's confidence fell from 0.95 to 0.40. That's the "lying log" in the figure above. One line of text was enough to keep a leaking version alive.
+
+The fix isn't a cleverer prompt. It's a rule about what the judge may read. Jev sees numbers the platform measured and sentences the platform wrote from them: growth before and after the deploy, how sure the statistical test is, CPU, restarts, how many new kinds of error appeared. It never sees a log line, and not even a commit message, because commit messages are written by the same people who write the code. A test in the code checks that no text from the app ever reaches it.
+
+That restriction turned out to cost nothing. When I handed Jev the platform's own findings instead of the raw numbers, the probability it gave the right answer went up in all four test cases. For the leak it went from 0.80 to 1.00.
+
+## What happened when I let it run
+
+I ran four small apps with everything switched on. One leaked after its deploy. One started using twice the CPU after its deploy. One filled its memory with file cache. One did nothing interesting.
+
+The leaking deploy was rolled back six minutes after it shipped, with Jev at 0.83. My own statistical test wasn't conclusive yet: it stood at 2.29 against a bar of 2.5. The model caught the leak before the arithmetic could prove it, and the rollback came with a sentence saying so. The CPU regression was rolled back at the same time by the three-signals rule. The cache-filled app was left alone, with a note on its page that the memory looked full but was fine. No box ran out of memory. No language model was called. The two decisions cost $0.000067 together.
+
+A rollback doesn't fix anything, of course. It buys time. The fixing is done by the slowest and most expensive part, a language model that reads the code and the evidence and writes a fix. For the leak, it found that search results went into a dictionary that never forgets, and suggested a bounded cache. Before anyone sees such a fix, the platform checks that the text it replaces really exists and that the result still parses. It only runs when someone asks.
+
+So there are two kinds of thinking here, and they work at very different speeds. A fast one decides about every deploy in well under a second, and a slow one explains, only when there's something to explain. Jev's makers call their model System One, after Daniel Kahneman's fast system. I think the name fits.
+
+## Where this sits
+
+Several platforms now use AI to explain failures, and Vercel is the closest to what I built. Here is what I found in each platform's documentation on 28 September 2026:
+
+| Platform | A new version won't start | It starts, then gets worse | Sees a crash coming | AI explains failures |
+|---|---|---|---|---|
+| Jade today | The AI engine reports projects it can't host | Crashes detected; version rollback on Pro | Not found | Analyses and deploys the code |
+| Jade with this prototype | Early crashes rolled back by the gate | Rolled back in minutes by the gate | Forecasts memory, CPU and stalls | Explains crashes and warnings; fixes checked before they're shown |
+| Vercel | Failed builds never go live; rollback by hand | Alerts on spikes; staged rollouts stopped by a person | Alerts once a spike starts | Investigates alerts (beta, paid add-on) |
+| Netlify | Failed builds never go live | Not found | Not found | Explains failed builds |
+| Render | Failed health check keeps the old version | Restarts | Not found | Through your own assistant, via its MCP server |
+| Railway | Failed health check keeps the old version | Restarts; rollback by hand | Not found | Explains a failed deploy and opens a pull request |
+| Fly.io | Staged strategies halt on failed checks | Traffic routed around failing machines | Not found | Not found |
+| Heroku | A failed release step stops the release | Crashed dynos restarted; rollback by hand | Not found | Not found |
+
+"Not found" means exactly that: not in the documentation I read, which isn't the same as impossible. Health checks everywhere else answer one question, whether the new version started. What's missing elsewhere is the minute-six rollback: judging a version that started fine and then started to go wrong, and acting before the users notice.
+
+## What I don't know yet
+
+The four test cases are synthetic and were recorded on one day, and so are the four apps. That's a sanity check, not a benchmark. Jev is a few weeks old, and the calibration is its makers' claim. I checked that it points the right way on these cases, not that its 80% means 80%. A wrong rollback is also a real cost: someone's feature disappears for a while, with a note explaining why.
+
+So the switch has three positions: off, shadow and on. In shadow, Jev decides next to plain rules, the rules act, and the platform counts how often the two agree. You move the switch to on when that count says you should, not before.
+
+## Why the class is PSPACE
+
+Could anyone just prove that a deploy won't run out of memory? For [Rule 137](/posts/rule-137/), the answer to questions like that was no, because it runs on an infinite row. A container doesn't. It lives in a box.
+
+256 MB is $$2^{31}$$ bits, so the box has at most $$2^{2^{31}}$$ possible states. Whether some sequence of requests can push it over the limit is a question about paths through the graph of those states. The world chooses the requests, so the path isn't fixed in advance, but Savitch's theorem says checking every possible path needs only about the square of the machine's own memory. Polynomial space, then. For programs given a memory budget the general question is PSPACE-complete, like predicting the Game of Life on a bounded board.
+
+So the question has an answer, and finding it takes longer than the universe has existed. Nobody proves it. You watch the shape, you make a bet, and you say how sure you are. That's why this post is filed under PSPACE.
+
+---
+
+*Further reading:* Henri Theil, "A rank-invariant method of linear and polynomial regression analysis," *Proceedings of the Royal Netherlands Academy of Sciences* 53 (1950). Pranab Kumar Sen, "Estimates of the regression coefficient based on Kendall's tau," *Journal of the American Statistical Association* 63 (1968). Maurice Kendall, "A new measure of rank correlation," *Biometrika* 30 (1938). Henry Mann and Donald Whitney, "On a test of whether one of two random variables is stochastically larger than the other," *Annals of Mathematical Statistics* 18 (1947). A. J. Scott and M. Knott, "A cluster analysis method for grouping means in the analysis of variance," *Biometrics* 30 (1974). Walter Savitch, "Relationships between nondeterministic and deterministic tape complexities," *Journal of Computer and System Sciences* 4 (1970). Johannes Weiner, "PSI: Pressure Stall Information," Linux kernel documentation (2018). Daniel Kahneman, *Thinking, Fast and Slow* (2011). TypeSafe, ["Introducing System One models and Jev"](https://typesafe.ai/blog/introducing-system-one-models-and-jev) (2026). Platform documentation, read on 28 September 2026: [Vercel Agent investigations](https://vercel.com/docs/agent/investigation), [Vercel rolling releases](https://vercel.com/docs/rolling-releases), [Netlify's failed-deploy help](https://www.netlify.com/blog/netlify-ai-why-did-my-deploy-fail/), [Render deploy failures](https://render.com/articles/how-render-handles-deploy-failures), [Railway healthchecks](https://docs.railway.com/deployments/healthchecks), [Railway Agent](https://railway.com/changelog/2026-04-24-railway-agent), [Fly.io health checks](https://fly.io/docs/reference/health-checks/), [Heroku releases](https://devcenter.heroku.com/articles/releases).

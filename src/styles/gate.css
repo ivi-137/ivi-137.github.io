@@ -1,0 +1,34 @@
+/* ── "A memory leak has a shape": live figures ─────────────────────────── */
+
+.gx__stage canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: default;
+  image-rendering: auto;
+}
+.gx__slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.gx__slider input[type='range'] {
+  width: 96px;
+  accent-color: var(--acid);
+}
+.gx__slider output {
+  min-width: 4.4em;
+  color: var(--acid);
+}
+.gx__read {
+  flex-basis: 100%;
+  opacity: 0.85;
+  line-height: 1.5;
+}
+.embed .chip[aria-pressed='true'],
+.embed .chip[aria-current='true'] {
+  color: var(--void);
+  background: var(--acid);
+  border-color: var(--acid);
+}

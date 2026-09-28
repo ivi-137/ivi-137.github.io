@@ -4,6 +4,7 @@
  *   <div data-automaton="110" data-caption="Rule 110 from one cell"></div>
  *   <div data-life="bo$2bo$3o!" data-rule="B3/S23" data-size="48x28" data-caption="A glider"></div>
  *   <div data-attention data-caption="…"></div>   (and the other figures in ./coherence)
+ *   <div data-leak-shape data-caption="…"></div>  (and data-gate, in ./gate)
  *
  * Each becomes a figure with its own controls. Nothing runs until it scrolls
  * into view.
@@ -137,10 +138,13 @@ function lifeBoard(host: HTMLElement) {
 }
 
 const COHERENCE = '[data-attention], [data-posenc], [data-dilution], [data-survival], [data-ledger-demo], [data-audit]';
+const GATE = '[data-leak-shape], [data-gate]';
 
 export function mountEmbeds(root: ParentNode = document) {
   root.querySelectorAll<HTMLElement>('[data-automaton]').forEach(automaton);
   root.querySelectorAll<HTMLElement>('.prose [data-life]').forEach(lifeBoard);
   // the transformer figures ship only with the post that uses them
   if (root.querySelector(COHERENCE)) void import('./coherence/mount').then((m) => m.mountCoherence(root));
+  // the deploy-gate figures ship only with the post that uses them
+  if (root.querySelector(GATE)) void import('./gate/figures').then((m) => m.mountGate(root));
 }
