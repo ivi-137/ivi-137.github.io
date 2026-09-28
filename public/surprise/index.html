@@ -1,0 +1,2272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Glifi · gpojani</title>
+<meta name="description" content="An endless world made of letters: taiga, jungle, red desert, tundra and crystal fields, raymarched with signed distance fields and drawn in ASCII, generated as you fly.">
+<meta name="theme-color" content="#0b0a08">
+<meta property="og:title" content="Glifi: an endless world made of letters">
+<meta property="og:description" content="A generative 3D world, raymarched with signed distance fields and drawn entirely in ASCII.">
+<link rel="icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --bg: #0b0a08;
+    --paper: #ece5d3;
+    --dim: #8f8874;
+    --acid: #c6ff3d;
+    --verm: #ff4b1f;
+    --ghost: #7d8cff;
+    --violet: #9a6bff;
+    --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    --serif: 'Instrument Serif', 'Times New Roman', Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--paper); overflow: hidden; font-family: var(--mono); }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; outline: none; }
+  canvas.dragging { cursor: grabbing; }
+  a { color: inherit; }
+
+  .hud { position: fixed; z-index: 2; pointer-events: none; font-size: 11px; letter-spacing: .04em; transition: opacity .6s; }
+  .hud > * { pointer-events: auto; }
+  .quiet .hud--fade { opacity: 0; }
+  .panel { background: rgba(11, 10, 8, .74); border: 1px solid rgba(236, 229, 211, .16); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+
+  .top { top: 16px; left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .brand { padding: 10px 14px 12px; max-width: min(440px, 100%); }
+  .brand__path { color: var(--dim); text-transform: uppercase; }
+  .brand__path a { text-decoration: none; color: var(--paper); }
+  .brand__path a:hover { color: var(--acid); }
+  .brand h1 { margin: 4px 0 0; font: italic 400 clamp(26px, 5vw, 40px)/1 var(--serif); letter-spacing: 0; }
+  .brand p { margin: 6px 0 0; color: var(--dim); line-height: 1.5; }
+  .side { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+  .stats { padding: 8px 12px; color: var(--dim); text-align: right; white-space: nowrap; line-height: 1.6; }
+  .stats b { color: var(--paper); font-weight: 400; }
+  .stats .here { color: var(--acid); }
+  .map { margin: 0; padding: 8px 10px 6px; font: 11px/1.05 var(--mono); letter-spacing: 0; white-space: pre; }
+  .map small { display: block; margin-top: 6px; color: var(--dim); font-size: 10px; line-height: 1.5; letter-spacing: .03em; white-space: normal; max-width: 29ch; }
+  .m-w { color: var(--ghost); } .m-i { color: #cfe3ef; } .m-d { color: #e0a060; } .m-j { color: #3fbf6a; }
+  .m-t { color: #6f9a74; } .m-u { color: #e4e4e0; } .m-x { color: var(--violet); } .m-f { color: #93b95a; }
+  .m-g { color: #9c9a7a; } .m-m { color: var(--paper); } .m-s { color: var(--acid); font-weight: 600; } .m-y { color: var(--verm); font-weight: 600; }
+
+  .bar { bottom: 16px; left: 16px; right: 16px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .bar button { font: inherit; font-size: 11px; color: var(--paper); background: rgba(11, 10, 8, .74); border: 1px solid rgba(236, 229, 211, .22); padding: 7px 10px; cursor: pointer; text-transform: uppercase; letter-spacing: .06em; }
+  .bar button:hover, .bar button:focus-visible { border-color: var(--acid); color: var(--acid); outline: none; }
+  .bar button[aria-pressed='true'] { background: var(--acid); color: #0b0a08; border-color: var(--acid); }
+  .bar kbd { font: inherit; opacity: .55; margin-left: 6px; }
+
+  .toast { position: fixed; z-index: 3; left: 50%; bottom: 64px; transform: translateX(-50%); padding: 8px 12px; font-size: 11px; opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap; }
+  .toast.on { opacity: 1; }
+
+  .boot { position: fixed; inset: 0; z-index: 1; display: grid; place-items: center; font-size: 12px; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; pointer-events: none; transition: opacity .8s; }
+  .boot.gone { opacity: 0; }
+  .boot__ca { margin: 0 0 14px; font: 12px/1 var(--mono); color: var(--acid); letter-spacing: 0; opacity: .8; white-space: pre; }
+  .boot pre { font: inherit; text-transform: none; letter-spacing: 0; color: var(--verm); white-space: pre-wrap; max-width: 80ch; }
+
+  dialog { max-width: min(660px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; color: var(--paper); background: #11100c; border: 1px solid rgba(236, 229, 211, .2); box-shadow: 0 40px 80px -30px #000; }
+  dialog::backdrop { background: rgba(0, 0, 0, .55); }
+  .about { padding: 22px 24px 20px; font: 17px/1.55 var(--serif); }
+  .about h2 { margin: 0 0 4px; font: italic 400 32px/1.1 var(--serif); }
+  .about .kicker { font: 11px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .08em; margin: 0 0 14px; }
+  .about p { margin: 0 0 12px; }
+  .about code, .about .ramp { font: 13px var(--mono); color: var(--acid); }
+  .about .ramp { white-space: pre; background: #0b0a08; padding: 2px 6px; }
+  .about ul { margin: 0 0 12px; padding-left: 18px; font-size: 15px; }
+  .about a { color: var(--acid); }
+  .about .fine { font: 11px/1.6 var(--mono); color: var(--dim); margin-top: 16px; }
+  .about .close { float: right; font: 11px var(--mono); background: none; color: var(--dim); border: 1px solid rgba(236, 229, 211, .2); padding: 5px 9px; cursor: pointer; text-transform: uppercase; }
+  .about .close:hover { color: var(--acid); border-color: var(--acid); }
+
+  @media (max-width: 760px) {
+    .top { top: 10px; left: 10px; right: 10px; }
+    .map { display: none; }
+    .stats { font-size: 10px; }
+    .bar { bottom: 10px; left: 10px; right: 10px; }
+    .bar kbd { display: none; }
+    .brand p { display: none; }
+  }
+  @media (max-width: 480px) { .stats { display: none; } }
+</style>
+</head>
+<body>
+<canvas id="world" tabindex="0" role="img" aria-label="An endless landscape drawn in ASCII letters: forests of pines, jungles, red deserts with mesas, snowy tundra and crystal fields, with black monoliths covered in zeros and ones and stone gates, under a moving sun, with rain, snow and aurora."></canvas>
+
+<div class="boot" id="boot"><div><pre class="boot__ca" id="bootCA" aria-hidden="true"></pre><span id="bootText">growing a world…</span><pre id="bootErr" hidden></pre></div></div>
+
+<header class="hud top">
+  <div class="brand panel hud--fade">
+    <div class="brand__path"><a href="/">gpojani</a> / surprise</div>
+    <h1>Glifi</h1>
+    <p>An endless world made of letters. Nothing here is a model or a texture: every letter is one ray, fired into a world that is only a formula, generated as you fly.</p>
+  </div>
+  <div class="side">
+    <div class="stats panel hud--fade" id="stats" aria-live="off"></div>
+    <pre class="map panel hud--fade" id="map" aria-label="Map of the land around you"></pre>
+  </div>
+</header>
+
+<nav class="hud bar hud--fade" aria-label="Controls">
+  <button type="button" id="bAuto" aria-pressed="true" title="Let the camera fly itself (drag or WASD to take over)">autopilot<kbd>space</kbd></button>
+  <button type="button" id="bWorld" title="Grow a different world from a new seed">new world<kbd>n</kbd></button>
+  <button type="button" id="bNYC" title="Fly to New York, built at 1:1">new york<kbd>y</kbd></button>
+  <button type="button" id="bInk" title="Colour, phosphor or ink on paper">colour<kbd>c</kbd></button>
+  <button type="button" id="bSun" aria-pressed="true" title="Let the sun move">sun<kbd>t</kbd></button>
+  <button type="button" id="bSmaller" title="Smaller letters, more of them">letters −<kbd>-</kbd></button>
+  <button type="button" id="bBigger" title="Bigger letters, fewer of them">letters +<kbd>+</kbd></button>
+  <button type="button" id="bCopy" title="Copy this frame as plain text">copy frame<kbd>p</kbd></button>
+  <button type="button" id="bAbout" title="What is this?">what is this?<kbd>?</kbd></button>
+</nav>
+
+<div class="toast panel" id="toast" role="status"></div>
+
+<dialog id="about" aria-labelledby="aboutTitle">
+  <div class="about">
+    <button type="button" class="close" id="bClose">close <span aria-hidden="true">esc</span></button>
+    <h2 id="aboutTitle">Glifi</h2>
+    <p class="kicker">an endless world made of letters · filed under P</p>
+    <p>Every letter on this screen is one pixel of a 3D picture. For each cell of the grid, your graphics card fires a ray from your eye into a world that exists only as maths.</p>
+    <p>The world is a <em>signed distance field</em>: one function that, given any point in space, says how far away the nearest surface is. That's all it knows. There are no triangles, no mesh and no map. A ray that knows the distance to the nearest surface can safely jump that far, ask again, and jump again. Near a surface the jumps get small, and when one is smaller than a hair, the ray has arrived. This is called sphere tracing.</p>
+    <p>The world has no edge, and none of it is stored. Every point is computed from its own coordinates, so the same place always looks the same and there's always more of it. Two slow noises play temperature and rain. Hot and dry grows red desert, cut into mesas and dunes. Hot and wet grows jungle and swamp. Cool and wet grows taiga. Cold freezes the lakes and brings the aurora. Somewhere, rarely, a third noise grows fields of violet crystal, and nobody knows why. The weather drifts across all of it: rain over the forests, snow over the tundra, never a drop in the desert.</p>
+    <p>The ground is also cut into cells 110 metres wide, and a hash of each cell decides whether something was left there: a monolith or a stone gate, a ring of twelve stones, three drops of liquid metal. Every seven metres, another hash decides whether a pine, a broadleaf, a cactus or a crystal grows. Far away, a forest becomes a single soft canopy, because a tree 300 metres off is less than one letter anyway. The autopilot flies from one monolith to the next and never runs out. <em>New world</em> changes the seed, and with it every hash, and with those, everything.</p>
+    <p>Eight kilometres north-east of the first monolith, in every world, is New York, at 1:1. Press <em>New York</em> to go there. A metre here is a metre there. The street grid is the real one: 80 m from street to street, streets 18 m wide, avenues 30 m, the whole grid turned 29 degrees east of north. The island is 21.6 km long, from the Battery to Inwood, between the Hudson and the East River. Central Park runs from 59th Street to 110th, four kilometres by eight hundred metres, with the Reservoir where it should be. The landmarks stand where they stand and are as tall as they are: the Empire State Building, 381 m to the roof and 443 m to the tip; the Chrysler Building, 319 m; One World Trade Center, 541 m, with the two pools beside it; 432 Park Avenue, 426 m and only 28 m wide; Central Park Tower, 472 m; the Brooklyn Bridge, 486 m between its towers; the Statue of Liberty, 93 m to the torch. The other buildings are not the real ones. Every lot draws its height from a hash, taller in Midtown and the Financial District, stepping back as they rise the way the 1916 zoning law asked. A true copy would need a million building footprints, and this page is one file. At night about a third of the windows are lit.</p>
+    <p>Then each hit is lit: a sun with soft shadows, light from the sky, a little bounce from the ground, fog that takes the colour of the sun. Each cell becomes the letter whose ink covers about as much of its box as the light does. I don't choose those letters by hand. When the page loads it draws every printable character in this font, counts the pixels of each, and sorts them. On your screen the ramp came out as <span class="ramp" id="ramp"></span>. Some things have letters of their own: pines are <code>^ A</code>, leaves are <code>o &amp; %</code>, grass is <code>, ; v w</code>, water is <code>~</code>, ice is <code>=</code>, edges are <code>/ | \ -</code>.</p>
+    <p>The black monoliths are computing <a href="/posts/rule-137/">Rule 137</a> as you watch, ten rows a second, written down their faces in <code>1</code> and <code>0</code>. It's one automaton, and each monolith reads a different stretch of it. Rule 137 is Rule 110 with the colours swapped, so the ones are the quiet background and the glowing zeros are the particles that collide and compute. It's universal, so in principle any of those slabs could run this page.</p>
+    <p>Almost every technique here comes from Inigo Quilez's articles, which are the best free education in computer graphics there is:</p>
+    <ul>
+      <li><a href="https://iquilezles.org/articles/distfunctions/">distance functions</a> for monoliths, gates, stones, trees, cacti and crystals</li>
+      <li><a href="https://iquilezles.org/articles/smin/">smooth minimum</a> for the drops that melt into each other and the rounder treetops</li>
+      <li><a href="https://iquilezles.org/articles/sdfrepetition/">domain repetition</a>: one tree, one monolith, one ring of stones, repeated forever with a different hash in every cell</li>
+      <li><a href="https://iquilezles.org/articles/morenoise/">value noise derivatives</a> and <a href="https://iquilezles.org/articles/terrainmarching/">terrain marching</a> for the mountains</li>
+      <li><a href="https://iquilezles.org/articles/rmshadows/">soft shadows</a>, <a href="https://iquilezles.org/articles/normalsSDF/">normals</a>, <a href="https://iquilezles.org/articles/outdoorslighting/">outdoor lighting</a> and <a href="https://iquilezles.org/articles/fog/">better fog</a></li>
+      <li><a href="https://iquilezles.org/articles/palettes/">cosine palettes</a> for the colour of the drops</li>
+    </ul>
+    <p>Why P? Each ray takes at most a fixed number of steps, so a frame costs a polynomial in the number of letters. It's the one thing on this site that is guaranteed to halt, sixty times a second.</p>
+    <p class="fine">drag to look · WASD or arrows to fly · Q/E down and up · shift to hurry · N for a new world · Y for New York · L copies a link to where you are · [ and ] move the sun · scroll to resize the letters · the address bar holds the seed, so you can send someone your world · one HTML file, no libraries</p>
+  </div>
+</dialog>
+
+<noscript><p style="position:fixed;inset:0;display:grid;place-items:center;margin:0">This world is drawn by your graphics card and needs JavaScript and WebGL2.</p></noscript>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (s) => document.querySelector(s);
+  const canvas = $('#world');
+  const boot = $('#boot');
+  const fail = (msg, detail) => {
+    $('#bootText').textContent = msg;
+    if (detail) { const e = $('#bootErr'); e.hidden = false; e.textContent = detail; }
+  };
+
+  // while the graphics card compiles the world, Rule 137 runs in plain text
+  const bootCA = $('#bootCA');
+  let bootRow = Array.from({ length: 48 }, (_, i) => (i === 24 ? 0 : 1));
+  const bootLines = [];
+  const bootTimer = setInterval(() => {
+    bootRow = bootRow.map((c, i, r) => (137 >> ((r[(i + 47) % 48] << 2) | (c << 1) | r[(i + 1) % 48])) & 1);
+    bootLines.push(bootRow.map((c) => (c ? ' ' : '0')).join(''));
+    if (bootLines.length > 12) bootLines.shift();
+    bootCA.textContent = bootLines.join(String.fromCharCode(10));
+  }, 70);
+  const gl = canvas.getContext('webgl2', { antialias: false, depth: false, stencil: false, alpha: false, powerPreference: 'high-performance' });
+  if (!gl) return fail('this world needs WebGL2, and your browser has it switched off.');
+
+  // ── shaders ────────────────────────────────────────────────────────────
+  // One full-screen triangle, no vertex buffers.
+  const VS = `#version 300 es
+  void main() {
+    vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+    gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+  }`;
+
+  // Pass 1: one ray per letter cell. Writes colour, and depth + material + a hint for the glyph pass.
+  const SCENE = `#version 300 es
+  precision highp float;
+  precision highp int;
+  precision highp sampler2D;
+  layout(location = 0) out vec4 oCol;
+  layout(location = 1) out vec4 oG;
+
+  uniform vec2 uRes;
+  uniform float uAspect;
+  uniform vec3 uCamPos;
+  uniform mat3 uCamRot;
+  uniform float uFocal;
+  uniform vec3 uSun;
+  uniform float uTime;
+  uniform sampler2D uCA;
+  uniform int uHead;
+  uniform ivec2 uSeed;
+  uniform float uCloud;
+  uniform float uAurora;
+  uniform float uExposure;
+  uniform int uZero;          // always 0; loops start here so the compiler can't unroll them (iq's trick)
+  uniform float uTmax;        // how far a ray may go: 700 m in the wild, 6 km over the city
+  uniform float uFog;
+  uniform float uCeil;        // nothing stands higher than this
+  uniform int uSteps;
+  uniform float uCity;        // how much of the city is around the eye: its light warms the night sky
+  // glifi 1.3
+
+  const float CELL = 110.0;                      // a site may stand in each of these
+  const float TCELL = 7.0;                       // a plant may grow in each of these
+  const vec3 MONO_HALF = vec3(1.6, 3.6, 0.4);    // 1 : 4 : 9, as it should be
+  const mat2 M2 = mat2(0.8, -0.6, 0.6, 0.8);
+
+  // integer hash, so the page's JavaScript can compute the exact same world
+  float hashI(ivec2 q) {
+    uvec2 u = uvec2(q + uSeed + ivec2(65536));
+    uint h = (u.x * 0x27d4eb2du) ^ (u.y * 0x165667b1u);
+    h ^= h >> 15u; h *= 0x2c1b3c6du; h ^= h >> 12u; h *= 0x297a2d39u; h ^= h >> 15u;
+    return float(h) * (1.0 / 4294967295.0);
+  }
+
+  // value noise and its analytic derivatives (iq, "value noise derivatives")
+  vec3 noised(vec2 x) {
+    vec2 fi = floor(x);
+    ivec2 i = ivec2(fi);
+    vec2 f = x - fi;
+    vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+    vec2 du = 30.0 * f * f * (f * (f - 2.0) + 1.0);
+    float a = hashI(i), b = hashI(i + ivec2(1, 0)), c = hashI(i + ivec2(0, 1)), d = hashI(i + ivec2(1, 1));
+    float k1 = b - a, k2 = c - a, k4 = a - b - c + d;
+    return vec3(-1.0 + 2.0 * (a + k1 * u.x + k2 * u.y + k4 * u.x * u.y),
+                2.0 * du * vec2(k1 + k4 * u.y, k2 + k4 * u.x));
+  }
+
+  // iq's quadratic smooth minimum
+  float smin(float a, float b, float k) { float h = max(k - abs(a - b), 0.0) / k; return min(a, b) - h * h * k * 0.25; }
+
+  float sdBox(vec3 p, vec3 b) { vec3 q = abs(p) - b; return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0); }
+  float sdRoundBox(vec3 p, vec3 b, float r) { vec3 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r; }
+  float sdTorus(vec3 p, vec2 t) { vec2 q = vec2(length(p.xz) - t.x, p.y); return length(q) - t.y; }
+  float sdCapsule(vec3 p, vec3 a, vec3 b, float r) { vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h) - r; }
+  float sdHexPrism(vec3 p, vec2 h) {
+    const vec3 k = vec3(-0.8660254, 0.5, 0.57735);
+    p = abs(p);
+    p.xy -= 2.0 * min(dot(k.xy, p.xy), 0.0) * k.xy;
+    vec2 d = vec2(length(p.xy - vec2(clamp(p.x, -k.z * h.x, k.z * h.x), h.x)) * sign(p.y - h.x), p.z - h.y);
+    return min(max(d.x, d.y), 0.0) + length(max(d, 0.0));
+  }
+  vec2 rot(vec2 p, float a) { float c = cos(a), s = sin(a); return vec2(c * p.x - s * p.y, s * p.x + c * p.y); }
+  // iq, "domain repetition": fold the plane into n identical slices
+  vec2 repPolar(vec2 p, float n) {
+    float an = 6.2831853 / n;
+    float a = atan(p.y, p.x) + an * 0.5;
+    a = mod(a, an) - an * 0.5;
+    return length(p) * vec2(cos(a), sin(a));
+  }
+
+  // ── New York, 1:1 ────────────────────────────────────────────────────
+  // City coordinates, in metres: x runs uptown from the Battery, y across town, 0 at Fifth Avenue.
+  // The grid is turned 29 degrees east of true north, as the real one is.
+  const vec2 CITY_O = vec2(6000.0, 6000.0);
+  const vec2 CU = vec2(0.4848096, 0.8746197);
+  const vec2 CV = vec2(0.8746197, -0.4848096);
+  vec2 toCity(vec2 w) { vec2 d = w - CITY_O; return vec2(dot(d, CU), dot(d, CV)); }
+  float metroMask(vec2 c) {
+    vec2 q = abs(c - vec2(8750.0, -500.0)) - vec2(13750.0, 6000.0);
+    float e = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+    return 1.0 - smoothstep(0.0, 1500.0, e);
+  }
+#ifdef CITY
+  // Manhattan's two shores, west and east, every few kilometres from the Battery to Inwood
+  vec2 shore(float u) {
+    u = clamp(u, -150.0, 21600.0);
+    if (u < 0.0) return mix(vec2(-450.0, -100.0), vec2(-600.0, 100.0), (u + 150.0) / 150.0);
+    if (u < 1000.0) return mix(vec2(-600.0, 100.0), vec2(-1000.0, 600.0), u / 1000.0);
+    if (u < 2000.0) return mix(vec2(-1000.0, 600.0), vec2(-1500.0, 900.0), (u - 1000.0) / 1000.0);
+    if (u < 3000.0) return mix(vec2(-1500.0, 900.0), vec2(-1900.0, 1300.0), (u - 2000.0) / 1000.0);
+    if (u < 4500.0) return mix(vec2(-1900.0, 1300.0), vec2(-2000.0, 1250.0), (u - 3000.0) / 1500.0);
+    if (u < 7500.0) return mix(vec2(-2000.0, 1250.0), vec2(-2050.0, 1150.0), (u - 4500.0) / 3000.0);
+    if (u < 12000.0) return mix(vec2(-2050.0, 1150.0), vec2(-2000.0, 1250.0), (u - 7500.0) / 4500.0);
+    if (u < 15000.0) return mix(vec2(-2000.0, 1250.0), vec2(-1700.0, 300.0), (u - 12000.0) / 3000.0);
+    return mix(vec2(-1700.0, 300.0), vec2(-900.0, -300.0), (u - 15000.0) / 6600.0);
+  }
+  float eastRiver(float u) { return mix(550.0, 220.0, smoothstep(11000.0, 13000.0, u)); }
+  // positive on land: Manhattan, New Jersey, Brooklyn and Queens and the Bronx, Liberty and Governors islands
+  float landSD(vec2 c, out float man) {
+    vec2 s = shore(c.x);
+    man = min(min(c.y - s.x, s.y - c.y), min(c.x + 150.0, 21600.0 - c.x));
+    float nj = min(s.x - 1300.0 - c.y, c.x + 1500.0);
+    float bk = min(c.y - s.y - eastRiver(c.x), c.x + 4000.0);
+    float li = 160.0 - length(c - vec2(-2300.0, -1700.0));
+    float gi = (1.0 - length((c - vec2(-750.0, -50.0)) / vec2(380.0, 230.0))) * 230.0;
+    return max(max(max(man, nj), max(bk, li)), gi);
+  }
+  float parkAt(vec2 c) {
+    if (c.x > 7620.0 && c.x < 11700.0 && c.y > -825.0 && c.y < -15.0) return 1.0;      // Central Park, 59th to 110th, Fifth to Eighth
+    if (c.x > -150.0 && c.x < 300.0 && c.y < -150.0) return 0.7;                      // the Battery
+    if (length((c - vec2(-750.0, -50.0)) / vec2(380.0, 230.0)) < 1.0) return 0.6;    // Governors Island
+    if (length(c - vec2(-2300.0, -1700.0)) < 160.0) return 0.3;                       // Liberty Island
+    if (c.x > -1700.0 && c.x < -400.0 && c.y > 3000.0 && c.y < 4000.0) return 1.0;   // Prospect Park
+    return 0.0;
+  }
+  float cityGround(vec2 c, out float park, out float man, out float sd) {
+    sd = landSD(c, man);
+    park = parkAt(c);
+    float g = mix(-9.0, 2.0, smoothstep(-6.0, 6.0, sd));
+    if (park > 0.0) g += park * (1.0 + 1.5 * noised(c * 0.02).x) * smoothstep(0.0, 20.0, sd);
+    // water inside the land: the Reservoir, the Lake, and the two pools where the towers stood
+    float er = length((c - vec2(10180.0, -420.0)) / vec2(420.0, 330.0));
+    float el = length((c - vec2(8900.0, -600.0)) / vec2(140.0, 110.0));
+    g = mix(g, -3.0, 1.0 - smoothstep(0.97, 1.0, min(er, el)));
+    float pool = min(max(abs(c.x - 960.0), abs(c.y + 640.0)), max(abs(c.x - 860.0), abs(c.y + 700.0)));
+    g = mix(g, -4.0, 1.0 - smoothstep(29.0, 30.0, pool));
+    return g;
+  }
+  float bump(vec2 c, vec2 at, vec2 r) { vec2 d = (c - at) / r; return exp(-dot(d, d)); }
+  // no block within r metres of c can be taller than this (each bump taken at its nearest)
+  float bumpNear(vec2 c, vec2 at, vec2 rad, float r) { vec2 d = max(abs(c - at) - r, 0.0) / rad; return exp(-dot(d, d)); }
+  float tallestNear(vec2 c, float r) {
+    return 56.0 + 340.0 * bumpNear(c, vec2(6400.0, -250.0), vec2(1300.0, 700.0), r)
+                + 300.0 * bumpNear(c, vec2(900.0, -350.0), vec2(650.0, 600.0), r)
+                + 230.0 * bumpNear(c, vec2(1300.0, 1900.0), vec2(450.0, 450.0), r)
+                + 180.0 * bumpNear(c, vec2(900.0, -2700.0), vec2(500.0, 450.0), r)
+                + 140.0 * bumpNear(c, vec2(7300.0, 1900.0), vec2(450.0, 400.0), r);
+  }
+  // how tall a block may grow: a base, plus towers where Midtown, the Financial District,
+  // Downtown Brooklyn, Jersey City and Long Island City are
+  vec2 zone(vec2 c, bool man) {
+    float amp = 340.0 * bump(c, vec2(6400.0, -250.0), vec2(1300.0, 700.0))
+              + 300.0 * bump(c, vec2(900.0, -350.0), vec2(650.0, 600.0))
+              + 230.0 * bump(c, vec2(1300.0, 1900.0), vec2(450.0, 450.0))
+              + 180.0 * bump(c, vec2(900.0, -2700.0), vec2(500.0, 450.0))
+              + 140.0 * bump(c, vec2(7300.0, 1900.0), vec2(450.0, 400.0));
+    float base = man ? 24.0 + 14.0 * smoothstep(7000.0, 9000.0, c.x) * (1.0 - smoothstep(15000.0, 17000.0, c.x)) : 11.0;
+    return vec2(base, amp);
+  }
+  // lots kept clear for the landmarks, which are drawn by hand below
+  bool reserved(vec2 c) {
+    if (abs(c.x - 5580.0) < 85.0 && abs(c.y + 45.0) < 50.0) return true;       // Empire State Building
+    if (abs(c.x - 6300.0) < 50.0 && abs(c.y - 525.0) < 50.0) return true;      // Chrysler Building
+    if (abs(c.x - 7420.0) < 35.0 && abs(c.y - 291.0) < 35.0) return true;      // 432 Park Avenue
+    if (abs(c.x - 7500.0) < 40.0 && abs(c.y + 650.0) < 40.0) return true;      // Central Park Tower
+    if (abs(c.x - 1000.0) < 170.0 && abs(c.y + 660.0) < 130.0) return true;    // the World Trade Center site
+    if (abs(c.x - 1300.0) < 45.0 && c.y > 300.0 && c.y < 1700.0) return true; // Brooklyn Bridge
+    return false;
+  }
+
+  // The street grid: 80 m from street to street, streets 18 m wide, avenues 30 m.
+  // Avenues are 160 m apart east of Fifth, 280 m west of it; 180 m in the other boroughs.
+  struct Lot { vec2 cell0; vec2 lc; vec2 cellSize; vec2 bmin; vec2 bmax; vec2 lotC; vec2 lotH; vec2 pc; ivec2 id; vec2 z; float hmax; float lotW; float nV; };
+  Lot cityLot(vec2 c, float man) {
+    Lot L;
+    bool m = man > -100.0;
+    float cv = m ? (c.y >= 0.0 ? 160.0 : 280.0) : 180.0;
+    float av = m ? 15.0 : 12.0;
+    L.cellSize = vec2(80.0, cv);
+    ivec2 ci = ivec2(floor(c / L.cellSize));
+    L.cell0 = vec2(ci) * L.cellSize;
+    L.lc = c - L.cell0;
+    L.bmin = vec2(9.0, av);
+    L.bmax = L.cellSize - L.bmin;
+    L.nV = m ? (c.y >= 0.0 ? 3.0 : 6.0) : 4.0;
+    L.lotW = (L.bmax.y - L.bmin.y) / L.nV;
+    L.pc = clamp(L.lc, L.bmin, L.bmax);
+    float lu = L.pc.x < 40.0 ? 0.0 : 1.0;
+    float lv = clamp(floor((L.pc.y - L.bmin.y) / L.lotW), 0.0, L.nV - 1.0);
+    L.lotC = vec2(24.5 + 31.0 * lu, L.bmin.y + (lv + 0.5) * L.lotW);
+    L.lotH = vec2(15.5, 0.5 * L.lotW);
+    L.id = ivec2(ci.x * 2 + int(lu), ci.y * 8 + int(lv) + (m ? 0 : 4096));
+    L.z = zone(L.cell0 + vec2(40.0, 0.5 * cv), m);
+    L.hmax = L.z.x * 1.4 + L.z.y + 1.0;
+    return L;
+  }
+  float building(vec3 q, float H, vec2 hs, int style) {
+    if (H > 110.0 && style < 2) return sdBox(q - vec3(0.0, 0.5 * H, 0.0), vec3(hs.x * 0.8, 0.5 * H, hs.y * 0.8));  // a glass shaft
+    if (H < 45.0) return sdBox(q - vec3(0.0, 0.5 * H, 0.0), vec3(hs.x, 0.5 * H, hs.y));
+    // older towers step back as they rise, as the 1916 zoning law asked
+    float d = sdBox(q - vec3(0.0, 0.3 * H, 0.0), vec3(hs.x, 0.3 * H, hs.y));
+    d = min(d, sdBox(q - vec3(0.0, 0.75 * H, 0.0), vec3(max(hs.x - 3.0, 2.0), 0.15 * H, max(hs.y - 3.0, 2.0))));
+    d = min(d, sdBox(q - vec3(0.0, 0.95 * H, 0.0), vec3(max(hs.x - 7.0, 2.0), 0.05 * H, max(hs.y - 7.0, 2.0))));
+    return d;
+  }
+
+  // The landmarks, at their real heights. q: x uptown, y above the pavement, z across town.
+  vec2 empireState(vec3 q) {
+    float d = sdBox(q - vec3(0.0, 12.5, 0.0), vec3(62.0, 12.5, 28.0));
+    d = min(d, sdBox(q - vec3(0.0, 142.5, 0.0), vec3(30.0, 117.5, 20.0)));
+    d = min(d, sdBox(q - vec3(0.0, 290.0, 0.0), vec3(22.0, 30.0, 15.0)));
+    d = min(d, sdBox(q - vec3(0.0, 349.5, 0.0), vec3(12.0, 29.5, 10.0)));
+    float mast = min(sdCapsule(q, vec3(0.0, 379.0, 0.0), vec3(0.0, 400.0, 0.0), 5.0), sdCapsule(q, vec3(0.0, 400.0, 0.0), vec3(0.0, 441.0, 0.0), 1.2));
+    return mast < d ? vec2(mast, 17.0) : vec2(d, 21.0);
+  }
+  vec2 chrysler(vec3 q) {
+    float d = sdBox(q - vec3(0.0, 30.0, 0.0), vec3(30.0, 30.0, 30.0));
+    d = min(d, sdBox(q - vec3(0.0, 150.0, 0.0), vec3(20.0, 90.0, 20.0)));
+    d = min(d, sdBox(q - vec3(0.0, 257.0, 0.0), vec3(14.0, 17.0, 14.0)));
+    float yc = q.y - 274.0;
+    float crown = max(max(abs(q.x), abs(q.z)) * 0.928 + (yc - 30.0) * 0.371, -yc);
+    crown = min(crown, sdCapsule(q, vec3(0.0, 295.0, 0.0), vec3(0.0, 317.0, 0.0), 0.8));
+    return crown < d ? vec2(crown, 17.0) : vec2(d, 21.0);
+  }
+  vec2 oneWTC(vec3 q) {
+    // a square that turns into a square turned 45 degrees: octagons in between
+    float base = sdBox(q - vec3(0.0, 28.0, 0.0), vec3(30.5, 28.0, 30.5));
+    float t = clamp((q.y - 56.0) / 359.0, 0.0, 1.0);
+    vec2 r45 = vec2(q.x + q.z, q.x - q.z) * 0.70710678;
+    float da = max(abs(q.x), abs(q.z)) - mix(30.5, 22.0, t);
+    float dr = max(abs(r45.x), abs(r45.y)) - mix(43.1, 20.0, t);
+    float tower = max(max(da, dr) * 0.9, max(56.0 - q.y, q.y - 415.0));
+    float spire = sdCapsule(q, vec3(0.0, 415.0, 0.0), vec3(0.0, 539.0, 0.0), 1.6);
+    float d = min(base, tower);
+    return spire < d ? vec2(spire, 17.0) : vec2(d, 20.0);
+  }
+  vec2 liberty(vec3 q) {
+    float a = atan(q.z, q.x);
+    float tri = abs(fract(a * 1.7507043) - 0.5) * 2.0;                      // Fort Wood's eleven points
+    float fort = max((length(q.xz) - (46.0 + 12.0 * tri)) * 0.7, abs(q.y - 10.0) - 10.0);
+    vec2 res = vec2(min(fort, sdBox(q - vec3(0.0, 33.5, 0.0), vec3(13.0, 13.5, 13.0))), 3.0);
+    vec3 s = q - vec3(0.0, 47.0, 0.0);
+    float robe = max(length(s.xz) - mix(6.5, 3.2, clamp(s.y / 31.0, 0.0, 1.0)), max(-s.y, s.y - 31.0)) * 0.85;
+    float body = min(robe, length(s - vec3(0.0, 34.0, 0.0)) - 3.0);
+    body = min(body, sdCapsule(s, vec3(2.5, 27.0, 0.0), vec3(4.2, 41.0, 0.5), 1.3));
+    body = min(body, sdBox(s - vec3(-3.8, 21.0, 1.5), vec3(1.0, 3.6, 2.3)));
+    if (body < res.x) res = vec2(body, 18.0);
+    float flame = length(s - vec3(4.4, 43.5, 0.5)) - 1.8;
+    if (flame < res.x) res = vec2(flame, 19.0);
+    return res;
+  }
+  vec2 brooklynBridge(vec3 q) {
+    // q: x along the river relative to the bridge, y height above the water, z across the river
+    vec2 res = vec2(1e5, 3.0);
+    for (int i = uZero; i < 2; i++) {
+      vec3 t = vec3(q.x, q.y - 42.0, q.z - (i == 0 ? 734.0 : 1220.0));
+      float tw = sdBox(t, vec3(16.0, 42.0, 7.0));
+      float hole = sdBox(vec3(abs(t.x) - 5.5, t.y + 3.0, t.z), vec3(3.5, 14.0, 8.0));   // the two gothic arches
+      res.x = min(res.x, max(tw, -hole));
+    }
+    float deck = sdBox(vec3(q.x, q.y - 41.0, q.z - 980.0), vec3(13.0, 1.2, 420.0));
+    vec2 r1 = rot(vec2(q.z - 455.0, q.y - 22.5), -0.1745);
+    deck = min(deck, sdBox(vec3(q.x, r1.y, r1.x), vec3(13.0, 1.2, 107.0)));
+    vec2 r2 = rot(vec2(q.z - 1525.0, q.y - 22.5), 0.1469);
+    deck = min(deck, sdBox(vec3(q.x, r2.y, r2.x), vec3(13.0, 1.2, 127.0)));
+    // the main cables: a parabola between the towers, nearly straight down to the anchorages
+    float v = clamp(q.z, 560.0, 1400.0);
+    float yc, sl;
+    if (v < 734.0) { yc = mix(30.0, 84.0, (v - 560.0) / 174.0); sl = 0.31; }
+    else if (v < 1220.0) { float s = (v - 977.0) / 243.0; yc = 43.0 + 41.0 * s * s; sl = 0.3374 * s; }
+    else { yc = mix(84.0, 30.0, (v - 1220.0) / 180.0); sl = -0.3; }
+    float k = inversesqrt(1.0 + sl * sl);
+    float cab = min(length(vec3(q.x - 11.0, (q.y - yc) * k, q.z - v)), length(vec3(q.x + 11.0, (q.y - yc) * k, q.z - v))) - 0.6;
+    deck = min(deck, cab);
+    if (deck < res.x) res = vec2(deck, 17.0);
+    return res;
+  }
+
+#endif
+
+  // ── biomes: two slow noises play temperature and rain, a third grows the strange things ──
+  struct Biome { float desert; float jungle; float taiga; float tundra; float alien; float forest; };
+  Biome biome(vec2 p, float mm) {
+    float temp = noised(p * 0.0011 + vec2(71.3, -13.7)).x;
+    float wet = noised(p * 0.0013 + vec2(-41.9, 88.1)).x;
+    float odd = noised(p * 0.0007 + vec2(5.5, 51.2)).x;
+    float hot = smoothstep(0.08, 0.32, temp);
+    float cold = 1.0 - smoothstep(-0.42, -0.18, temp);
+    float cool = (1.0 - smoothstep(-0.25, 0.0, temp)) * (1.0 - cold);
+    float keep = 1.0 - mm;                     // near New York the land is plain temperate country
+    Biome b;
+    b.desert = hot * (1.0 - smoothstep(-0.25, 0.05, wet)) * keep;
+    b.jungle = hot * smoothstep(0.08, 0.32, wet) * keep;
+    b.tundra = cold * keep;
+    b.taiga = cool * smoothstep(-0.15, 0.1, wet) * keep;
+    b.alien = smoothstep(0.5, 0.65, odd) * keep;
+    b.forest = max(max(b.taiga * 0.75, b.jungle * 0.9), 0.22 * (1.0 - hot) * (1.0 - cold) * smoothstep(-0.1, 0.2, wet)) * (1.0 - b.alien) * keep;
+    return b;
+  }
+
+  // ── sites: every 110 m cell asks a hash whether something was left there, and what ──
+  struct Site { bool on; vec2 c; float level; float yaw; float s; bool ring; bool drops; float seed; int kind; };
+  ivec2 siteId(vec2 p) { return ivec2(floor(p / CELL + 0.5)); }
+  Site getSite(vec2 p) {
+    ivec2 id = siteId(p);
+    bool origin = id.x == 0 && id.y == 0;
+    Site st;
+    vec2 j = origin ? vec2(0.0) : vec2(hashI(id + ivec2(211, 9001)), hashI(id + ivec2(5003, 77))) * 2.0 - 1.0;
+    st.c = vec2(id) * CELL + j * 10.0;
+    st.on = origin || (hashI(id + ivec2(7001, 1307)) < 0.5 && metroMask(toCity(st.c)) == 0.0);
+    st.level = 1.5 + 3.5 * hashI(id + ivec2(401, 6007));
+    st.yaw = 6.2831853 * hashI(id + ivec2(8111, 23));
+    st.s = 0.8 + 0.7 * hashI(id + ivec2(3, 7919));
+    st.kind = (!origin && hashI(id + ivec2(97, 3131)) < 0.3) ? 1 : 0;
+    st.ring = st.kind == 0 && (origin || hashI(id + ivec2(1601, 4409)) < 0.6);
+    st.drops = origin || hashI(id + ivec2(2903, 1709)) < 0.45;
+    st.seed = hashI(id + ivec2(6007, 5101));
+    return st;
+  }
+
+  // mountains that erode where they are steep: the derivative damps the next octave
+  float fbmA(vec2 p) {
+    vec2 q = p * 0.011;
+    float a = 0.0, b = 1.0;
+    vec2 d = vec2(0.0);
+    for (int i = uZero; i < 7; i++) {
+      vec3 n = noised(q);
+      d += n.yz;
+      a += b * n.x / (1.0 + dot(d, d));
+      b *= 0.5;
+      q = M2 * q * 2.0;
+    }
+    return a;
+  }
+
+  float terrainFull(vec2 p, Site st, Biome b, float mm) {
+    float a = fbmA(p);
+    float cont = noised(p * 0.0023 + vec2(17.3, -5.1)).x;
+    float h = mix(-6.0 + 10.0 * a, 6.0 + 62.0 * a, smoothstep(-0.3, 0.45, cont));
+    if (b.desert > 0.0) {
+      // the desert: the same hills cut into mesas, with dunes in the low country and no lakes
+      float x = h / 7.0;
+      float fx = floor(x);
+      float mesa = (fx + smoothstep(0.4, 0.85, x - fx)) * 7.0;
+      float dune = 1.6 * abs(sin(p.x * 0.09 + p.y * 0.05 + 1.8 * noised(p * 0.02).x));
+      float hd = max(mesa, 0.6) + dune * (1.0 - smoothstep(4.0, 12.0, mesa));
+      h = mix(h, hd, b.desert);
+    }
+    h -= 3.0 * b.jungle;          // the jungle sits low and wet
+    if (st.on) {
+      // whoever left the monolith levelled the ground first
+      float r = length(p - st.c);
+      h = mix(h, st.level + 0.6 - 0.003 * r * r + 0.3 * a, 1.0 - smoothstep(22.0, 42.0, r));
+    }
+    return mix(h, -9.0, mm);      // around the city, the land sinks into the bay
+  }
+  float blobs(vec3 o, float seed) {
+    float bound = length(o) - 6.5;
+    if (bound > 1.0) return bound;
+    float t = uTime * 0.45 + seed * 40.0;
+    vec3 a = vec3(cos(t) * 2.4, sin(t * 1.3) * 0.9, sin(t) * 2.4);
+    vec3 b = vec3(cos(t * 0.7 + 2.0) * 2.1, sin(t * 0.9 + 1.0) * 1.3, sin(t * 0.7 + 2.0) * 2.1);
+    vec3 c = vec3(cos(t * 1.1 + 4.0) * 1.7, cos(t * 0.6) * 1.6, sin(t * 1.1 + 4.0) * 1.7);
+    float d = length(o - a) - 1.35;
+    d = smin(d, length(o - b) - 1.05, 1.8);
+    d = smin(d, length(o - c) - 0.85, 1.8);
+    return d;
+  }
+
+  vec3 monoLocal(vec3 p, Site st, out vec3 hb) {
+    hb = MONO_HALF * st.s;
+    vec3 q = vec3(p.x - st.c.x, p.y - (st.level - 0.2 + hb.y), p.z - st.c.y);
+    q.xz = rot(q.xz, st.yaw);
+    return q;
+  }
+
+  // What grows in this 7 m cell, standing on the local ground. Every plant fits inside its cell,
+  // so the step is capped at the cell's border: no neighbour's plant can be nearer than that.
+  float plants(vec3 p, float h, Biome b, Site st, out float mat) {
+    mat = 6.0;
+    float y = p.y - h;
+    if (y > 15.0) return y - 13.5;
+    vec2 cid = floor(p.xz / TCELL);
+    vec2 lc = p.xz - (cid + 0.5) * TCELL;
+    float border = TCELL * 0.5 - max(abs(lc.x), abs(lc.y)) + 0.3;
+    ivec2 ii = ivec2(cid);
+    int kind;
+    float dens;
+    float pine = b.taiga + 0.4 * b.tundra;
+    if (b.alien > 0.5) { kind = 8; dens = 0.3 * b.alien; }
+    else if (b.desert > 0.5) { kind = 10; dens = 0.1 * b.desert; }
+    else if (pine > b.jungle && pine > 0.25) { kind = 7; dens = max(b.forest, 0.12 * b.tundra); }
+    else { kind = 6; dens = b.forest; }
+    vec2 cc = (cid + 0.5) * TCELL;
+    if (hashI(ii + ivec2(31, 17)) > dens || h < 0.4 || h > 42.0 || (st.on && length(cc - st.c) < 30.0)) return border;
+    vec2 j = vec2(hashI(ii + ivec2(7, 191)), hashI(ii + ivec2(313, 5))) * 2.0 - 1.0;
+    float s = 0.7 + 0.6 * hashI(ii + ivec2(97, 47));
+    vec3 q = vec3(lc.x - j.x, y, lc.y - j.y);
+    // one small family of shapes: a cone (pines, and the thin spikes of crystal) or a ball on a
+    // stick (broadleaf crowns; a cactus is a tall thin ball)
+    float d;
+    float lq = length(q.xz);
+    if (kind == 7 || kind == 8) {
+      bool pineTree = kind == 7;
+      float H = pineTree ? 6.5 * s + 2.5 : 5.2 * s;
+      vec2 cs = pineTree ? vec2(0.9766, 0.2148) : vec2(0.9950, 0.0998);
+      d = max(lq * cs.x + (q.y - H) * cs.y, (pineTree ? 1.1 : -0.5) - q.y);
+      if (pineTree) d = min(d, length(vec2(lq, max(abs(q.y - 0.3) - 1.3, 0.0))) - 0.16);
+    } else {
+      bool cactus = kind == 10;
+      float k = 1.0 + 0.3 * b.jungle;
+      float R = cactus ? 0.34 : 1.1 * s * k;
+      float stretch = cactus ? 4.0 * s : 1.0;
+      float th = cactus ? -0.4 : 1.8 * s * k;
+      d = length(vec3(q.x, (q.y - th - R * stretch) / stretch, q.z)) - R;
+      if (!cactus) d = min(d, length(vec2(lq, max(abs(q.y - 0.5 * th) - 0.5 * th - 0.5, 0.0))) - 0.14 * k);
+    }
+    mat = float(kind);
+    return min(d, border);
+  }
+
+  // Materials: 0 sky, 1 rock, 2 monolith, 3 stone, 4 drops, 5 water, 6 broadleaf, 7 pine, 8 crystal,
+  // 9 ice, 10 cactus, 11 grass, 12 sand, 13 snow, 14 glow, 15 building, 16 street, 17 steel,
+  // 18 copper, 19 flame, 20 glass, 21 limestone
+  // map() leaves what it learnt about the last point it measured here, and main() keeps a copy
+  // of it for the point the eye hit, so shade() doesn't have to work it all out again
+  Biome gB, hB;
+  Site gSt, hSt;
+#ifdef CITY
+  ivec2 gLotId, hLotId;       // which lot, and whether the point is out in the street
+  bool gStreet, hStreet;
+#endif
+
+#ifdef CITY
+  // The city's part of the world: ground, blocks and landmarks. Plants are added by map().
+  vec2 mapCity(vec3 p, vec2 c, out float g, out float park) {
+    float man, sd;
+    g = cityGround(c, park, man, sd);
+    vec2 res = vec2((p.y - g) * 0.45, park > 0.0 ? 11.0 : 16.0);
+    if (p.y > 560.0) return vec2(min(res.x, p.y - 555.0), res.y);
+
+    // above every roof within 150 m: take a long stride and skip the blocks altogether
+    // (heights come from block centres, which can sit up to ~146 m from their buildings)
+    float over = p.y - tallestNear(c, 300.0);
+    // (only with room to spare: a stride that shrinks to nothing would look like a hit)
+    if (over > 8.0) res.x = min(res.x, min(over, 150.0));
+    // out on the water: no building stands within the distance to the nearest shore
+    else if (sd < -12.0) res.x = min(res.x, -sd * 0.85);
+    else {
+    // the block this point is in: first the whole block as one box, from the pavement to its
+    // tallest possible roof; only if we're close does the actual building get measured
+    Lot L = cityLot(c, man);
+    vec2 hb = 0.5 * (L.bmax - L.bmin);
+    vec2 q2 = L.lc - 0.5 * (L.bmin + L.bmax);
+    gLotId = L.id;
+    gStreet = max(abs(q2.x) - hb.x, abs(q2.y) - hb.y) > 0.0;
+    float top = L.hmax + 2.0;
+    float dB = sdBox(vec3(q2.x, p.y - 0.5 * top, q2.y), vec3(hb.x, 0.5 * top, hb.y));
+    if (dB < 2.0) {
+      float dLot = 1e5;
+      vec2 wc = L.cell0 + L.lotC;
+      float dummy;
+      if (landSD(wc, dummy) > 8.0 && parkAt(wc) == 0.0 && !reserved(wc)) {
+        float H = L.z.x * (0.6 + 0.8 * hashI(L.id + ivec2(11, 7))) + L.z.y * pow(hashI(L.id + ivec2(5, 91)), 3.5);
+        float inset = 1.5 + 2.5 * hashI(L.id + ivec2(17, 29));
+        dLot = building(vec3(L.lc.x - L.lotC.x, p.y - 2.0, L.lc.y - L.lotC.y), H, L.lotH - inset, int(hashI(L.id + ivec2(3, 3)) * 4.0));
+      }
+      // the other lots of this block lie beyond the lines between lots
+      float fv = (L.pc.y - L.bmin.y) / L.lotW;
+      float lv = clamp(floor(fv), 0.0, L.nV - 1.0);
+      float bv = 1e5;
+      if (lv > 0.5) bv = (fv - lv) * L.lotW;
+      if (lv < L.nV - 1.5) bv = min(bv, (lv + 1.0 - fv) * L.lotW);
+      dB = min(dLot, min(abs(L.pc.x - 40.0), bv) + 1.5);
+    }
+    if (dB < res.x) res = vec2(dB, 15.0);
+    // the next block is across a street: at least this cell's border plus half a street away
+    float cellB = min(min(L.lc.x, L.cellSize.x - L.lc.x), min(L.lc.y, L.cellSize.y - L.lc.y)) + 9.0;
+    res.x = min(res.x, cellB);
+    }
+
+    // the landmarks, each measured only when the point is near it
+    vec3 w = vec3(c.x, p.y - 2.0, c.y);
+    vec2 l;
+    if (length(c - vec2(5580.0, -45.0)) - 70.0 < res.x) { l = empireState(w - vec3(5580.0, 0.0, -45.0)); if (l.x < res.x) res = l; }
+    if (length(c - vec2(6300.0, 525.0)) - 45.0 < res.x) { l = chrysler(w - vec3(6300.0, 0.0, 525.0)); if (l.x < res.x) res = l; }
+    if (length(c - vec2(7420.0, 291.0)) - 21.0 < res.x) { l = vec2(sdBox(w - vec3(7420.0, 213.0, 291.0), vec3(14.0, 213.0, 14.0)), 21.0); if (l.x < res.x) res = l; }
+    if (length(c - vec2(7500.0, -650.0)) - 34.0 < res.x) {
+      float d = min(sdBox(w - vec3(7500.0, 150.0, -650.0), vec3(22.0, 150.0, 24.0)), sdBox(w - vec3(7500.0, 385.0, -654.0), vec3(16.0, 85.0, 18.0)));
+      if (d < res.x) res = vec2(d, 20.0);
+    }
+    if (length(c - vec2(1100.0, -650.0)) - 45.0 < res.x) { l = oneWTC(w - vec3(1100.0, 0.0, -650.0)); if (l.x < res.x) res = l; }
+    if (length(c - vec2(-2300.0, -1700.0)) - 60.0 < res.x) { l = liberty(w - vec3(-2300.0, 0.0, -1700.0)); if (l.x < res.x) res = l; }
+    if (length(vec2(c.x - 1300.0, max(abs(c.y - 1000.0) - 700.0, 0.0))) - 30.0 < res.x) {
+      l = brooklynBridge(vec3(c.x - 1300.0, p.y, c.y));
+      if (l.x < res.x) res = l;
+    }
+    return res;
+  }
+
+#endif
+
+  // The wild's part of the world: terrain and sites. Plants are added by map().
+  vec2 mapWild(vec3 p, float mm, out float h, out Biome b, out Site st) {
+    st = getSite(p.xz);
+    b = biome(p.xz, mm);
+    h = terrainFull(p.xz, st, b, mm);
+    vec2 res = vec2((p.y - h) * mix(0.45, 0.22, b.desert), 1.0);
+    // iq, "domain repetition", the randomised kind: only this cell's site is measured,
+    // and the step is capped at the cell's border, because a neighbour's site can be no nearer.
+    if (st.on && p.y > st.level + 20.0) res.x = min(res.x, p.y - st.level - 18.0);
+    else if (st.on) {
+      vec3 q = vec3(p.x - st.c.x, p.y, p.z - st.c.y);
+      if (st.kind == 0) {
+        vec3 hb;
+        float dm = sdBox(monoLocal(p, st, hb), hb);
+        if (dm < res.x) res = vec2(dm, 2.0);
+      } else {
+        // a gate of stone, with a thin line of light inside it
+        vec3 g = q - vec3(0.0, st.level + 6.8, 0.0);
+        g.xz = rot(g.xz, st.yaw);
+        float rr = length(g.xy);
+        float dg = length(vec2(rr - 6.3, g.z)) - 0.65;
+        if (dg < res.x) res = vec2(dg, 3.0);
+        float dl = length(vec2(rr - 5.55, g.z)) - 0.12;
+        if (dl < res.x) res = vec2(dl, 14.0);
+      }
+      if (st.ring) {
+        vec3 r = q;
+        r.xz = repPolar(r.xz, 12.0);
+        r.x -= 13.0;
+        r.y -= st.level + 1.9;
+        float ds = sdRoundBox(r, vec3(0.42, 2.3, 0.42), 0.08);
+        ds = min(ds, sdTorus(q - vec3(0.0, st.level + 4.35, 0.0), vec2(13.0, 0.26)));
+        if (ds < res.x) res = vec2(ds, 3.0);
+      }
+      if (st.drops) {
+        float lift = st.kind == 0 ? 10.0 + 2.5 * st.s : 6.8;
+        float db = blobs(q - vec3(0.0, st.level + lift, 0.0), st.seed);
+        if (db < res.x) res = vec2(db, 4.0);
+      }
+    }
+    vec2 lp = p.xz - vec2(siteId(p.xz)) * CELL;
+    float border = CELL * 0.5 - max(abs(lp.x), abs(lp.y)) + 10.0;
+    if (border < res.x) res = vec2(border, 1.0);
+    return res;
+  }
+
+  vec2 map(vec3 p) {
+    vec2 cc = toCity(p.xz);
+    float mm = metroMask(cc);
+    bool city = mm >= 1.0;
+    if (!city && p.y > 90.0) return vec2(p.y - 88.0, 1.0);
+    float h;
+    Biome b;
+    Site st;
+    vec2 res;
+    if (city) {
+      float park = 0.0;
+#ifdef CITY
+      res = mapCity(p, cc, h, park);
+#else
+      h = -9.0;
+      res = vec2((p.y - h) * 0.45, 1.0);
+#endif
+      b = Biome(0.0, 0.0, 0.0, 0.0, 0.0, 0.45 * park);
+      st = Site(false, vec2(0.0), 0.0, 0.0, 0.0, false, false, 0.0, 0);
+    } else {
+      res = mapWild(p, mm, h, b, st);
+    }
+    gB = b;
+    gSt = st;
+    // near the eye every plant is its own shape; far away a forest is one soft canopy
+    float dc = length(p.xz - uCamPos.xz);
+    if (dc < 150.0) {
+      if (!city || b.forest > 0.0) {
+        float pm;
+        float dp = plants(p, h, b, st, pm);
+        if (dp < res.x) res = vec2(dp, pm);
+      }
+    } else if (!city && h > 0.4 && h < 42.0) {
+      float cov = smoothstep(0.1, 0.5, b.forest) * (1.0 - b.desert);
+      if (cov > 0.0) {
+        float top = h + cov * (5.0 + 2.0 * noised(p.xz * 0.35).x);
+        float dcan = (p.y - top) * 0.45;
+        if (dcan < res.x) res = vec2(dcan, b.taiga + 0.4 * b.tundra > b.jungle ? 7.0 : 6.0);
+      }
+    }
+    return res;
+  }
+
+  float dayAmount() { return smoothstep(-0.15, 0.25, uSun.y); }
+
+  // iq, "better fog": the fog takes the sun's colour when you look towards it
+  vec3 fogColor(vec3 rd) {
+    float day = dayAmount();
+    float sa = pow(max(dot(rd, uSun), 0.0), 8.0) * (1.0 - 0.7 * uCloud);
+    vec3 base = mix(vec3(0.03, 0.035, 0.055), vec3(0.52, 0.58, 0.66), day);
+    base = mix(base, vec3(0.42, 0.44, 0.46) * (0.15 + 0.85 * day), uCloud * 0.6);
+    base += vec3(0.11, 0.065, 0.035) * uCity * (1.0 - day);        // a city never lets the night go black
+    vec3 warm = mix(vec3(0.15, 0.08, 0.05), vec3(1.05, 0.72, 0.45), day);
+    float low = 1.0 - smoothstep(0.0, 0.5, abs(uSun.y));
+    warm = mix(warm, vec3(1.1, 0.5, 0.22), low * day);
+    return mix(base, warm, sa);
+  }
+  vec3 applyFog(vec3 col, float t, vec3 rd) { return mix(col, fogColor(rd), 1.0 - exp(-t * (uFog + 0.004 * uCloud))); }
+
+  vec3 skyBasic(vec3 rd) {
+    float day = dayAmount();
+    vec3 top = mix(vec3(0.004, 0.006, 0.016), vec3(0.09, 0.19, 0.42), day);
+    top = mix(top, vec3(0.3, 0.32, 0.35) * (0.1 + 0.9 * day), uCloud * 0.7);
+    return mix(fogColor(rd), top, pow(clamp(rd.y, 0.0, 1.0), 0.45));
+  }
+
+  float cloudDensity(vec2 p) {
+    float a = 0.0, b = 0.5;
+    for (int i = uZero; i < 4; i++) { a += b * noised(p).x; b *= 0.5; p = M2 * p * 2.03; }
+    return a;
+  }
+
+  // aux codes: 2 sun, 3 bright star, 4 faint star, 7 moon, 8 cloud, 9 aurora
+  vec3 sky(vec3 rd, out float aux) {
+    aux = 0.0;
+    float day = dayAmount();
+    vec3 col = skyBasic(rd);
+    float sd = dot(rd, uSun);
+    col += vec3(1.0, 0.75, 0.45) * pow(max(sd, 0.0), 12.0) * 0.25 * day * (1.0 - uCloud);
+    float night = 1.0 - smoothstep(-0.2, 0.05, uSun.y);
+    float cloud = 0.0;
+    if (rd.y > 0.01) {
+      vec2 cp = rd.xz / rd.y * 300.0 + vec2(uTime * 6.0, uTime * 2.0);
+      float lo = mix(0.02, -0.4, uCloud), hi = mix(0.5, 0.05, uCloud);
+      cloud = smoothstep(lo, hi, cloudDensity(cp * 0.0032)) * smoothstep(0.01, 0.2, rd.y);
+      vec3 lit = mix(vec3(1.0, 0.55, 0.35), vec3(1.0, 0.98, 0.95), smoothstep(0.0, 0.35, uSun.y));
+      vec3 cc = mix(vec3(0.05, 0.055, 0.07) + vec3(0.12, 0.07, 0.04) * uCity, lit, day) * (0.72 + 0.28 * max(sd, 0.0)) * mix(1.0, 0.55, uCloud);
+      col = mix(col, cc, cloud * 0.85);
+      if (cloud > 0.35) aux = 8.0;
+    }
+    // the aurora: a band of curtains that wanders across the cold sky
+    if (uAurora > 0.01 && rd.y > 0.02) {
+      vec2 ap = rd.xz / (rd.y + 0.15);
+      float band = exp(-pow((ap.y - 1.3 - 0.8 * noised(vec2(ap.x * 0.35, uTime * 0.03)).x) * 1.4, 2.0));
+      float x = ap.x * 1.3 + 0.6 * noised(vec2(ap.y * 0.8, uTime * 0.05)).x;
+      float rays = 0.5 + 0.5 * noised(vec2(x * 7.0, uTime * 0.25)).x;
+      float aur = band * rays * rays * smoothstep(0.02, 0.25, rd.y) * uAurora * (1.0 - cloud);
+      col += aur * mix(vec3(0.15, 1.0, 0.5), vec3(0.6, 0.25, 1.0), smoothstep(0.15, 0.7, rd.y)) * 0.9;
+      if (aur > 0.12) aux = 9.0;
+    }
+    if (sd > 0.9990 && uSun.y > -0.06 && uCloud < 0.8) { col = mix(col, vec3(3.0, 2.6, 2.0), smoothstep(-0.06, 0.04, uSun.y) * (1.0 - cloud)); if (cloud < 0.5) aux = 2.0; }
+    if (dot(rd, -uSun) > 0.9993 && -uSun.y > -0.06 && cloud < 0.5) { col = mix(col, vec3(1.0, 1.0, 1.1), 1.0 - day); aux = 7.0; }
+    if (night > 0.01 && rd.y > 0.0 && aux == 0.0) {
+      vec2 sp = vec2(atan(rd.z, rd.x), asin(clamp(rd.y, -1.0, 1.0)));
+      float hs = hashI(ivec2(floor(sp * 80.0)) + ivec2(4096));
+      if (hs > 0.985 + 0.012 * uCity) {
+        float b = (hs - 0.985) / 0.015;
+        col += vec3(0.8, 0.85, 1.0) * night * (0.25 + b);
+        aux = b > 0.55 ? 3.0 : 4.0;
+      }
+    }
+    return col;
+  }
+
+  // what a reflection in the water sees: the right colour, without the full lighting
+  vec3 reflLite(float m) {
+    vec3 alb = m < 1.5 ? vec3(0.3, 0.28, 0.24) : m < 2.5 ? vec3(0.02) : m < 3.5 ? vec3(0.46, 0.43, 0.38)
+             : m < 5.5 ? vec3(0.3) : m < 7.5 ? vec3(0.08, 0.17, 0.06) : m < 8.5 ? vec3(0.4, 0.25, 0.7)
+             : m < 14.5 ? vec3(0.3, 0.36, 0.2) : m < 15.5 ? vec3(0.36, 0.33, 0.3) : m < 16.5 ? vec3(0.1)
+             : m < 18.5 ? vec3(0.25, 0.45, 0.4) : m < 19.5 ? vec3(0.0) : vec3(0.3, 0.32, 0.35);
+    float day = dayAmount();
+    float sunUp = smoothstep(-0.08, 0.08, uSun.y);
+    vec3 lin = vec3(1.2, 1.05, 0.85) * max(uSun.y, 0.0) * sunUp * (1.0 - 0.7 * uCloud) + mix(vec3(0.03, 0.04, 0.08), vec3(0.2, 0.26, 0.38), day);
+    vec3 col = alb * lin;
+    if ((m > 14.5 && m < 15.5) || m > 19.5) col += vec3(1.0, 0.72, 0.4) * 0.22 * (1.0 - day);   // lit windows, upside down
+    if (m > 7.5 && m < 8.5) col += vec3(0.4, 0.2, 0.8) * 0.5;
+    if (m > 13.5 && m < 14.5) col += vec3(0.7, 1.0, 0.2);
+    if (m > 18.5 && m < 19.5) col += vec3(1.6, 1.1, 0.35);
+    return col;
+  }
+
+  // aux codes for surfaces: 1 a one on the monolith, 6 a zero
+  vec3 shade(vec3 ro, vec3 rd, float t, inout float m, vec3 n, float sha, out float aux) {
+    aux = 0.0;
+    vec3 p = ro + rd * t;
+    vec3 alb = vec3(0.4);
+    float spec = 0.0, win = 0.0;
+    vec3 emit = vec3(0.0);
+    float day = dayAmount();
+    float night = 1.0 - smoothstep(-0.15, 0.1, uSun.y);
+    vec2 cc = toCity(p.xz);
+    float mm = metroMask(cc);
+    Biome b = hB;
+    if (m < 1.5) {
+      vec3 rock = mix(vec3(0.30, 0.27, 0.23), vec3(0.50, 0.27, 0.15), b.desert);
+      rock = mix(rock, vec3(0.24, 0.21, 0.30), b.alien);
+      vec3 grass = vec3(0.17, 0.25, 0.08);
+      grass = mix(grass, vec3(0.06, 0.19, 0.04), b.jungle);
+      grass = mix(grass, vec3(0.12, 0.17, 0.09), b.taiga);
+      grass = mix(grass, vec3(0.40, 0.42, 0.36), b.tundra);
+      grass = mix(grass, vec3(0.30, 0.14, 0.40), b.alien);
+      vec3 sand = mix(vec3(0.62, 0.55, 0.40), vec3(0.72, 0.46, 0.26), b.desert);
+      vec3 snow = vec3(0.92, 0.94, 0.97);
+      float gw = smoothstep(0.62, 0.85, n.y) * (1.0 - smoothstep(18.0, 34.0, p.y)) * (1.0 - b.desert);
+      float sw = max(1.0 - smoothstep(0.3, 1.3, p.y), b.desert * smoothstep(0.55, 0.8, n.y));
+      float nw = max(smoothstep(0.5, 0.75, n.y) * smoothstep(36.0, 46.0, p.y + 6.0 * noised(p.xz * 0.1).x) * (1.0 - b.desert),
+                     b.tundra * smoothstep(0.45, 0.7, n.y) * smoothstep(0.6, 1.5, p.y));
+      alb = mix(rock, grass, gw);
+      alb = mix(alb, sand, sw);
+      alb = mix(alb, snow, nw);
+      if (nw > 0.5) m = 13.0;
+      else if (sw > 0.5) m = 12.0;
+      else if (gw > 0.5) m = 11.0;
+    } else if (m < 2.5) {
+      Site st = hSt;
+      vec3 hb;
+      vec3 q = monoLocal(p, st, hb);
+      vec3 aq = abs(q) / hb;
+      float row = (hb.y - q.y) / (2.0 * hb.y) * 128.0;
+      float col = -1.0;
+      if (aq.z > aq.x && aq.z > aq.y) col = (q.x / hb.x * 0.5 + 0.5) * 64.0;
+      else if (aq.x > aq.y) col = (q.z / hb.z * 0.5 + 0.5) * 16.0 + 24.0;
+      alb = vec3(0.012);
+      spec = 1.0;
+      if (col >= 0.0) {
+        // one automaton, but every monolith reads a different stretch of it
+        int r = clamp(int(row), 0, 127);
+        int c = (clamp(int(col), 0, 63) + int(st.seed * 64.0)) % 64;
+        int g = ((uHead - 1 - r - int(st.seed * 97.0)) % 128 + 128) % 128;
+        float one = texelFetch(uCA, ivec2(c, g), 0).r;
+        aux = one > 0.5 ? 1.0 : 6.0;
+        emit = vec3(0.78, 1.0, 0.24) * (1.0 - one) * 1.25;
+      }
+    } else if (m < 3.5) {
+      alb = vec3(0.46, 0.43, 0.38) * (0.85 + 0.15 * noised(p.xz * 2.0 + p.y).x);
+    } else if (m < 4.5) {
+      float f = 1.0 - max(dot(n, -rd), 0.0);
+      // iq, "palettes": a + b cos(2 pi (c t + d))
+      alb = 0.5 + 0.5 * cos(6.2831853 * (vec3(0.0, 0.33, 0.67) + f * 1.3 + uTime * 0.05));
+      alb *= 0.55;
+      spec = 1.0;
+    } else if (m < 6.5) {
+      float h = hashI(ivec2(floor(p.xz / TCELL)) + ivec2(59, 3));
+      alb = mix(vec3(0.10, 0.21, 0.05), vec3(0.04, 0.16, 0.035), b.jungle);
+      alb = mix(alb, vec3(0.45, 0.19, 0.05), step(h, 0.22) * (1.0 - b.jungle));   // some trees have turned
+      alb = mix(alb, vec3(0.30, 0.14, 0.40), b.alien);
+    } else if (m < 7.5) {
+      alb = vec3(0.05, 0.12, 0.06);
+      alb = mix(alb, vec3(0.85, 0.9, 0.95), b.tundra * smoothstep(0.3, 0.7, n.y));
+    } else if (m < 8.5) {
+      float pulse = 0.6 + 0.4 * sin(uTime * 1.5 + p.x * 0.3 + p.z * 0.2);
+      alb = vec3(0.35, 0.2, 0.6);
+      emit = vec3(0.55, 0.3, 1.0) * pulse * 0.9;
+      spec = 1.0;
+    } else if (m < 10.5) {
+      alb = vec3(0.16, 0.30, 0.11);
+    } else if (m < 11.5) {
+      alb = vec3(0.16, 0.25, 0.08);
+    } else if (m < 14.5) {
+      emit = vec3(0.78, 1.0, 0.24) * (0.8 + 0.2 * sin(uTime * 3.0)) * 1.5;
+      alb = vec3(0.1);
+    } else if (m < 16.5) {
+#ifdef CITY
+      if (m < 15.5) {
+        float r = hashI(hLotId + ivec2(41, 43));
+        alb = r < 0.35 ? vec3(0.55, 0.52, 0.46) : r < 0.6 ? vec3(0.42, 0.24, 0.17) : r < 0.85 ? vec3(0.16, 0.22, 0.28) : vec3(0.2, 0.19, 0.18);
+        spec = (r > 0.6 && r < 0.85) ? 0.7 : 0.05;
+        if (n.y > 0.8) alb = vec3(0.3, 0.29, 0.28);
+        win = 1.0;
+      } else {
+        alb = hStreet ? vec3(0.07) : vec3(0.24, 0.23, 0.22);
+        if (hStreet) emit = vec3(1.0, 0.6, 0.28) * 0.3 * night;        // the grid lights up at night
+      }
+#endif
+    } else if (m < 17.5) {
+      alb = vec3(0.25, 0.26, 0.28);
+      spec = 0.6;
+    } else if (m < 18.5) {
+      alb = vec3(0.24, 0.52, 0.44);                                    // copper, long gone green
+      spec = 0.15;
+    } else if (m < 19.5) {
+      emit = vec3(1.6, 1.1, 0.35);                                     // the torch
+      alb = vec3(0.0);
+    } else if (m < 20.5) {
+      alb = vec3(0.14, 0.19, 0.24);
+      spec = 0.9;
+      win = 1.0;
+    } else {
+      alb = vec3(0.58, 0.55, 0.48);
+      win = 1.0;
+    }
+    if (win > 0.0 && night > 0.01) {
+      // one window every 3.2 m, one floor every 3.6 m; about a third of them are lit
+      vec2 nc = vec2(dot(n.xz, CU), dot(n.xz, CV));
+      float along = abs(nc.x) > abs(nc.y) ? cc.y : cc.x;
+      float wall = 1.0 - smoothstep(0.5, 0.8, abs(n.y));
+      float lit = step(hashI(ivec2(int(floor(along / 3.2)) * 7 + 3, int(floor((p.y - 2.0) / 3.6)) * 13 + 5)), 0.33);
+      emit += vec3(1.0, 0.72, 0.4) * lit * wall * night * 1.4;
+    }
+    float sunUp = smoothstep(-0.08, 0.08, uSun.y);
+    float dif = clamp(dot(n, uSun), 0.0, 1.0);
+    // occlusion, cheaply: faces that look down see less sky, and so do the bottoms of streets
+    float occ = 0.7 + 0.3 * n.y;
+    if (mm >= 1.0) occ *= mix(0.55, 1.0, smoothstep(0.0, 40.0, p.y - 2.0));
+    float skyl = clamp(0.5 + 0.5 * n.y, 0.0, 1.0);
+    float bou = clamp(0.25 - 0.75 * n.y, 0.0, 1.0);
+    vec3 sunCol = mix(vec3(1.4, 0.62, 0.3), vec3(1.65, 1.4, 1.1), smoothstep(0.0, 0.45, uSun.y)) * sunUp * (1.0 - 0.75 * uCloud);
+    vec3 skyCol = mix(vec3(0.03, 0.04, 0.08), vec3(0.17, 0.23, 0.36), day) * (1.0 + 0.6 * uCloud);
+    vec3 lin = dif * sha * sunCol * 1.5;
+    lin += skyl * occ * skyCol * 1.3;
+    lin += bou * occ * vec3(0.3, 0.22, 0.14) * sunUp * 0.6;
+    lin += clamp(dot(n, normalize(-uSun + vec3(0.0, 0.6, 0.0))), 0.0, 1.0) * vec3(0.05, 0.065, 0.11) * (1.0 - sunUp) * occ;
+    lin += vec3(0.1, 0.5, 0.25) * uAurora * skyl * 0.25;
+    lin += vec3(0.12, 0.08, 0.05) * uCity * (1.0 - day) * occ;       // city glow
+    vec3 col = alb * lin;
+    if (spec > 0.0) {
+      vec3 r = reflect(rd, n);
+      float fre = pow(1.0 - max(dot(n, -rd), 0.0), 5.0);
+      col += spec * (0.04 + 0.96 * fre) * skyBasic(r) * occ * 0.9;
+      col += spec * pow(max(dot(r, uSun), 0.0), 60.0) * sunCol * sha;
+    }
+    return col + emit;
+  }
+
+  vec3 tetra(int i) { return 0.5773 * (2.0 * vec3(float(((i + 3) >> 1) & 1), float((i >> 1) & 1), float(i & 1)) - 1.0); }
+
+  // Everything that needs the world goes through one loop, so the compiled shader holds a single
+  // copy of map(): the march from the eye, iq's four samples for the normal, his soft shadow,
+  // and the reflection off open water. Graphics drivers compile that several times faster.
+  void main() {
+    vec2 uv = gl_FragCoord.xy / uRes * 2.0 - 1.0;
+    uv.x *= uAspect;
+    vec3 rd0 = normalize(uCamRot * vec3(uv, uFocal));
+    vec3 ro = uCamPos, rd = rd0;
+    float tw = (rd.y < 0.0 && ro.y > 0.0) ? -ro.y / rd.y : 1e9;
+
+    int phase = 0;                     // 0 eye, 1 normal, 2 shadow, 3 reflection, 4 done
+    float t = 0.05, tLimit = min(uTmax, tw + 0.5);
+    int limit = uSteps, count = 0;
+    float ht = uTmax, hm = -1.0;       // what the eye hit
+    vec3 hp = vec3(0.0);
+    vec3 nAcc = vec3(0.0), nrm = vec3(0.0, 1.0, 0.0);
+    int ni = 0;
+    float sha = 1.0, sst = 0.05, sph = 1e10;
+    float rt = 0.0, rm = -1.0;         // what the reflection hit
+    bool onWater = false, frozen = false;
+    vec3 wp = vec3(0.0), wn = vec3(0.0, 1.0, 0.0);
+    float jungleWater = 0.0;
+    float sunUp = smoothstep(-0.08, 0.08, uSun.y);
+
+    for (int i = uZero; i < 620; i++) {
+      if (phase == 4) break;
+      vec3 p = phase == 1 ? hp + (0.0006 * ht + 0.001) * tetra(ni)
+             : phase == 2 ? hp + nrm * 0.05 + uSun * sst
+             : ro + rd * t;
+      bool marching = phase == 0 || phase == 3;
+      vec2 h = vec2(1e9, -1.0);
+      if (!(marching && p.y > uCeil && rd.y > 0.0)) h = map(p);
+
+      if (marching) {
+        bool hit = false, done = false;
+        if (h.x >= 1e8) done = true;                                   // left through the ceiling
+        else if (h.x < 0.0004 * t) { hit = true; done = true; }
+        else {
+          t += h.x;
+          count++;
+          if (t > tLimit) done = true;
+          else if (count >= limit) { hit = t < 600.0; done = true; }   // out of steps far away: call it haze, not a wall
+        }
+        if (done && phase == 3) { rt = t; rm = hit ? h.y : -1.0; phase = 4; }
+        else if (done) {
+          if (hit) {
+            ht = t;
+            hm = h.y;
+            hp = ro + rd * t;
+            hB = gB;
+            hSt = gSt;
+#ifdef CITY
+            hLotId = gLotId;
+            hStreet = gStreet;
+#endif
+          }
+          if (tw < uTmax && (!hit || tw < ht)) {
+            wp = ro + rd * tw;
+            Biome wb = gB;       // the march ended just past the water: its last point is close enough
+            jungleWater = wb.jungle;
+            if (wb.tundra > 0.55) { frozen = true; phase = 4; }
+            else {
+              // open water: a flat plane with two layers of moving ripples; follow the reflection
+              vec3 w1 = noised(wp.xz * 0.35 + vec2(uTime * 0.4, uTime * 0.3));
+              vec3 w2 = noised(wp.xz * 0.9 - vec2(uTime * 0.6, -uTime * 0.2));
+              vec2 g = w1.yz * 0.042 + w2.yz * 0.045;
+              wn = normalize(vec3(-g.x, 1.0, -g.y));
+              vec3 rr = reflect(rd, wn);
+              rr.y = abs(rr.y);
+              onWater = true;
+              ro = wp + vec3(0.0, 0.02, 0.0);
+              rd = rr;
+              t = 0.05;
+              tLimit = min(uTmax, 6000.0);
+              limit = 90;
+              count = 0;
+              phase = 3;
+            }
+          } else {
+            phase = hit ? 1 : 4;
+          }
+        }
+      } else if (phase == 1) {
+        nAcc += tetra(ni) * h.x;
+        ni++;
+        if (ni == 4) {
+          nrm = normalize(nAcc);
+          phase = (dot(nrm, uSun) > 0.001 && sunUp > 0.0) ? 2 : 4;
+          count = 0;
+        }
+      } else {
+        float hh = h.x;
+        if (hh < 0.001) { sha = 0.0; phase = 4; }
+        else {
+          float y = hh * hh / (2.0 * sph);
+          float d = sqrt(max(hh * hh - y * y, 0.0));
+          sha = min(sha, 10.0 * d / max(0.0, sst - y));
+          sph = hh;
+          sst += clamp(hh, 0.05, 3.0);
+          count++;
+          if (sst > 140.0 || count >= 48) phase = 4;
+        }
+      }
+    }
+
+    float aux = 0.0, m, tOut;
+    vec3 col;
+    // one call to the sky, whether the eye or the reflection needs it
+    bool needSky = onWater ? rm < 0.0 : (!frozen && hm < 0.0);
+    vec3 skyCol = vec3(0.0);
+    float skyAux = 0.0;
+    if (needSky) skyCol = sky(onWater ? rd : rd0, skyAux);
+
+    if (frozen) {
+      // frozen: a white, cracked, barely reflecting floor
+      m = 9.0;
+      tOut = tw;
+      float crack = abs(noised(wp.xz * 0.25).x);
+      vec3 ice = mix(vec3(0.62, 0.72, 0.8), vec3(0.85, 0.9, 0.95), smoothstep(0.02, 0.2, crack));
+      vec3 light = vec3(1.6, 1.4, 1.15) * max(uSun.y, 0.0) * sunUp * (1.0 - 0.75 * uCloud) + mix(vec3(0.05, 0.065, 0.1), vec3(0.2, 0.26, 0.38), dayAmount());
+      col = applyFog(ice * light + vec3(0.1, 0.5, 0.25) * uAurora * 0.2, tw, rd0);
+    } else if (onWater) {
+      m = 5.0;
+      tOut = tw;
+      vec3 refl = rm < 0.0 ? skyCol : applyFog(reflLite(rm), rt, rd);
+      float fre = 0.02 + 0.98 * pow(1.0 - max(dot(wn, -rd0), 0.0), 5.0);
+      vec3 waterCol = mix(vec3(0.03, 0.09, 0.09), vec3(0.05, 0.11, 0.04), jungleWater) * (0.25 + 0.75 * smoothstep(-0.1, 0.3, uSun.y));
+      float gl = pow(max(dot(rd, uSun), 0.0), 300.0) * smoothstep(0.0, 0.1, uSun.y) * (1.0 - uCloud);
+      if (gl > 0.3) aux = 5.0;
+      col = applyFog(mix(waterCol, refl, fre * 0.85 + 0.1) + gl * vec3(2.0, 1.7, 1.2), tw, rd0);
+    } else if (hm < 0.0) {
+      m = 0.0;
+      tOut = uTmax;
+      col = skyCol;
+      aux = skyAux;
+    } else {
+      m = hm;
+      tOut = ht;
+      col = applyFog(shade(uCamPos, rd0, ht, m, nrm, clamp(sha, 0.0, 1.0), aux), ht, rd0);
+    }
+
+    col = 1.0 - exp(-col * uExposure);
+    col = pow(clamp(col, 0.0, 1.0), vec3(0.4545));
+    oCol = vec4(col, 1.0);
+
+    // view-space depth, 16 bits across two channels, for the edge finder
+    float z = clamp(tOut * dot(rd0, uCamRot[2]) / uTmax, 0.0, 1.0);
+    float z16 = floor(z * 65535.0);
+    oG = vec4(floor(z16 / 256.0) / 255.0, mod(z16, 256.0) / 255.0, m / 255.0, aux / 255.0);
+  }`;
+
+  const SCENE_CITY = SCENE.replace('#version 300 es', `#version 300 es
+#define CITY 1`);
+
+  // Pass 2: choose one character per cell. Alpha carries the glyph index (code - 32).
+  const GLYPH = `#version 300 es
+  precision highp float;
+  precision highp int;
+  precision highp sampler2D;
+  out vec4 o;
+  uniform sampler2D uCol;
+  uniform sampler2D uG;
+  uniform int uRamp[16];
+  uniform int uMode;          // 0 colour, 1 phosphor, 2 ink on paper
+  uniform vec2 uRes;
+  uniform float uTime;
+  uniform float uRain;
+  uniform float uSnow;
+
+  // letters of their own, from sparse to dense
+  const int GRASS[8] = int[8](32, 46, 44, 59, 118, 119, 87, 77);   //   . , ; v w W M
+  const int SAND[8]  = int[8](32, 46, 44, 58, 59, 43, 120, 88);    //   . , : ; + x X
+  const int SNOW[8]  = int[8](32, 46, 39, 58, 43, 42, 88, 35);     //   . ' : + * X #
+  const int LEAF[8]  = int[8](32, 46, 111, 101, 56, 38, 37, 64);   //   . o e 8 & % @
+  const int PINE[8]  = int[8](32, 46, 94, 94, 65, 65, 77, 35);     //   . ^ ^ A A M #
+  const int CRYS[8]  = int[8](32, 39, 94, 42, 88, 88, 35, 35);     //   ' ^ * X X # #
+  const int ICE[8]   = int[8](32, 46, 45, 45, 61, 61, 35, 35);     //   . - - = = # #
+  const int CACT[8]  = int[8](32, 58, 124, 124, 73, 73, 72, 72);   //   : | | I I H H
+  const int AUR[8]   = int[8](32, 39, 58, 58, 33, 33, 124, 124);   //   ' : : ! ! | |
+  const int GLOW[8]  = int[8](32, 46, 43, 43, 42, 42, 35, 64);     //   . + + * * # @
+  const int BUILD[8] = int[8](32, 46, 58, 124, 72, 35, 77, 64);    //   . : | H # M @
+  const int ROAD[8]  = int[8](32, 46, 46, 44, 58, 59, 61, 35);     //   . . , : ; = #
+  const int COPPER[8] = int[8](32, 46, 58, 59, 111, 37, 38, 64);   //   . : ; o % & @
+
+  int gi(int code) { return code - 32; }
+  int pick(int m, float L) {
+    int k = clamp(int(pow(L, 0.85) * 7.99), 0, 7);
+    if (m == 11) return gi(GRASS[k]);
+    if (m == 12) return gi(SAND[k]);
+    if (m == 13) return gi(SNOW[k]);
+    if (m == 6) return gi(LEAF[k]);
+    if (m == 7) return gi(PINE[k]);
+    if (m == 8) return gi(CRYS[max(k, 2)]);
+    if (m == 9) return gi(ICE[k]);
+    if (m == 10) return gi(CACT[k]);
+    if (m == 14 || m == 19) return gi(GLOW[max(k, 3)]);
+    if (m == 15 || m == 20 || m == 21) return gi(BUILD[k]);
+    if (m == 16) return gi(ROAD[k]);
+    if (m == 18) return gi(COPPER[k]);
+    return uRamp[clamp(int(pow(L, 0.85) * 15.99), 0, 15)];
+  }
+
+  float hash2(int x, int y) {
+    uint h = uint(x) * 374761393u + uint(y) * 668265263u;
+    h = (h ^ (h >> 13u)) * 1274126177u;
+    h ^= h >> 16u;
+    return float(h) * (1.0 / 4294967295.0);
+  }
+
+  float Z(ivec2 q) {
+    q = clamp(q, ivec2(0), ivec2(uRes) - 1);
+    vec4 g = texelFetch(uG, q, 0);
+    return max((g.r * 65280.0 + g.g * 255.0) / 65535.0, 1e-5);
+  }
+
+  void main() {
+    ivec2 p = ivec2(gl_FragCoord.xy);
+    vec3 c = texelFetch(uCol, p, 0).rgb;
+    vec4 g = texelFetch(uG, p, 0);
+    int m = int(g.b * 255.0 + 0.5);
+    int aux = int(g.a * 255.0 + 0.5);
+    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    float L = uMode == 2 ? 1.0 - lum : lum;
+
+    int glyph = pick(m, L);
+    bool edge = false;
+    if (m == 0) {
+      glyph = uRamp[clamp(int(L * 6.0), 0, 15)];
+      if (aux == 8) glyph = uRamp[clamp(int(L * 10.0), 0, 15)];
+      if (aux == 9) glyph = gi(AUR[clamp(int(lum * 10.0), 1, 7)]);
+      if (aux == 2) glyph = gi(79);        // O  the sun
+      if (aux == 7) glyph = gi(111);       // o  the moon
+      if (aux == 3) glyph = gi(42);        // *
+      if (aux == 4) glyph = gi(43);        // +
+    } else if (m == 5) {
+      int w[5] = int[5](gi(32), gi(46), gi(45), gi(126), gi(61));   // space . - ~ =
+      glyph = w[clamp(int(L * 4.99), 0, 4)];
+      if (glyph == gi(32) && uMode != 2) glyph = gi(46);
+      if (aux == 5) glyph = gi(42);
+    } else if (m == 2 && (aux == 1 || aux == 6)) {
+      glyph = aux == 1 ? gi(49) : gi(48);
+    }
+    // silhouettes and ridges of rock and stone: this cell is nearer than its neighbours on some axis.
+    // For a flat surface 1/z is linear across the screen, so its second difference is zero.
+    if (m == 1 || m == 2 || m == 3 || m == 4 || m == 12 || m == 13 || m == 15 || m == 17 || m == 18 || m == 20 || m == 21) {
+      float i0 = 1.0 / Z(p);
+      float il = 1.0 / Z(p + ivec2(-1, 0)), ir = 1.0 / Z(p + ivec2(1, 0));
+      float iu = 1.0 / Z(p + ivec2(0, 1)), id = 1.0 / Z(p + ivec2(0, -1));
+      float lx = (il + ir - 2.0 * i0) / i0, ly = (iu + id - 2.0 * i0) / i0;
+      if (min(lx, ly) < -0.3) {
+        vec2 gr = vec2(ir - il, iu - id);
+        float q = mod(atan(gr.y, gr.x) + 0.3927, 3.14159265);
+        int s = int(q / 0.7853982);
+        glyph = s == 0 ? gi(124) : s == 1 ? gi(92) : s == 2 ? gi(45) : gi(47);   // | \\ - /
+        edge = true;
+      }
+    }
+
+    vec3 fg;
+    if (uMode == 0) {
+      fg = min(c * 1.35 + 0.02, vec3(1.0));
+      if (m == 2) fg = max(fg, vec3(0.13, 0.13, 0.12));
+      if (edge) fg = min(fg * 1.3 + 0.06, vec3(1.0));
+    } else if (uMode == 1) {
+      fg = vec3(0.776, 1.0, 0.239) * (0.2 + 0.95 * lum);
+      if (edge) fg = vec3(0.776, 1.0, 0.239);
+    } else {
+      fg = mix(vec3(0.086, 0.078, 0.059), c * 0.5, 0.3);
+      if ((m == 2 && aux == 6) || m == 14 || m == 19) fg = vec3(1.0, 0.29, 0.12);
+      if (m == 8) fg = vec3(0.45, 0.25, 0.8);
+      if (edge) fg = vec3(0.086, 0.078, 0.059);
+    }
+
+    // weather, drawn in front of everything: rain falls in streaks, snow drifts
+    if (uRain > 0.02) {
+      float v = float(p.y) + uTime * 42.0 + hash2(p.x, 7) * 311.0;
+      float seg = floor(v / 7.0);
+      if (fract(v / 7.0) < 0.2 && hash2(p.x, int(seg)) < uRain * 0.55) {
+        glyph = hash2(p.x, int(seg) + 3) < 0.5 ? gi(47) : gi(39);
+        fg = uMode == 2 ? vec3(0.3, 0.33, 0.4) : mix(fg, vec3(0.62, 0.68, 0.8), 0.85);
+      }
+    }
+    if (uSnow > 0.02) {
+      int sx = p.x + int(floor(sin(uTime * 0.7 + float(p.y) * 0.21) * 1.5));
+      float v = float(p.y) + uTime * 6.0 + hash2(sx, 11) * 97.0;
+      float seg = floor(v / 6.0);
+      if (fract(v / 6.0) < 0.17 && hash2(sx, int(seg)) < uSnow * 0.45) {
+        glyph = hash2(sx, int(seg) + 5) < 0.4 ? gi(42) : gi(46);
+        fg = uMode == 2 ? vec3(0.35, 0.37, 0.42) : vec3(0.92, 0.94, 0.98);
+      }
+    }
+    o = vec4(fg, float(glyph) / 255.0);
+  }`;
+
+  // Pass 3: stamp each cell's glyph from the font atlas, at full resolution.
+  const PRESENT = `#version 300 es
+  precision highp float;
+  precision highp int;
+  precision highp sampler2D;
+  out vec4 o;
+  uniform sampler2D uGlyph;
+  uniform sampler2D uAtlas;
+  uniform ivec2 uCell;
+  uniform ivec2 uGrid;
+  uniform vec2 uCanvas;
+  uniform int uMode;
+  void main() {
+    ivec2 px = ivec2(gl_FragCoord.xy);
+    int yTop = int(uCanvas.y) - 1 - px.y;
+    ivec2 cell = ivec2(px.x / uCell.x, yTop / uCell.y);
+    ivec2 local = ivec2(px.x - cell.x * uCell.x, yTop - cell.y * uCell.y);
+    vec4 g = texelFetch(uGlyph, ivec2(cell.x, uGrid.y - 1 - cell.y), 0);
+    int idx = int(g.a * 255.0 + 0.5);
+    float ink = texelFetch(uAtlas, ivec2(idx * uCell.x + local.x, local.y), 0).r;
+    vec3 bg;
+    if (uMode == 2) bg = vec3(0.925, 0.898, 0.827);
+    else if (uMode == 1) bg = vec3(0.012, 0.016, 0.008) + g.rgb * 0.04;
+    else bg = vec3(0.018, 0.016, 0.013) + g.rgb * 0.09;
+    vec3 col = mix(bg, g.rgb, ink);
+    vec2 v = gl_FragCoord.xy / uCanvas - 0.5;
+    if (uMode != 2) col *= 1.0 - 0.35 * dot(v, v);
+    o = vec4(col, 1.0);
+  }`;
+
+  // Shaders compile in the background where the browser allows it, so a slow graphics driver
+  // shows "growing a world" instead of freezing the page.
+  const parallel = gl.getExtension('KHR_parallel_shader_compile');
+  function program(fs) {
+    const shader = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+    const vs = shader(gl.VERTEX_SHADER, VS), fsh = shader(gl.FRAGMENT_SHADER, fs);
+    const p = gl.createProgram();
+    gl.attachShader(p, vs);
+    gl.attachShader(p, fsh);
+    gl.linkProgram(p);
+    return new Promise((resolve, reject) => {
+      const check = () => {
+        if (parallel && !gl.getProgramParameter(p, parallel.COMPLETION_STATUS_KHR)) return void setTimeout(check, 50);
+        if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+          return reject(new Error(gl.getShaderInfoLog(fsh) || gl.getShaderInfoLog(vs) || gl.getProgramInfoLog(p) || 'link failed'));
+        }
+        const u = {};
+        const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+        for (let i = 0; i < n; i++) {
+          const info = gl.getActiveUniform(p, i);
+          u[info.name.replace(/\[0\]$/, '')] = gl.getUniformLocation(p, info.name);
+        }
+        resolve({ p, u });
+      };
+      check();
+    });
+  }
+
+  // ── the same world, in JavaScript: for the camera, the map and the weather ──
+  let SEED = [0, 0];
+  function hashI(x, y) {
+    const ux = (x + SEED[0] + 65536) >>> 0, uy = (y + SEED[1] + 65536) >>> 0;
+    let h = (Math.imul(ux, 0x27d4eb2d) ^ Math.imul(uy, 0x165667b1)) >>> 0;
+    h = (h ^ (h >>> 15)) >>> 0; h = Math.imul(h, 0x2c1b3c6d) >>> 0;
+    h = (h ^ (h >>> 12)) >>> 0; h = Math.imul(h, 0x297a2d39) >>> 0;
+    h = (h ^ (h >>> 15)) >>> 0;
+    return h / 4294967295;
+  }
+  function noised(x, y) {
+    const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
+    const ux = fx * fx * fx * (fx * (fx * 6 - 15) + 10), uy = fy * fy * fy * (fy * (fy * 6 - 15) + 10);
+    const dux = 30 * fx * fx * (fx * (fx - 2) + 1), duy = 30 * fy * fy * (fy * (fy - 2) + 1);
+    const a = hashI(ix, iy), b = hashI(ix + 1, iy), c = hashI(ix, iy + 1), d = hashI(ix + 1, iy + 1);
+    const k1 = b - a, k2 = c - a, k4 = a - b - c + d;
+    return [-1 + 2 * (a + k1 * ux + k2 * uy + k4 * ux * uy), 2 * dux * (k1 + k4 * uy), 2 * duy * (k2 + k4 * ux)];
+  }
+  const ss = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
+  const mix = (a, b, t) => a + (b - a) * t;
+
+  // ── New York, 1:1: the same city the shader draws ──
+  const CITY_O = [6000, 6000], CU = [0.4848096, 0.8746197], CV = [0.8746197, -0.4848096];
+  const toCity = (x, z) => { const dx = x - CITY_O[0], dz = z - CITY_O[1]; return [dx * CU[0] + dz * CU[1], dx * CV[0] + dz * CV[1]]; };
+  const fromCity = (u, v) => [CITY_O[0] + u * CU[0] + v * CV[0], CITY_O[1] + u * CU[1] + v * CV[1]];
+  const clamp = (x, a, b) => Math.min(Math.max(x, a), b);
+  function metroDist(u, v) {
+    const qx = Math.abs(u - 8750) - 13750, qy = Math.abs(v + 500) - 6000;
+    return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0);
+  }
+  const metroMask = (u, v) => 1 - ss(0, 1500, metroDist(u, v));
+  const SHU = [-150, 0, 1000, 2000, 3000, 4500, 7500, 12000, 15000, 21600];
+  const SHW = [-450, -600, -1000, -1500, -1900, -2000, -2050, -2000, -1700, -900];
+  const SHE = [-100, 100, 600, 900, 1300, 1250, 1150, 1250, 300, -300];
+  function shore(u) {
+    u = clamp(u, SHU[0], SHU[9]);
+    for (let i = 0; i < 9; i++) {
+      if (u <= SHU[i + 1]) { const t = (u - SHU[i]) / (SHU[i + 1] - SHU[i]); return [mix(SHW[i], SHW[i + 1], t), mix(SHE[i], SHE[i + 1], t)]; }
+    }
+    return [SHW[9], SHE[9]];
+  }
+  const eastRiver = (u) => mix(550, 220, ss(11000, 13000, u));
+  function landSD(u, v) {
+    const [w, e] = shore(u);
+    const man = Math.min(Math.min(v - w, e - v), Math.min(u + 150, 21600 - u));
+    const nj = Math.min(w - 1300 - v, u + 1500);
+    const bk = Math.min(v - e - eastRiver(u), u + 4000);
+    const li = 160 - Math.hypot(u + 2300, v + 1700);
+    const gv = (1 - Math.hypot((u + 750) / 380, (v + 50) / 230)) * 230;
+    return [Math.max(man, nj, bk, li, gv), man];
+  }
+  function parkAt(u, v) {
+    if (u > 7620 && u < 11700 && v > -825 && v < -15) return 1;
+    if (u > -150 && u < 300 && v < -150) return 0.7;
+    if (Math.hypot((u + 750) / 380, (v + 50) / 230) < 1) return 0.6;
+    if (Math.hypot(u + 2300, v + 1700) < 160) return 0.3;
+    if (u > -1700 && u < -400 && v > 3000 && v < 4000) return 1;
+    return 0;
+  }
+  function cityGround(u, v) {
+    const [sd] = landSD(u, v);
+    const park = parkAt(u, v);
+    let g = mix(-9, 2, ss(-6, 6, sd));
+    if (park > 0) g += park * (1 + 1.5 * noised(u * 0.02, v * 0.02)[0]) * ss(0, 20, sd);
+    const er = Math.hypot((u - 10180) / 420, (v + 420) / 330), el = Math.hypot((u - 8900) / 140, (v + 600) / 110);
+    g = mix(g, -3, 1 - ss(0.97, 1, Math.min(er, el)));
+    const pool = Math.min(Math.max(Math.abs(u - 960), Math.abs(v + 640)), Math.max(Math.abs(u - 860), Math.abs(v + 700)));
+    return mix(g, -4, 1 - ss(29, 30, pool));
+  }
+  const bump = (u, v, au, av, ru, rv) => Math.exp(-(((u - au) / ru) ** 2) - (((v - av) / rv) ** 2));
+  function zone(u, v, man) {
+    const amp = 340 * bump(u, v, 6400, -250, 1300, 700) + 300 * bump(u, v, 900, -350, 650, 600)
+      + 230 * bump(u, v, 1300, 1900, 450, 450) + 180 * bump(u, v, 900, -2700, 500, 450) + 140 * bump(u, v, 7300, 1900, 450, 400);
+    return [man ? 24 + 14 * ss(7000, 9000, u) * (1 - ss(15000, 17000, u)) : 11, amp];
+  }
+  function reserved(u, v) {
+    return (Math.abs(u - 5580) < 85 && Math.abs(v + 45) < 50) || (Math.abs(u - 6300) < 50 && Math.abs(v - 525) < 50)
+      || (Math.abs(u - 7420) < 35 && Math.abs(v - 291) < 35) || (Math.abs(u - 7500) < 40 && Math.abs(v + 650) < 40)
+      || (Math.abs(u - 1000) < 170 && Math.abs(v + 660) < 130) || (Math.abs(u - 1300) < 45 && v > 300 && v < 1700);
+  }
+  // the roof height at a point, if it falls inside a building's footprint
+  function cityBuilding(u, v) {
+    const m = landSD(u, v)[1] > -100;
+    const cv = m ? (v >= 0 ? 160 : 280) : 180, av = m ? 15 : 12;
+    const ciu = Math.floor(u / 80), civ = Math.floor(v / cv);
+    const lcu = u - ciu * 80, lcv = v - civ * cv;
+    const bmaxV = cv - av, nV = m ? (v >= 0 ? 3 : 6) : 4, lotW = (bmaxV - av) / nV;
+    const pcu = clamp(lcu, 9, 71), pcv = clamp(lcv, av, bmaxV);
+    const lu = pcu < 40 ? 0 : 1, lv = clamp(Math.floor((pcv - av) / lotW), 0, nV - 1);
+    const lotCu = 24.5 + 31 * lu, lotCv = av + (lv + 0.5) * lotW;
+    const idx = ciu * 2 + lu, idy = civ * 8 + lv + (m ? 0 : 4096);
+    const wu = ciu * 80 + lotCu, wv = civ * cv + lotCv;
+    if (!(landSD(wu, wv)[0] > 8 && parkAt(wu, wv) === 0 && !reserved(wu, wv))) return 0;
+    const [base, amp] = zone(ciu * 80 + 40, civ * cv + cv / 2, m);
+    const H = base * (0.6 + 0.8 * hashI(idx + 11, idy + 7)) + amp * Math.pow(hashI(idx + 5, idy + 91), 3.5);
+    const inset = 1.5 + 2.5 * hashI(idx + 17, idy + 29);
+    return Math.abs(lcu - lotCu) < 15.5 - inset + 4 && Math.abs(lcv - lotCv) < lotW / 2 - inset + 4 ? H : 0;
+  }
+  const LANDMARKS = [
+    { name: 'the Statue of Liberty', u: -2300, v: -1700, r: 60, top: 95, look: 62, alt: 75, pass: 190, note: '93 m from the ground to the torch' },
+    { name: 'One World Trade Center', u: 1100, v: -650, r: 45, top: 541, look: 300, alt: 200, pass: 260, note: '541 m: 1,776 feet, on purpose' },
+    { name: 'the Brooklyn Bridge', u: 1300, v: 977, r: 0, top: 0, look: 60, alt: 115, pass: 330, note: '486 m between the towers, opened in 1883' },
+    { name: 'the Empire State Building', u: 5580, v: -45, r: 70, top: 443, look: 300, alt: 250, pass: 230, note: '381 m to the roof, 443 m to the tip' },
+    { name: 'the Chrysler Building', u: 6300, v: 525, r: 45, top: 319, look: 250, alt: 235, pass: 200, note: '319 m, the tallest in the world for eleven months' },
+    { name: '432 Park Avenue', u: 7420, v: 291, r: 21, top: 428, look: 330, alt: 265, pass: 190, note: '426 m tall and 28 m wide' },
+    { name: 'Central Park Tower', u: 7500, v: -650, r: 34, top: 474, look: 400, alt: 290, pass: 210, note: '472 m: the highest roof in the city' },
+    { name: 'Central Park', u: 9500, v: -420, r: 0, top: 0, look: 5, alt: 170, pass: 380, note: '4 km by 800 m, 59th Street to 110th' },
+    { name: 'Harlem', u: 13500, v: -900, r: 0, top: 0, look: 20, alt: 130, pass: 300, note: 'north of 110th Street' },
+    { name: 'Inwood', u: 20800, v: -600, r: 0, top: 0, look: 10, alt: 110, pass: 300, note: 'the top of the island, 21.6 km from the Battery' },
+  ];
+  function cityTop(u, v) {
+    let h = cityGround(u, v) + cityBuilding(u, v);
+    for (const L of LANDMARKS) if (L.r > 0 && Math.hypot(u - L.u, v - L.v) < L.r + 10) h = Math.max(h, L.top);
+    if (Math.abs(u - 1300) < 25 && v > 350 && v < 1650) h = Math.max(h, 88);
+    return h;
+  }
+  function nycPlace(u, v) {
+    const [sd, man] = landSD(u, v);
+    const [w] = shore(u);
+    if (Math.hypot(u + 2300, v + 1700) < 170) return 'Liberty Island';
+    if (Math.hypot((u + 750) / 380, (v + 50) / 230) < 1) return 'Governors Island';
+    if (sd < 0) return u < -150 ? 'Upper New York Bay' : v < w ? 'the Hudson River' : u > 12000 ? 'the Harlem River' : 'the East River';
+    if (man > 0) {
+      if (u > 7620 && u < 11700 && v > -825 && v < -15) return Math.hypot((u - 10180) / 420, (v + 420) / 330) < 1 ? 'the Reservoir, Central Park' : 'Central Park';
+      const hood = u < 1600 ? 'Financial District' : u < 3000 ? (v < 0 ? 'SoHo and Tribeca' : 'Lower East Side')
+        : u < 4700 ? (v < -500 ? 'Chelsea' : v < 400 ? 'Union Square' : 'Gramercy') : u < 7620 ? (v < -900 ? 'Hell’s Kitchen' : 'Midtown')
+        : u < 11700 ? (v < -840 ? 'Upper West Side' : 'Upper East Side') : u < 15300 ? 'Harlem' : u < 19500 ? 'Washington Heights' : 'Inwood';
+      return `Manhattan, ${hood}`;
+    }
+    if (v < w) return u < 3000 ? 'Jersey City' : u < 5500 ? 'Hoboken' : 'New Jersey';
+    if (u > 12000) return 'the Bronx';
+    if (u > 4500) return 'Queens';
+    return u > 400 && u < 2500 ? 'Downtown Brooklyn' : 'Brooklyn';
+  }
+
+  function biome(px, pz) {
+    const [cu, cv] = toCity(px, pz);
+    const keep = 1 - metroMask(cu, cv);
+    const temp = noised(px * 0.0011 + 71.3, pz * 0.0011 - 13.7)[0];
+    const wet = noised(px * 0.0013 - 41.9, pz * 0.0013 + 88.1)[0];
+    const odd = noised(px * 0.0007 + 5.5, pz * 0.0007 + 51.2)[0];
+    const hot = ss(0.08, 0.32, temp), cold = 1 - ss(-0.42, -0.18, temp), cool = (1 - ss(-0.25, 0, temp)) * (1 - cold);
+    const b = { temp, wet, hot, cold };
+    b.desert = hot * (1 - ss(-0.25, 0.05, wet)) * keep;
+    b.jungle = hot * ss(0.08, 0.32, wet) * keep;
+    b.tundra = cold * keep;
+    b.taiga = cool * ss(-0.15, 0.1, wet) * keep;
+    b.alien = ss(0.5, 0.65, odd) * keep;
+    b.forest = Math.max(Math.max(b.taiga * 0.75, b.jungle * 0.9), 0.22 * (1 - hot) * (1 - cold) * ss(-0.1, 0.2, wet)) * (1 - b.alien) * keep;
+    return b;
+  }
+
+  const CELL = 110;
+  function site(ix, iz) {
+    const origin = ix === 0 && iz === 0;
+    const jx = origin ? 0 : hashI(ix + 211, iz + 9001) * 2 - 1;
+    const jz = origin ? 0 : hashI(ix + 5003, iz + 77) * 2 - 1;
+    const x = ix * CELL + jx * 10, z = iz * CELL + jz * 10;
+    const [cu, cv] = toCity(x, z);
+    return {
+      ix, iz, x, z,
+      on: origin || (hashI(ix + 7001, iz + 1307) < 0.5 && metroMask(cu, cv) === 0),
+      level: 1.5 + 3.5 * hashI(ix + 401, iz + 6007),
+      s: 0.8 + 0.7 * hashI(ix + 3, iz + 7919),
+      kind: !origin && hashI(ix + 97, iz + 3131) < 0.3 ? 1 : 0,
+    };
+  }
+  const siteAt = (x, z) => site(Math.floor(x / CELL + 0.5), Math.floor(z / CELL + 0.5));
+
+  function fbmA(px, pz) {
+    let qx = px * 0.011, qy = pz * 0.011, a = 0, b = 1, dx = 0, dy = 0;
+    for (let i = 0; i < 7; i++) {
+      const n = noised(qx, qy);
+      dx += n[1]; dy += n[2];
+      a += b * n[0] / (1 + dx * dx + dy * dy);
+      b *= 0.5;
+      const nx = 0.8 * qx + 0.6 * qy, ny = -0.6 * qx + 0.8 * qy;
+      qx = nx * 2; qy = ny * 2;
+    }
+    return a;
+  }
+  function terrainH(px, pz, b) {
+    const [cu, cv] = toCity(px, pz);
+    const mm = metroMask(cu, cv);
+    if (mm >= 1) return cityGround(cu, cv);
+    b = b || biome(px, pz);
+    const a = fbmA(px, pz);
+    const cont = noised(px * 0.0023 + 17.3, pz * 0.0023 - 5.1)[0];
+    let h = mix(-6 + 10 * a, 6 + 62 * a, ss(-0.3, 0.45, cont));
+    if (b.desert > 0) {
+      const x = h / 7, fx = Math.floor(x);
+      const mesa = (fx + ss(0.4, 0.85, x - fx)) * 7;
+      const dune = 1.6 * Math.abs(Math.sin(px * 0.09 + pz * 0.05 + 1.8 * noised(px * 0.02, pz * 0.02)[0]));
+      h = mix(h, Math.max(mesa, 0.6) + dune * (1 - ss(4, 12, mesa)), b.desert);
+    }
+    h -= 3 * b.jungle;
+    const st = siteAt(px, pz);
+    if (st.on) {
+      const r = Math.hypot(px - st.x, pz - st.z);
+      h = mix(h, st.level + 0.6 - 0.003 * r * r + 0.3 * a, 1 - ss(22, 42, r));
+    }
+    return mix(h, -9, mm);
+  }
+  // the highest thing at a point, ground or roof, for the camera to stay above
+  function groundTop(px, pz) {
+    const [cu, cv] = toCity(px, pz);
+    return metroMask(cu, cv) >= 1 ? cityTop(cu, cv) : terrainH(px, pz);
+  }
+  function place(b, h, px, pz) {
+    const [cu, cv] = toCity(px, pz);
+    const mm = metroMask(cu, cv);
+    if (mm >= 1) return [nycPlace(cu, cv), '#', 'm'];
+    if (mm > 0 && h < 0) return ['New York Bay', '~', 'w'];
+    if (h < 0) return b.tundra > 0.55 ? ['frozen lake', '=', 'i'] : ['open water', '~', 'w'];
+    if (b.alien > 0.5) return ['crystal field', 'x', 'x'];
+    if (b.desert > 0.5) return ['red desert', ':', 'd'];
+    if (b.jungle > 0.5) return ['jungle', '&', 'j'];
+    if (b.tundra > 0.5) return ['tundra', '*', 'u'];
+    if (h > 36) return ['high mountains', 'M', 'm'];
+    if (b.taiga > 0.5) return ['taiga', '^', 't'];
+    return b.forest > 0.15 ? ['woodland', 'f', 'f'] : ['grassland', '.', 'g'];
+  }
+
+  // ── Rule 137, computed here and streamed onto the monoliths one row at a time ──
+  const CA_W = 64, CA_H = 128;
+  let caRow;
+  let caHead = 0;
+  const caTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, caTex);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, CA_W, CA_H, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array(CA_W * CA_H));
+  setNearest();
+  const caBytes = new Uint8Array(CA_W);
+  function caStep() {
+    const next = new Uint8Array(CA_W);
+    for (let i = 0; i < CA_W; i++) {
+      const idx = (caRow[(i + CA_W - 1) % CA_W] << 2) | (caRow[i] << 1) | caRow[(i + 1) % CA_W];
+      next[i] = (137 >> idx) & 1;
+      caBytes[i] = next[i] * 255;
+    }
+    caRow = next;
+    gl.bindTexture(gl.TEXTURE_2D, caTex);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, caHead, CA_W, 1, gl.RED, gl.UNSIGNED_BYTE, caBytes);
+    caHead = (caHead + 1) % CA_H;
+  }
+  function caSeed() {
+    caRow = new Uint8Array(CA_W).map((_, i) => (hashI(i, 137) < 0.5 ? 1 : 0));
+    for (let i = 0; i < CA_H; i++) caStep();
+  }
+
+  function setNearest() {
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+  function target(w, h) {
+    const t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, w, h);
+    setNearest();
+    return t;
+  }
+
+  // ── state ─────────────────────────────────────────────────────────────
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const S = {
+    dpr: Math.min(window.devicePixelRatio || 1, 2),
+    fontCss: innerWidth < 640 ? 9 : 12,
+    mode: 0,
+    auto: !reduced,
+    sunAuto: !reduced,
+    sunAngle: 2.35,
+    seed: 10,
+    W: 0, H: 0, cw: 0, ch: 0, cols: 0, rows: 0,
+    ramp: new Int32Array(16), rampText: '',
+    rain: 0, snow: 0, cloud: 0.15, aurora: 0, exposure: 1.25,
+    here: null,
+  };
+  const cam = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 };
+  const T = {};
+  let atlasTex = null;
+  let progs;
+
+  function setSeed(n) {
+    S.seed = n >>> 0;
+    SEED = [S.seed % 20011, Math.floor(S.seed / 20011) % 20011];
+    caSeed();
+  }
+
+  function buildAtlas() {
+    const fpx = Math.max(6, Math.round(S.fontCss * S.dpr));
+    const c2 = document.createElement('canvas');
+    const x = c2.getContext('2d', { willReadFrequently: true });
+    const font = `${fpx}px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace`;
+    x.font = font;
+    const cw = Math.max(3, Math.round(x.measureText('M').width));
+    const ch = Math.max(5, Math.round(fpx * 1.22));
+    c2.width = cw * 95;
+    c2.height = ch;
+    x.font = font;
+    x.fillStyle = '#000';
+    x.fillRect(0, 0, c2.width, ch);
+    x.fillStyle = '#fff';
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    for (let i = 0; i < 95; i++) x.fillText(String.fromCharCode(32 + i), i * cw + cw / 2, ch / 2 + fpx * 0.04);
+
+    // measure how much ink each character leaves, and build the ramp from the measurements
+    const px = x.getImageData(0, 0, c2.width, ch).data;
+    const cov = new Float32Array(95);
+    for (let i = 0; i < 95; i++) {
+      let s = 0;
+      for (let yy = 0; yy < ch; yy++) for (let xx = 0; xx < cw; xx++) s += px[(yy * c2.width + i * cw + xx) * 4];
+      cov[i] = s / (255 * cw * ch);
+    }
+    const reserved = new Set(['|', '/', '\\', '-', '_', '~', '=', '0', '1', 'O', 'o', '*', '+', '`', "'", '^', '&', '%', '@']);
+    const cand = [];
+    for (let i = 0; i < 95; i++) if (!reserved.has(String.fromCharCode(32 + i))) cand.push(i);
+    cand.sort((a, b) => cov[a] - cov[b]);
+    const max = cov[cand[cand.length - 1]];
+    const used = new Set();
+    const ramp = [];
+    for (let k = 0; k < 16; k++) {
+      const goal = (max * k) / 15;
+      let best = cand[0], bd = Infinity;
+      for (const i of cand) {
+        if (used.has(i)) continue;
+        const d = Math.abs(cov[i] - goal);
+        if (d < bd) { bd = d; best = i; }
+      }
+      used.add(best);
+      ramp.push(best);
+    }
+    ramp.sort((a, b) => cov[a] - cov[b]);
+    S.ramp = Int32Array.from(ramp);
+    S.rampText = ramp.map((i) => String.fromCharCode(32 + i)).join('');
+    $('#ramp').textContent = S.rampText;
+
+    if (atlasTex) gl.deleteTexture(atlasTex);
+    atlasTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, atlasTex);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, c2);
+    setNearest();
+    S.cw = cw;
+    S.ch = ch;
+  }
+
+  function resize() {
+    S.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    buildAtlas();
+    S.W = Math.max(1, Math.round(innerWidth * S.dpr));
+    S.H = Math.max(1, Math.round(innerHeight * S.dpr));
+    canvas.width = S.W;
+    canvas.height = S.H;
+    S.cols = Math.ceil(S.W / S.cw);
+    S.rows = Math.ceil(S.H / S.ch);
+    for (const k of ['col', 'g', 'glyph']) if (T[k]) gl.deleteTexture(T[k]);
+    for (const k of ['sceneFbo', 'glyphFbo']) if (T[k]) gl.deleteFramebuffer(T[k]);
+    T.col = target(S.cols, S.rows);
+    T.g = target(S.cols, S.rows);
+    T.glyph = target(S.cols, S.rows);
+    T.sceneFbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, T.sceneFbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, T.col, 0);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, T.g, 0);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+    T.glyphFbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, T.glyphFbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, T.glyph, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  // ── camera ────────────────────────────────────────────────────────────
+  function camBasis() {
+    const cp = Math.cos(cam.pitch), f = [Math.sin(cam.yaw) * cp, Math.sin(cam.pitch), Math.cos(cam.yaw) * cp];
+    let r = [f[2], 0, -f[0]];
+    const rl = Math.hypot(r[0], r[2]) || 1;
+    r = [r[0] / rl, 0, r[2] / rl];
+    const u = [f[1] * r[2] - f[2] * r[1], f[2] * r[0] - f[0] * r[2], f[0] * r[1] - f[1] * r[0]];
+    return { f, r, u };
+  }
+  function lookAt(tx, ty, tz) {
+    const dx = tx - cam.x, dy = ty - cam.y, dz = tz - cam.z;
+    return { yaw: Math.atan2(dx, dz), pitch: Math.atan2(dy, Math.hypot(dx, dz)) };
+  }
+  function angleLerp(a, b, k) { let d = b - a; d = Math.atan2(Math.sin(d), Math.cos(d)); return a + d * k; }
+
+  // The autopilot never stops: it picks the next landmark ahead, passes beside it, and moves on.
+  let autoT = 0;
+  const pilot = { heading: 0, target: null, side: 1, visited: 0, seen: new Set(), tour: -1, told: -1, idle: 0 };
+  function pickSite() {
+    const cx = Math.floor(cam.x / CELL + 0.5), cz = Math.floor(cam.z / CELL + 0.5);
+    const hx = Math.sin(pilot.heading), hz = Math.cos(pilot.heading);
+    let best = null, bestCost = Infinity;
+    for (let i = -4; i <= 4; i++) {
+      for (let j = -4; j <= 4; j++) {
+        const st = site(cx + i, cz + j);
+        if (!st.on || pilot.seen.has(`${st.ix},${st.iz}`)) continue;
+        const dx = st.x - cam.x, dz = st.z - cam.z, d = Math.hypot(dx, dz);
+        if (d < 70) continue;
+        const ahead = (dx * hx + dz * hz) / d;
+        if (ahead < 0.25) continue;
+        const cost = d * (1.6 - ahead);
+        if (cost < bestCost) { bestCost = cost; best = st; }
+      }
+    }
+    return best;
+  }
+  const lookHeight = (st) => (st.look !== undefined ? st.look : st.kind === 1 ? st.level + 6.8 : st.level + 4 * st.s);
+  function camMetro() { const [u, v] = toCity(cam.x, cam.z); return metroMask(u, v); }
+  // in New York the autopilot follows a tour of the landmarks, south to north
+  function pickTarget() {
+    if (camMetro() > 0.2 || pilot.tour >= 0) {
+      if (pilot.tour < 0) {
+        const [u, v] = toCity(cam.x, cam.z);
+        let best = 0, bd = Infinity;
+        LANDMARKS.forEach((L, i) => { const d = Math.hypot(L.u - u, L.v - v); if (d < bd) { bd = d; best = i; } });
+        pilot.tour = best;
+      }
+      if (pilot.tour < LANDMARKS.length) {
+        const L = LANDMARKS[pilot.tour];
+        const [x, z] = fromCity(L.u, L.v);
+        return { tour: pilot.tour, ix: 'nyc', iz: pilot.tour, x, z, look: L.look, alt: L.alt, pass: L.pass };
+      }
+      if (camMetro() > 0) {
+        // the tour is over: leave the city northwards, back to the wild
+        const [x, z] = fromCity(26000, -600);
+        return { ix: 'north', iz: 0, x, z, look: 40, alt: 120, pass: 0 };
+      }
+      pilot.tour = -1;
+    }
+    return pickSite();
+  }
+  function autopilot(dt) {
+    autoT += dt;
+    const t = pilot.target;
+    const reach = t && t.pass ? t.pass + 60 : 30;
+    if (t && t.tour !== undefined && pilot.told !== t.tour && Math.hypot(t.x - cam.x, t.z - cam.z) < reach + 500) {
+      const L = LANDMARKS[t.tour];
+      pilot.told = t.tour;
+      toast(`${L.name[0].toUpperCase()}${L.name.slice(1)} \u00b7 ${L.note}`);
+    }
+    if (t && Math.hypot(t.x - cam.x, t.z - cam.z) < reach) {
+      if (t.tour !== undefined) pilot.tour++;
+      else pilot.seen.add(`${t.ix},${t.iz}`);
+      pilot.visited++;
+      pilot.target = null;
+    }
+    pilot.idle -= dt;
+    if (!pilot.target && pilot.idle <= 0) {
+      pilot.target = pickTarget();
+      pilot.side = -pilot.side;
+      if (!pilot.target) pilot.idle = 2;   // nothing ahead: keep going, the world will offer something
+    }
+    const g = pilot.target;
+    if (g) {
+      // aim for a point 24 m beside the landmark, so we pass it instead of hitting it
+      const dx = g.x - cam.x, dz = g.z - cam.z, d = Math.hypot(dx, dz) || 1;
+      const off = g.pass !== undefined ? g.pass : 24;
+      const ax = g.x + (dz / d) * off * pilot.side, az = g.z - (dx / d) * off * pilot.side;
+      pilot.heading = angleLerp(pilot.heading, Math.atan2(ax - cam.x, az - cam.z), 1 - Math.exp(-dt * 0.45));
+    }
+    const hx = Math.sin(pilot.heading), hz = Math.cos(pilot.heading);
+    const city = camMetro() > 0.3;
+    const speed = (city ? 38 : 11) * (keys.has('shift') ? 3 : 1);
+    cam.x += hx * speed * dt;
+    cam.z += hz * speed * dt;
+    let ground = 0;
+    for (const a of [0, 1.2, 3, 5]) ground = Math.max(ground, groundTop(cam.x + hx * a * speed, cam.z + hz * a * speed));
+    let want = ground + (city ? 45 : 12) + 3 * Math.sin(autoT * 0.13);
+    if (g && g.alt) want = Math.max(want, g.alt);
+    cam.y += (want - cam.y) * (1 - Math.exp(-dt * 0.9));
+    cam.y = Math.max(cam.y, groundTop(cam.x, cam.z) + 2);
+
+    // look ahead, and turn the head towards the landmark while passing it
+    let yaw = pilot.heading, pitch = -0.12;
+    if (g) {
+      const d = Math.hypot(g.x - cam.x, g.z - cam.z);
+      const near = g.pass ? g.pass + 250 : 160;
+      const w = ss(near, near * 0.4, d) * 0.85;
+      const l = lookAt(g.x, lookHeight(g), g.z);
+      yaw = angleLerp(yaw, l.yaw, w);
+      pitch = mix(pitch, l.pitch, w);
+    }
+    const k = 1 - Math.exp(-dt * 1.4);
+    cam.yaw = angleLerp(cam.yaw, yaw, k);
+    cam.pitch += (pitch - cam.pitch) * k;
+  }
+
+  const keys = new Set();
+  function fly(dt) {
+    const { f, r } = camBasis();
+    const sp = (keys.has('shift') ? 36 : 12) * dt;
+    let mx = 0, my = 0, mz = 0;
+    const add = (v, s) => { mx += v[0] * s; my += v[1] * s; mz += v[2] * s; };
+    if (keys.has('w') || keys.has('arrowup')) add(f, sp);
+    if (keys.has('s') || keys.has('arrowdown')) add(f, -sp);
+    if (keys.has('d') || keys.has('arrowright')) add(r, sp);
+    if (keys.has('a') || keys.has('arrowleft')) add(r, -sp);
+    if (keys.has('e')) my += sp;
+    if (keys.has('q')) my -= sp;
+    cam.x += mx; cam.y += my; cam.z += mz;
+    cam.y = Math.min(Math.max(cam.y, groundTop(cam.x, cam.z) + 1.5, 1.2), 1200);
+  }
+
+  // weather drifts over time, and the land decides what falls: rain, snow, or nothing at all
+  function weather(dt) {
+    const b = biome(cam.x, cam.z);
+    const cyc = noised(autoT * 0.011 + time * 0.004, 3.7 + S.seed * 0.001)[0];
+    // the first minute is always dry, so the world can show itself before the weather does
+    const wet = ss(0.02, 0.4, cyc + 0.45 * b.wet) * (1 - b.desert) * ss(45, 100, time);
+    const coldHere = Math.max(b.tundra, ss(46, 60, cam.y));
+    const sunY = sunDir()[1];
+    const night = 1 - ss(-0.2, 0.05, sunY);
+    const k = 1 - Math.exp(-dt * 0.35);
+    S.rain += (wet * (1 - coldHere) - S.rain) * k;
+    S.snow += (wet * coldHere - S.snow) * k;
+    S.cloud += (0.12 + 0.85 * wet - S.cloud) * k;
+    S.aurora += (night * Math.max(b.tundra, 0.5 * b.taiga) * (1 - wet) - S.aurora) * k;
+    S.exposure = mix(3.4, 1.25, ss(-0.15, 0.25, sunY));
+    S.here = b;
+  }
+  function sunDir() {
+    const sa = S.sunAngle;
+    const x = Math.cos(sa), y = Math.sin(sa), z = 0.45, l = Math.hypot(x, y, z);
+    return [x / l, y / l, z / l];
+  }
+
+  // ── the map ───────────────────────────────────────────────────────────
+  const mapEl = $('#map');
+  const MAP_W = 29, MAP_H = 13;
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  function drawMap() {
+    const inCity = camMetro() > 0.5;
+    const MAP_X = inCity ? 110 : 40, MAP_Z = inCity ? 220 : 80;
+    const cx = Math.floor(cam.x / MAP_X), cz = Math.floor(cam.z / MAP_Z);
+    const grid = [];
+    for (let r = 0; r < MAP_H; r++) {
+      const row = [];
+      for (let c = 0; c < MAP_W; c++) {
+        const x = (cx + c - (MAP_W >> 1)) * MAP_X, z = (cz + (MAP_H >> 1) - r) * MAP_Z;
+        const [cu, cv] = toCity(x, z);
+        if (metroMask(cu, cv) >= 1) {
+          const g = cityGround(cu, cv), hb = cityBuilding(cu, cv);
+          row.push(g < 0 ? ['~', 'w'] : parkAt(cu, cv) > 0 ? ['f', 'f'] : hb > 150 ? ['H', 'm'] : hb > 50 ? ['#', 'g'] : hb > 0 ? ['=', 'g'] : ['.', 'g']);
+          continue;
+        }
+        const b = biome(x, z);
+        const p = place(b, terrainH(x, z, b), x, z);
+        row.push([p[1], p[2]]);
+      }
+      grid.push(row);
+    }
+    // landmarks: any site whose centre falls in a map cell
+    const sx0 = Math.floor(((cx - (MAP_W >> 1)) * MAP_X) / CELL) - 1, sx1 = Math.ceil(((cx + (MAP_W >> 1)) * MAP_X) / CELL) + 1;
+    const sz0 = Math.floor(((cz - (MAP_H >> 1)) * MAP_Z) / CELL) - 1, sz1 = Math.ceil(((cz + (MAP_H >> 1)) * MAP_Z) / CELL) + 1;
+    for (let i = sx0; i <= sx1; i++) for (let j = sz0; j <= sz1; j++) {
+      const st = site(i, j);
+      if (!st.on) continue;
+      const c = Math.round(st.x / MAP_X) - cx + (MAP_W >> 1), r = (MAP_H >> 1) - (Math.round(st.z / MAP_Z) - cz);
+      if (c >= 0 && c < MAP_W && r >= 0 && r < MAP_H) grid[r][c] = [st.kind === 1 ? 'O' : '#', 's'];
+    }
+    for (const L of LANDMARKS) {
+      if (!L.r) continue;
+      const [x, z] = fromCity(L.u, L.v);
+      const c = Math.floor(x / MAP_X) - cx + (MAP_W >> 1), r = (MAP_H >> 1) - (Math.floor(z / MAP_Z) - cz);
+      if (c >= 0 && c < MAP_W && r >= 0 && r < MAP_H) grid[r][c] = ['A', 's'];
+    }
+    grid[MAP_H >> 1][MAP_W >> 1] = ['@', 'y'];
+    let html = '';
+    for (const row of grid) {
+      let run = '', cls = null;
+      for (const [ch, k] of row) {
+        if (k !== cls) { if (run) html += `<span class="m-${cls}">${esc(run)}</span>`; run = ''; cls = k; }
+        run += ch;
+      }
+      html += `<span class="m-${cls}">${esc(run)}</span>\n`;
+    }
+    html += inCity
+      ? '<small>@ you · A landmark · H tower · # midrise · = low · f park · ~ water. North is up; the grid runs 29\u00b0 east of it.</small>'
+      : '<small>@ you · # monolith · O gate · ~ water · ^ taiga · &amp; jungle · : desert · * tundra · x crystal · f wood · M peaks. North is up.</small>';
+    mapEl.innerHTML = html;
+  }
+
+  // ── controls ──────────────────────────────────────────────────────────
+  const toastEl = $('#toast');
+  let toastTimer = 0;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('on'), 2200);
+  }
+  const MODES = ['colour', 'phosphor', 'paper'];
+  function setAuto(v) {
+    if (v && !S.auto) { pilot.heading = cam.yaw; pilot.target = null; }
+    S.auto = v;
+    $('#bAuto').setAttribute('aria-pressed', String(v));
+  }
+  function setSun(v) { S.sunAuto = v; $('#bSun').setAttribute('aria-pressed', String(v)); }
+  function cycleMode() { S.mode = (S.mode + 1) % 3; $('#bInk').firstChild.textContent = MODES[S.mode]; }
+  function setFont(d, quiet) {
+    const next = Math.min(28, Math.max(6, S.fontCss + d));
+    if (next === S.fontCss) return;
+    S.fontCss = next;
+    resize();
+    if (!quiet) toast(`${S.cols} × ${S.rows} letters`);
+  }
+  function goNYC() {
+    // just behind the Statue of Liberty, with Lower Manhattan beyond her
+    const [x, z] = fromCity(-2300 - 0.804 * 380, -1700 - 0.594 * 380);
+    cam.x = x; cam.z = z; cam.y = 48;
+    const [lx, lz] = fromCity(-2300, -1700);
+    const l = lookAt(lx, 70, lz);
+    cam.yaw = l.yaw;
+    cam.pitch = l.pitch;
+    pilot.heading = cam.yaw;
+    pilot.tour = 0;
+    pilot.told = -1;
+    pilot.target = null;
+    pilot.idle = 0;
+    S.auto = true;
+    $('#bAuto').setAttribute('aria-pressed', 'true');
+    toast('New York, at 1:1. Everything here is to scale.');
+    drawMap();
+  }
+  function arrive() {
+    // start beside the first monolith, which every world has, looking at it
+    cam.x = 40; cam.z = 46;
+    cam.y = Math.max(9, terrainH(cam.x, cam.z) + 6);
+    const l = lookAt(0, 6, 0);
+    cam.yaw = l.yaw;
+    cam.pitch = l.pitch;
+    pilot.heading = cam.yaw;
+    pilot.target = site(0, 0);
+    pilot.seen.clear();
+    pilot.visited = 0;
+    pilot.tour = -1;
+    pilot.idle = 0;
+    autoT = 0;
+  }
+  function newWorld(n) {
+    setSeed(n ?? Math.floor(Math.random() * 4e8));
+    history.replaceState(null, '', `#seed=${S.seed}`);
+    arrive();
+    drawMap();
+    toast(`world ${S.seed}. The address bar now points here.`);
+  }
+  async function copyFrame() {
+    const buf = new Uint8Array(S.cols * S.rows * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, T.glyphFbo);
+    gl.readPixels(0, 0, S.cols, S.rows, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    const lines = [];
+    for (let r = S.rows - 1; r >= 0; r--) {
+      let line = '';
+      for (let c = 0; c < S.cols; c++) line += String.fromCharCode(32 + buf[(r * S.cols + c) * 4 + 3]);
+      lines.push(line.replace(/\s+$/, ''));
+    }
+    try {
+      await navigator.clipboard.writeText(lines.join('\n') + '\n');
+      toast(`copied ${S.cols} × ${S.rows} letters. Paste them anywhere.`);
+    } catch {
+      toast('the browser refused the clipboard');
+    }
+  }
+  async function shareHere() {
+    const f = (n) => n.toFixed(2);
+    const hour = ((((6 + (S.sunAngle / (2 * Math.PI)) * 24) % 24) + 24) % 24).toFixed(1);
+    const url = `${location.origin}${location.pathname}#seed=${S.seed}&pos=${f(cam.x)},${f(cam.y)},${f(cam.z)},${f(cam.yaw)},${f(cam.pitch)}&hour=${hour}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('a link to this exact spot, at this hour, is on your clipboard');
+    } catch {
+      toast('the browser refused the clipboard');
+    }
+  }
+  const about = $('#about');
+  const openAbout = () => { if (!about.open) about.showModal(); };
+
+  $('#bAuto').onclick = () => setAuto(!S.auto);
+  $('#bWorld').onclick = () => newWorld();
+  $('#bNYC').onclick = goNYC;
+  $('#bInk').onclick = cycleMode;
+  $('#bSun').onclick = () => setSun(!S.sunAuto);
+  $('#bSmaller').onclick = () => setFont(-1);
+  $('#bBigger').onclick = () => setFont(1);
+  $('#bCopy').onclick = copyFrame;
+  $('#bAbout').onclick = openAbout;
+  $('#bClose').onclick = () => about.close();
+
+  let dragging = null;
+  canvas.addEventListener('pointerdown', (e) => {
+    dragging = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    canvas.setPointerCapture(e.pointerId);
+    canvas.classList.add('dragging');
+    canvas.focus();
+    wake();
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging || e.pointerId !== dragging.id) return;
+    const dx = e.clientX - dragging.x, dy = e.clientY - dragging.y;
+    dragging.x = e.clientX;
+    dragging.y = e.clientY;
+    if (Math.abs(dx) + Math.abs(dy) > 0) setAuto(false);
+    cam.yaw -= dx * 0.004;
+    cam.pitch = Math.min(1.4, Math.max(-1.4, cam.pitch + dy * 0.004));
+  });
+  const endDrag = () => { dragging = null; canvas.classList.remove('dragging'); };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); setFont(e.deltaY > 0 ? -1 : 1); }, { passive: false });
+
+  addEventListener('keydown', (e) => {
+    if (about.open || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    wake();
+    if (['w', 'a', 's', 'd', 'q', 'e', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
+      keys.add(k);
+      setAuto(false);
+      e.preventDefault();
+    } else if (k === 'shift') keys.add('shift');
+    else if (k === ' ') { setAuto(!S.auto); e.preventDefault(); }
+    else if (k === 'n') newWorld();
+    else if (k === 'y') goNYC();
+    else if (k === 'c') cycleMode();
+    else if (k === 't') setSun(!S.sunAuto);
+    else if (k === '[') { S.sunAngle -= 0.08; setSun(false); }
+    else if (k === ']') { S.sunAngle += 0.08; setSun(false); }
+    else if (k === '-' || k === '_') setFont(-1);
+    else if (k === '+' || k === '=') setFont(1);
+    else if (k === 'p') copyFrame();
+    else if (k === 'l') shareHere();
+    else if (k === '?' || k === 'h') openAbout();
+  });
+  addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+  addEventListener('blur', () => keys.clear());
+
+  let idle = 0;
+  function wake() { idle = 0; document.body.classList.remove('quiet'); }
+  addEventListener('pointermove', wake);
+
+  let resizeTimer = 0;
+  addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(resize, 120); });
+  addEventListener('hashchange', () => {
+    const m = location.hash.match(/seed=(\d+)/);
+    if (m && Number(m[1]) !== S.seed) newWorld(Number(m[1]));
+  });
+
+  // ── frame ─────────────────────────────────────────────────────────────
+  const statsEl = $('#stats');
+  let last = performance.now(), caAcc = 0, frames = 0, fpsT = 0, fps = 0, time = 0, mapT = 1, slow = 0;
+
+  function clock() {
+    const hrs = (((6 + (S.sunAngle / (2 * Math.PI)) * 24) % 24) + 24) % 24;
+    const h = Math.floor(hrs), m = Math.floor((hrs - h) * 60);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+  function sky() {
+    if (S.snow > 0.25) return 'snowing';
+    if (S.rain > 0.25) return 'raining';
+    if (S.aurora > 0.2) return 'aurora';
+    return S.cloud > 0.5 ? 'overcast' : 'clear';
+  }
+
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    time += dt;
+    idle += dt;
+    if (idle > 6 && !about.open) document.body.classList.add('quiet');
+
+    if (S.auto) autopilot(dt); else fly(dt);
+    if (S.sunAuto) S.sunAngle += dt * ((2 * Math.PI) / 600);
+    weather(dt);
+    caAcc += dt;
+    const caEvery = reduced ? 0.5 : 0.1;
+    while (caAcc > caEvery) { caStep(); caAcc -= caEvery; }
+
+    const [sx, sy, sz] = sunDir();
+    const { f, r, u } = camBasis();
+
+    // 1: the world, one ray per cell
+    gl.bindFramebuffer(gl.FRAMEBUFFER, T.sceneFbo);
+    gl.viewport(0, 0, S.cols, S.rows);
+    const [mu, mv] = toCity(cam.x, cam.z);
+    const md = metroDist(mu, mv);
+    const sceneProg = md < 3000 && progs.city ? progs.city : progs.scene;
+    if (md < 3000 && !progs.city && !S.waitNote) { S.waitNote = true; toast('raising New York out of the bay…'); }
+    gl.useProgram(sceneProg.p);
+    const su = sceneProg.u;
+    gl.uniform2f(su.uRes, S.cols, S.rows);
+    gl.uniform1f(su.uAspect, (S.cols * S.cw) / (S.rows * S.ch));
+    gl.uniform3f(su.uCamPos, cam.x, cam.y, cam.z);
+    gl.uniformMatrix3fv(su.uCamRot, false, [r[0], r[1], r[2], u[0], u[1], u[2], f[0], f[1], f[2]]);
+    gl.uniform1f(su.uFocal, 1.8);
+    gl.uniform3f(su.uSun, sx, sy, sz);
+    gl.uniform1f(su.uTime, time);
+    gl.uniform1i(su.uHead, caHead);
+    gl.uniform2i(su.uSeed, SEED[0], SEED[1]);
+    gl.uniform1f(su.uCloud, S.cloud);
+    gl.uniform1f(su.uAurora, S.aurora);
+    gl.uniform1f(su.uExposure, S.exposure);
+    const cityNear = progs.city ? ss(1500, -500, md) : 0;
+    gl.uniform1i(su.uZero, 0);
+    // a city at 1:1 needs city air: you can see ten kilometres on a clear day
+    gl.uniform1f(su.uTmax, mix(700, 12000, cityNear));
+    gl.uniform1f(su.uFog, mix(0.0036, 0.00015, cityNear));
+    gl.uniform1f(su.uCeil, md < 3000 ? 600 : 90);
+    gl.uniform1i(su.uSteps, md < 1500 ? 380 : 220);
+    gl.uniform1f(su.uCity, metroMask(mu, mv));
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, caTex);
+    gl.uniform1i(su.uCA, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    // 2: one character per cell
+    gl.bindFramebuffer(gl.FRAMEBUFFER, T.glyphFbo);
+    gl.useProgram(progs.glyph.p);
+    const gu = progs.glyph.u;
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, T.col);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, T.g);
+    gl.uniform1i(gu.uCol, 0);
+    gl.uniform1i(gu.uG, 1);
+    gl.uniform1iv(gu.uRamp, S.ramp);
+    gl.uniform1i(gu.uMode, S.mode);
+    gl.uniform2f(gu.uRes, S.cols, S.rows);
+    gl.uniform1f(gu.uTime, time);
+    gl.uniform1f(gu.uRain, S.rain);
+    gl.uniform1f(gu.uSnow, S.snow);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    // 3: letters on the screen
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, S.W, S.H);
+    gl.useProgram(progs.present.p);
+    const pu = progs.present.u;
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, T.glyph);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, atlasTex);
+    gl.uniform1i(pu.uGlyph, 0);
+    gl.uniform1i(pu.uAtlas, 1);
+    gl.uniform2i(pu.uCell, S.cw, S.ch);
+    gl.uniform2i(pu.uGrid, S.cols, S.rows);
+    gl.uniform2f(pu.uCanvas, S.W, S.H);
+    gl.uniform1i(pu.uMode, S.mode);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    frames++;
+    fpsT += dt;
+    if (fpsT > 0.5) {
+      fps = Math.round(frames / fpsT);
+      frames = 0;
+      fpsT = 0;
+      // keep it smooth: if the card struggles, draw fewer, bigger letters
+      slow = fps < 28 ? slow + 1 : 0;
+      if (slow >= 6 && S.fontCss < 18) { setFont(1, true); slow = 0; toast('fewer, bigger letters, to keep it smooth'); }
+      const km = (Math.hypot(cam.x, cam.z) / 1000).toFixed(2);
+      const here = place(S.here, terrainH(cam.x, cam.z, S.here), cam.x, cam.z)[0];
+      statsEl.innerHTML = `<span class="here">${here}</span> · <b>${sky()}</b> · <b>${clock()}</b><br>`
+        + (camMetro() > 0.5 ? `<b>New York, 1:1</b> · <b>${Math.round(cam.y)} m</b> up · world <b>${S.seed}</b><br>` : `<b>${km} km</b> out · <b>${pilot.visited}</b> landmarks passed · world <b>${S.seed}</b><br>`)
+        + `<b>${S.cols} × ${S.rows}</b> letters · <b>${(S.cols * S.rows).toLocaleString('en-GB')}</b> rays · <b>${fps}</b> fps`;
+    }
+    mapT += dt;
+    if (mapT > 0.6) { mapT = 0; drawMap(); }
+    requestAnimationFrame(frame);
+  }
+
+  // ── start ─────────────────────────────────────────────────────────────
+  async function start() {
+    try {
+      await Promise.race([document.fonts.load('16px "JetBrains Mono"'), new Promise((r) => setTimeout(r, 1500))]);
+    } catch { /* the fallback monospace is fine */ }
+    gl.bindVertexArray(gl.createVertexArray());
+    const t0 = performance.now();
+    const [scene, glyph, present] = await Promise.all([program(SCENE), program(GLYPH), program(PRESENT)]);
+    console.info(`Glifi: the world compiled in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+    progs = { scene, glyph, present, city: null };
+    // New York is a bigger shader; it compiles in the background while you look around
+    program(SCENE_CITY).then((c) => {
+      progs.city = c;
+      console.info(`Glifi: New York compiled in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+    }, (e) => console.warn('New York failed to compile', e));
+    const m = location.hash.match(/seed=(\d+)/);
+    setSeed(m ? Number(m[1]) : 10);
+    resize();
+    arrive();
+    // a shared link can put you somewhere in particular, at a particular hour
+    const at = location.hash.match(/pos=(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)/);
+    if (at) {
+      [cam.x, cam.y, cam.z, cam.yaw, cam.pitch] = at.slice(1, 6).map(Number);
+      setAuto(false);
+    }
+    const hr = location.hash.match(/hour=([\d.]+)/);
+    if (hr) { S.sunAngle = ((Number(hr[1]) - 6) / 24) * 2 * Math.PI; setSun(false); }
+    if (/(^#|&)nyc(?![a-z])/.test(location.hash)) goNYC();
+    weather(1);
+    drawMap();
+    if (!S.auto) setAuto(false);
+    if (!S.sunAuto) setSun(false);
+    requestAnimationFrame((t) => { last = t; frame(t); boot.classList.add('gone'); clearInterval(bootTimer); });
+  }
+  start().catch((e) => fail('the world failed to compile on this graphics card.', String(e && e.message || e)));
+})();
+</script>
+</body>
+</html>

@@ -1,8 +1,12 @@
 import { navigate } from 'astro:transitions/client';
 import type { Life } from '../life/engine';
 
+/** Plain HTML pages outside Astro: the client router can't swap them in, so load them whole. */
+const STANDALONE = ['/surprise/'];
+
 export const go = (url: string) => {
   if (/^https?:\/\//.test(url) && !url.startsWith(location.origin)) window.open(url, '_blank', 'noopener');
+  else if (STANDALONE.some((s) => url.startsWith(s))) location.href = url;
   else navigate(url);
 };
 
