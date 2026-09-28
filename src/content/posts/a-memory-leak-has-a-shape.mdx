@@ -2,7 +2,7 @@
 title: A memory leak has a shape
 description: Most crashes on a hosting platform announce themselves minutes before they happen. This is how I taught one to read the warning, and when to let a machine act on it.
 date: 2026-09-28
-concepts: [memory leaks, forecasting, Theil–Sen, change detection, calibration, decision models, prompt injection, Savitch's theorem, PSPACE]
+concepts: [memory leaks, forecasting, Theil–Sen, TimesFM, change detection, calibration, decision models, prompt injection, Savitch's theorem, PSPACE]
 class: PSPACE
 ---
 import '../../styles/gate.css';
@@ -50,6 +50,30 @@ One more check before believing anything. Fit a line through part of a sawtooth 
 <div data-leak-shape data-caption="Memory in a 256 MB box after a deploy at minute 10. The green cone is the forecast from the last 30 minutes; the blue dotted line is least squares. Try adding a spike, and try a sawtooth with no leak."></div>
 
 Two things are worth trying. Set the leak to zero and push the sawtooth up: there's no forecast, because nothing is actually growing. Then add the spike. Least squares tilts towards it, and the median barely notices.
+
+## A second opinion from Google
+
+Theil–Sen draws a straight line. That's its strength, and it's also an assumption. I wanted to know where the assumption breaks, so I asked a much bigger model the same question.
+
+[TimesFM](https://huggingface.co/google/timesfm-3.0-pytorch) is Google's forecasting model. It has about 300 million parameters, it learnt from a large pile of real series, from Wikipedia page views to Google Trends, and it has never seen a container. You hand it a list of numbers and it hands back the future, as nine guesses from pessimistic to optimistic. There's no fitting and no tuning. That's the whole interface, and it's why it makes a good referee: it knows nothing about my assumptions.
+
+I gave both the same thirty minutes of memory that Sentinel sees, for 40 simulated boxes in each of five shapes. Then I let the simulation run for another ninety minutes, to see who was right about dying within the hour.
+
+| Shape | Boxes that died within the hour | Sentinel warned | TimesFM warned | Typical miss, Sentinel / TimesFM |
+|---|---|---|---|---|
+| Steady leak | 36 of 40 | 36, no false alarms | 36, no false alarms | 0.3 / 0.2 min |
+| Steady leak, two-minute burst | 36 of 40 | 36, no false alarms | 36, no false alarms | 1.1 / 2.8 min |
+| Sawtooth, no leak | none | no alarms | no alarms | |
+| Leak that speeds up | 40 of 40 | 17 | 32 | 31 / 11 min |
+| Cache that stops at a cap | none | 40 false alarms | 30 false alarms | |
+
+On a steady leak they agree to within seconds. With the burst, the median of slopes does its job better than the big model. With no leak, both stay quiet. The last two rows are the interesting ones.
+
+Some leaks speed up. A cache keyed by user grows faster as more users arrive, and a straight line through the last thirty minutes is always too slow for that. Sentinel missed 23 of the 40 boxes that died, and when it did warn, it was off by half an hour. TimesFM caught 32, and the pessimistic edge of its forecast caught all 40, to within two minutes. That's a blind spot I didn't know I had.
+
+The cap fools both of them. A cache that fills quickly and then stops at 200 MB looks, for thirty minutes, exactly like a leak. You can't see a limit in the numbers before you reach it. You can see it in the code, and reading code is what Jade Doctor does, so that's where the answer probably belongs.
+
+So why isn't TimesFM inside Sentinel? There are three reasons. The licence of these weights allows research, not production. On my laptop's processor it takes about 130 milliseconds per forecast, where Theil–Sen takes under 2. And Sentinel runs on the same servers as the apps it guards, so a 300-million-parameter model there would eat the memory it's meant to protect. So TimesFM stays offline as a referee. It replays shapes, tells me where the cheap line is wrong, and it has already earned its place: the next version of Sentinel needs a check for leaks that speed up.
 
 ## Did the deploy do it?
 
@@ -133,4 +157,4 @@ So the question has an answer, and finding it takes longer than the universe has
 
 ---
 
-*Further reading:* Henri Theil, "A rank-invariant method of linear and polynomial regression analysis," *Proceedings of the Royal Netherlands Academy of Sciences* 53 (1950). Pranab Kumar Sen, "Estimates of the regression coefficient based on Kendall's tau," *Journal of the American Statistical Association* 63 (1968). Maurice Kendall, "A new measure of rank correlation," *Biometrika* 30 (1938). Henry Mann and Donald Whitney, "On a test of whether one of two random variables is stochastically larger than the other," *Annals of Mathematical Statistics* 18 (1947). A. J. Scott and M. Knott, "A cluster analysis method for grouping means in the analysis of variance," *Biometrics* 30 (1974). Walter Savitch, "Relationships between nondeterministic and deterministic tape complexities," *Journal of Computer and System Sciences* 4 (1970). Johannes Weiner, "PSI: Pressure Stall Information," Linux kernel documentation (2018). Daniel Kahneman, *Thinking, Fast and Slow* (2011). TypeSafe, ["Introducing System One models and Jev"](https://typesafe.ai/blog/introducing-system-one-models-and-jev) (2026). Platform documentation, read on 28 September 2026: [Vercel Agent investigations](https://vercel.com/docs/agent/investigation), [Vercel rolling releases](https://vercel.com/docs/rolling-releases), [Netlify's failed-deploy help](https://www.netlify.com/blog/netlify-ai-why-did-my-deploy-fail/), [Render deploy failures](https://render.com/articles/how-render-handles-deploy-failures), [Railway healthchecks](https://docs.railway.com/deployments/healthchecks), [Railway Agent](https://railway.com/changelog/2026-04-24-railway-agent), [Fly.io health checks](https://fly.io/docs/reference/health-checks/), [Heroku releases](https://devcenter.heroku.com/articles/releases).
+*Further reading:* Henri Theil, "A rank-invariant method of linear and polynomial regression analysis," *Proceedings of the Royal Netherlands Academy of Sciences* 53 (1950). Pranab Kumar Sen, "Estimates of the regression coefficient based on Kendall's tau," *Journal of the American Statistical Association* 63 (1968). Maurice Kendall, "A new measure of rank correlation," *Biometrika* 30 (1938). Henry Mann and Donald Whitney, "On a test of whether one of two random variables is stochastically larger than the other," *Annals of Mathematical Statistics* 18 (1947). A. J. Scott and M. Knott, "A cluster analysis method for grouping means in the analysis of variance," *Biometrics* 30 (1974). Walter Savitch, "Relationships between nondeterministic and deterministic tape complexities," *Journal of Computer and System Sciences* 4 (1970). Johannes Weiner, "PSI: Pressure Stall Information," Linux kernel documentation (2018). Daniel Kahneman, *Thinking, Fast and Slow* (2011). Abhimanyu Das, Weihao Kong, Rajat Sen and Yichen Zhou, ["A decoder-only foundation model for time-series forecasting"](https://arxiv.org/abs/2310.10688), *ICML* (2024). TypeSafe, ["Introducing System One models and Jev"](https://typesafe.ai/blog/introducing-system-one-models-and-jev) (2026). Platform documentation, read on 28 September 2026: [Vercel Agent investigations](https://vercel.com/docs/agent/investigation), [Vercel rolling releases](https://vercel.com/docs/rolling-releases), [Netlify's failed-deploy help](https://www.netlify.com/blog/netlify-ai-why-did-my-deploy-fail/), [Render deploy failures](https://render.com/articles/how-render-handles-deploy-failures), [Railway healthchecks](https://docs.railway.com/deployments/healthchecks), [Railway Agent](https://railway.com/changelog/2026-04-24-railway-agent), [Fly.io health checks](https://fly.io/docs/reference/health-checks/), [Heroku releases](https://devcenter.heroku.com/articles/releases).
