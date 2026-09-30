@@ -83,6 +83,14 @@ export const INSTRUMENTS: Array<{ id: string; title: string; url: string; class:
     why: 'A channel vocoder costs a fixed amount of work per band per sample, and the saddest four-chord phrase is a longest path in a layered chord graph, found by dynamic programming.',
   },
   {
+    id: 'genoma',
+    title: 'Genoma: a tape sampler, an 8-bit looper and an FM groovebox',
+    url: '/sampler/',
+    class: 'P',
+    glyph: 'E(3,8)',
+    why: 'Every gene, loop and voice costs a fixed amount of work per sample, and a Euclidean rhythm of k pulses in n steps is laid out in O(n) time, as evenly as a straight line drawn on a grid.',
+  },
+  {
     id: 'stochos',
     title: 'Stochos 64: a stochastic MIDI sequencer',
     url: '/sequencer/',

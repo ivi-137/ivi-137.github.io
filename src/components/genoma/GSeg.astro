@@ -1,0 +1,26 @@
+---
+/** A segmented switch for a Genoma parameter with named positions. */
+import { gspec } from '../../lib/genoma/params';
+
+interface Props {
+  id: string;
+  label?: string;
+  /** show the label before the buttons */
+  show?: boolean;
+}
+const { id, label, show = true } = Astro.props;
+const s = gspec(id);
+if (!s?.pos) throw new Error(`Genoma parameter ${id} has no positions`);
+const name = label ?? s.label;
+---
+
+<div class="gseg">
+  {show && <span class="lbl">{name}</span>}
+  <div class="seg" role="group" aria-label={s.hint ?? name} title={s.hint}>
+    {s.pos.map((n, v) => (
+      <button type="button" data-seg={id} data-v={v} aria-pressed={v === s.def ? 'true' : 'false'}>
+        {n}
+      </button>
+    ))}
+  </div>
+</div>

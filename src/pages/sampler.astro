@@ -1,0 +1,663 @@
+---
+import Base from '../layouts/Base.astro';
+import Stamp from '../components/Stamp.astro';
+import Sigil from '../components/Sigil.astro';
+import GK from '../components/genoma/GK.astro';
+import GSeg from '../components/genoma/GSeg.astro';
+import { CABLES, CABLE_INK, CV_DST, CV_SRC, CV_SRC_HINT, D, MACHINES, gspec } from '../lib/genoma/params';
+import { PAD_MODES } from '../lib/genoma/pad';
+import { ARP_MODES, ARP_SPEEDS, CONDS, EU_OPS, NOTE_LENS, RETRIG_RATES, SCALES, lenName } from '../lib/genoma/seq';
+import { SOUNDS } from '../lib/genoma/demo';
+import '../styles/sampler.css';
+import '../styles/takes.css';
+
+const jin = (d: number, label: string) => ({ d, label });
+const JACKS = {
+  nastroIn: [
+    jin(D.clk, 'CLK'),
+    jin(D.play, 'PLAY'),
+    jin(D.rec, 'REC'),
+    jin(D.splice, 'SPLICE'),
+    jin(D.shift, 'SHIFT'),
+    jin(D.speed, 'speed'),
+    jin(D.gene, 'gene'),
+    jin(D.slide, 'slide'),
+    jin(D.morph, 'morph'),
+    jin(D.organize, 'org.'),
+    jin(D.sos, 'S.O.S.'),
+  ],
+  nastroOut: [
+    { s: 3, label: 'EOSG' },
+    { s: 4, label: 'CV' },
+  ],
+  padIn: [jin(D.padX, 'X'), jin(D.padY, 'Y')],
+  quincIn: [
+    jin(D.aFlip, 'A flip'),
+    jin(D.aSkip, 'A skip'),
+    jin(D.aRec, 'A rec'),
+    jin(D.aSpaf, 'A sp.af'),
+    jin(D.bFlip, 'B flip'),
+    jin(D.bSkip, 'B skip'),
+    jin(D.bRec, 'B rec'),
+    jin(D.bSpaf, 'B sp.af'),
+  ],
+  quincOut: [
+    { s: 5, label: '1' },
+    { s: 6, label: '2' },
+    { s: 7, label: '3' },
+    { s: 8, label: '4' },
+    { s: 9, label: '5' },
+    { s: 10, label: 'segui' },
+  ],
+  operOut: [
+    { s: 1, label: '16th' },
+    { s: 2, label: 'bar' },
+    { s: 11, label: 'caso' },
+  ],
+};
+const PAD_EN = ['low pass, X cutoff, Y resonance', 'envelope filter, X range, Y resonance', 'catch and repeat, X slice, Y speed', 'reverse delay, X window, Y feedback', 'pitch, X ±2 octaves, Y blend'];
+const petalsAt = [0, 1, 2, 3, 4].map((i) => {
+  const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+  return { x: 50 + 36 * Math.cos(a), y: 52 + 36 * Math.sin(a) };
+});
+const KEYS = Array.from({ length: 25 }, (_, i) => ({ i, black: [1, 3, 6, 8, 10].includes(i % 12) }));
+const sel = (id: string) => gspec(id);
+---
+
+<Base
+  title="Genoma"
+  description="A tape sampler after the Make Noise Morphagene, an XY pad for Radiohead's cut-up voices, two 8-bit loopers and a chaotic pentagon after Ciat-Lonbarde's Cocoquantus, and a 16-track FM groovebox after the Elektron Digitone II. In the browser; record, patch, download."
+>
+  <section class="gen-page" data-gen-page>
+    <header class="section-head section-head--page gen-page__head">
+      <p class="kicker mono" data-decode>instrument · sampler</p>
+      <h1 class="section-head__title">Genoma</h1>
+      <p class="section-head__lede">
+        A reel of tape cut into splices and played back as genes, small pieces that repeat, overlap and stretch. Around it, the
+        things that feed it and play with it: a pad for chopping a voice the way Radiohead do on stage, two 8-bit loopers and a
+        pentagon of oscillators that clock each other, and a sixteen-track FM groovebox for the reel to sample.
+      </p>
+      <Sigil class="gen-page__sigil" seed="Genoma" cols={64} rows={16} animate="always" ink="paper" />
+      <Stamp id="P" />
+    </header>
+
+    <div class="gen" data-genoma>
+      <div class="gen__cheek" aria-hidden="true"></div>
+      <div class="gen__face">
+        <div class="gen__dock" data-dock>
+          <button type="button" class="gen__dock-play" data-dock-play aria-label="Play or stop Operatori (space)"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-play" d="M7 4l13 8-13 8z"></path><rect class="i-stop" x="6" y="6" width="12" height="12"></rect></svg></button>
+          <b class="gen__dock-pat mono" data-dock-pat>A01</b>
+            <nav class="gen__nav mono" aria-label="Modules">
+              <a href="#nastro" style="--hue:var(--verm)">il nastro</a>
+              <a href="#posto" style="--hue:var(--cobalt)">posto giusto</a>
+              <a href="#quinconce" style="--hue:var(--c-p)">quinconce</a>
+              <a href="#operatori" style="--hue:var(--violet)">operatori</a>
+              <a href="#cavi" style="--hue:var(--ink)">cavi</a>
+              <a href="#registratore" style="--hue:var(--verm)">registratore</a>
+            </nav>
+          <span class="gen__dock-status mono" data-dock-status aria-hidden="true"></span>
+        </div>
+        <!-- ═══ the top strip ═══ -->
+        <div class="gen__top" data-top>
+          <div class="gen__brand">
+            <span class="gen__logo">Genoma</span>
+            <span class="mono">sampler · gpojani</span>
+            <span class="gen__status mono" data-status aria-live="polite">press accendi, then ▶</span>
+          </div>
+          <button type="button" class="gen__power" data-power aria-pressed="false">
+            <span class="gen__power-dot" aria-hidden="true"></span>
+            <span class="mono" data-power-label>accendi</span>
+          </button>
+          <button type="button" class="gen__play" data-op-play aria-pressed="false" aria-label="Play Operatori (space)" title="Play or stop Operatori (space)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-play" d="M7 4l13 8-13 8z"></path><rect class="i-stop" x="6" y="6" width="12" height="12"></rect></svg>
+          </button>
+          <GK id="o.bpm" size="md" />
+          <div class="gen__mix">
+            <GK id="m.nastro" />
+            <GK id="m.quinc" label="quinc." />
+            <GK id="m.oper" label="oper." />
+            <GK id="m.voce" />
+          </div>
+          <div class="gen__mic">
+            <button type="button" class="sw" data-mic aria-pressed="false" title="Open the microphone: a voice for the reel, the pad or Quinconce">microfono</button>
+            <GSeg id="m.mode" show={false} />
+          </div>
+          <div class="gen__meters mono" aria-hidden="true">
+            <span>in</span><i class="meter"><b data-meter-in></b></i>
+            <span>L</span><i class="meter"><b data-meter-l></b></i>
+            <span>R</span><i class="meter"><b data-meter-r></b></i>
+          </div>
+          <GK id="m.vol" size="md" />
+        </div>
+
+        <!-- ═══ il nastro ═══ -->
+        <section class="mod mod--nastro" id="nastro" aria-labelledby="h-nastro" style="--hue:var(--verm)">
+          <header class="mod__head">
+            <h2 id="h-nastro" class="mod__title">Il nastro</h2>
+            <span class="mod__sub mono">after the Make Noise Morphagene: a reel of splices, played as genes</span>
+          </header>
+          <div class="reel">
+            <div class="reel__screen">
+              <div class="reel__view">
+                <canvas class="reel__canvas" data-reel aria-label="The reel: splices, the gene, the heads. Click a splice to play it."></canvas>
+                <p class="reel__empty mono" data-reel-empty>
+                  <span>The reel is empty. Press <b>▶</b>, then <b>REC</b>: it records Operatori (the source is below). Or drop an audio file here.</span>
+                </p>
+              </div>
+              <div class="reel__read mono" aria-live="off">
+                <span><i>giunta</i> <b data-r="splice">—</b></span>
+                <span><i>gene</i> <b data-r="gene">—</b></span>
+                <span><i>velocità</i> <b data-r="speed">—</b></span>
+                <span><i>morph</i> <b data-r="morph">—</b></span>
+                <span><i>clock</i> <b data-r="mode">—</b></span>
+                <span><i>bobina</i> <b data-r="time">0:00.0 / 2:54</b></span>
+              </div>
+            </div>
+            <div class="reel__deck">
+              <div class="reel__buttons" role="group" aria-label="The reel's buttons">
+                <button type="button" class="tbtn tbtn--rec" data-rb="rec" title="REC: record into the current splice (a new one if the reel is empty). Hold REC and press SPLICE: record a new splice at the end. Key I">
+                  <span class="led" aria-hidden="true"></span><b>REC</b>
+                </button>
+                <button type="button" class="tbtn" data-rb="splice" title="SPLICE: a marker where the gene is. With SHIFT held: join this splice with the next; hold 3 s: remove every marker. Key O">
+                  <span class="led" aria-hidden="true"></span><b>SPLICE</b>
+                </button>
+                <button type="button" class="tbtn" data-rb="shift" title="SHIFT: the next splice. Hold it to reach the second functions of REC and SPLICE. Key P">
+                  <span class="led" aria-hidden="true"></span><b>SHIFT</b>
+                </button>
+                <button type="button" class="tbtn" data-rb="play" aria-pressed="true" title="PLAY: when off, the reel stops at the end of the gene; a gate at the PLAY jack plays it">
+                  <span class="led" aria-hidden="true"></span><b>PLAY</b>
+                </button>
+              </div>
+              <p class="reel__combo mono" data-combo aria-live="polite">REC records · SPLICE marks · SHIFT moves on · hold SHIFT for the rest</p>
+              <div class="reel__more mono">
+                <button type="button" class="chip" data-ra="recNew" title="REC held + SPLICE">nuova giunta</button>
+                <button type="button" class="chip" data-ra="delMarker" title="SHIFT + SPLICE">unisci alla prossima</button>
+                <button type="button" class="chip" data-ra="delMarkers" title="SHIFT + SPLICE held 3 s">togli i marcatori</button>
+                <button type="button" class="chip" data-ra="delSplice" title="SHIFT + REC">cancella la giunta</button>
+                <button type="button" class="chip chip--danger" data-ra="clearReel" title="SHIFT + REC held 3 s">svuota la bobina</button>
+                <span class="lbl">dividi</span>
+                {[2, 4, 8, 16].map((n) => <button type="button" class="chip" data-divide={n} title={`cut this splice into ${n} equal splices`}>{n}</button>)}
+              </div>
+            </div>
+            <div class="bay reel__knobs">
+              <GK id="n.speed" size="lg" />
+              <GK id="n.gene" size="md" />
+              <GK id="n.slide" size="md" />
+              <GK id="n.morph" size="lg" />
+              <GK id="n.organize" size="md" />
+              <GK id="n.sos" size="lg" />
+              <GK id="n.in" />
+            </div>
+            <div class="reel__src">
+              <GSeg id="n.src" />
+              <div class="gseg">
+                <GSeg id="n.qrec" />
+                <button type="button" class="chip" data-ra="arm" title="The Gloaming: arm, and the reel records the chosen number of bars from the next bar">arma</button>
+              </div>
+              <GSeg id="n.clkdiv" label="CLK ÷" />
+            </div>
+            <div class="jacks mono" aria-label="Jacks">
+              <span class="jacks__lbl">in</span>
+              {JACKS.nastroIn.map((j) => <button type="button" class="jack" data-jack-in={j.d} title={`${CV_DST[j.d]}: click a jack out, then this one`}><i aria-hidden="true"></i>{j.label}</button>)}
+              <span class="jacks__lbl">out</span>
+              {JACKS.nastroOut.map((j) => <button type="button" class="jack jack--out" data-jack-out={j.s} title={CV_SRC_HINT[CV_SRC[j.s]] ?? CV_SRC[j.s]}><i aria-hidden="true"></i>{j.label}</button>)}
+            </div>
+            <div class="reel__files mono">
+              <span class="lbl">bobina</span>
+              <div class="seg" role="group" aria-label="Reel slot">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => <button type="button" data-slot={n} aria-pressed={n === 1 ? 'true' : 'false'} title={`reel ${n} (kept in this browser)`}>{n}</button>)}
+              </div>
+              <span class="reel__saved" data-reel-saved>—</span>
+              <label class="chip">carica un file<input type="file" accept="audio/*,.wav" data-reel-file hidden /></label>
+              <label class="chip">aggiungi come giunta<input type="file" accept="audio/*,.wav" data-reel-add hidden /></label>
+              <button type="button" class="chip" data-reel-wav title="32-bit float WAV at 48 kHz with the splice markers as cue points, as the Morphagene keeps its reels">scarica la bobina (WAV)</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ posto giusto ═══ -->
+        <section class="mod mod--posto" id="posto" aria-labelledby="h-posto" style="--hue:var(--cobalt)">
+          <header class="mod__head">
+            <h2 id="h-posto" class="mod__title">Posto giusto</h2>
+            <span class="mod__sub mono">Radiohead's cut-up voices: a Kaoss-style pad, a scrub strip, and three set-ups</span>
+          </header>
+          <div class="posto">
+            <div class="xy" data-xy role="application" aria-label="XY pad: touch and drag; the effect works only while you touch (or with hold). Arrow keys move, space engages." tabindex="0">
+              <canvas data-xy-canvas aria-hidden="true"></canvas>
+              <span class="xy__x mono" aria-hidden="true">X</span>
+              <span class="xy__y mono" aria-hidden="true">Y</span>
+              <span class="xy__read mono" data-xy-read aria-live="off"></span>
+            </div>
+            <div class="posto__side">
+              <div class="padmodes" role="radiogroup" aria-label="Pad effect">
+                {PAD_MODES.map((m, i) => (
+                  <button type="button" role="radio" class="padmode" data-pad-mode={i} aria-checked={i === 2 ? 'true' : 'false'}>
+                    <b>{m}</b>
+                    <span class="mono">{PAD_EN[i]}</span>
+                  </button>
+                ))}
+              </div>
+              <div class="bay">
+                <GSeg id="r.src" />
+                <GK id="r.mix" />
+                <div class="bay__switches"><button type="button" class="sw" data-switch="r.hold" title="Keep the effect on after you let go (Kaoss Pad HOLD)">hold</button></div>
+              </div>
+              <div class="jacks mono">
+                <span class="jacks__lbl">in</span>
+                {JACKS.padIn.map((j) => <button type="button" class="jack" data-jack-in={j.d} title={CV_DST[j.d]}><i aria-hidden="true"></i>{j.label}</button>)}
+              </div>
+            </div>
+            <div class="scrub">
+              <p class="lbl">scrub · drag across the current splice; the sound follows your hand, silent when it stops</p>
+              <canvas class="scrub__strip" data-scrub tabindex="0" role="slider" aria-label="Scrub through the current splice" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></canvas>
+            </div>
+            <div class="scenes">
+              <button type="button" class="scene" data-scene="eiirp">
+                <b>Everything in Its Right Place</b>
+                <span>Voice into the reel, the pad on the reel in <i>taglia</i>, scrub within reach. On <i>Kid A</i> Thom Yorke's voice was cut up by scrubbing in Pro Tools; on stage Jonny Greenwood catches it in a Kaoss Pad and cuts, filters and reverses it, then runs it through a Whammy and a DOD 440.</span>
+              </button>
+              <button type="button" class="scene" data-scene="gloaming">
+                <b>The Gloaming</b>
+                <span>The reel samples the band, two bars at a time, from the downbeat, and plays the splices back shifted by the clock. The record is built from tape loops; live, Greenwood rebuilds them with a multichannel looper in Max that samples the whole band.</span>
+              </button>
+              <button type="button" class="scene" data-scene="idioteque">
+                <b>Idioteque</b>
+                <span>Chords cut into four splices, replayed by the kick and moved on by every bar. The song is built on a few seconds sampled from Paul Lansky's computer piece <i>mild und leise</i> (1973).</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ quinconce ═══ -->
+        <section class="mod mod--quinc" id="quinconce" aria-labelledby="h-quinc" style="--hue:var(--c-p)">
+          <header class="mod__head">
+            <h2 id="h-quinc" class="mod__title">Quinconce</h2>
+            <span class="mod__sub mono">after Ciat-Lonbarde's Cocoquantus: two 8-bit loopers and a pentagon of oscillators that clock them</span>
+          </header>
+          <div class="quinc">
+            {(['a', 'b'] as const).map((w, wi) => (
+              <div class={`coco coco--${w}`}>
+                <div class="coco__head">
+                  <h3 class="coco__name">Coco {w.toUpperCase()}</h3>
+                  <canvas class="coco__ring" data-ring={wi} aria-hidden="true"></canvas>
+                </div>
+                <div class="bay">
+                  <GK id={`q${w}.speed`} size="lg" />
+                  <GK id={`q${w}.aff`} />
+                  <GK id={`q${w}.fb`} />
+                  <GK id={`q${w}.in`} />
+                  <GK id={`q${w}.vol`} />
+                  <GK id={`q${w}.pan`} />
+                  <div class="bay__switches">
+                    <button type="button" class="sw sw--rec" data-switch={`q${w}.rec`} title="Record: the input layers onto the loop (Feedback full) or erases it (Feedback at zero). Off: the loop holds">rec</button>
+                    <button type="button" class="chip" data-coco={wi} data-c="flip" title="Backwards for a moment">flip</button>
+                    <button type="button" class="chip" data-coco={wi} data-c="skip" title="Jump ahead by a fixed time">skip</button>
+                    <button type="button" class="chip" data-coco={wi} data-c="clear" title="Erase the memory">svuota</button>
+                  </div>
+                  <GSeg id={`q${w}.dolby`} />
+                  <div class="coco__from mono">
+                    {(['flip', 'skip', 'spaf'] as const).map((f) => (
+                      <label class="field">
+                        <span>{sel(`q${w}.${f}`).label}</span>
+                        <select data-gsel={`q${w}.${f}`} aria-label={sel(`q${w}.${f}`).hint}>
+                          {sel(`q${w}.${f}`).pos!.map((n, v) => <option value={v} selected={v === sel(`q${w}.${f}`).def}>{v ? `petalo ${n}` : n}</option>)}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                  {w === 'b' && <GSeg id="qb.from" />}
+                </div>
+              </div>
+            ))}
+            <div class="quant">
+              <svg class="quant__pent" viewBox="0 0 100 100" aria-label="The Quantussy: five petals; each lights while its oscillator is high">
+                <polygon points={petalsAt.map((p) => `${p.x},${p.y}`).join(' ')} class="quant__edge" />
+                {petalsAt.map((p, i) => {
+                  const q = petalsAt[(i + 2) % 5];
+                  return <line x1={p.x} y1={p.y} x2={q.x} y2={q.y} class="quant__star" />;
+                })}
+                {petalsAt.map((p, i) => (
+                  <g data-petal={i} class="quant__petal">
+                    <circle cx={p.x} cy={p.y} r="7.5" />
+                    <text x={p.x} y={p.y + 2.6} text-anchor="middle">{i + 1}</text>
+                  </g>
+                ))}
+              </svg>
+              <div class="quant__knobs">
+                {[1, 2, 3, 4, 5].map((i) => <GK id={`q.p${i}`} />)}
+              </div>
+              <div class="bay">
+                <GSeg id="q.range" />
+                <GK id="q.chaos" size="md" />
+                <GK id="q.vol" />
+                <GK id="q.feed" />
+              </div>
+            </div>
+            <div class="piezo-wrap">
+              <div class="piezo" data-piezo role="button" tabindex="0" aria-label="A contact microphone on a wooden plate: tap it, or drag across it to scratch. Enter or space taps.">
+                <span class="piezo__disc" aria-hidden="true"></span>
+                <span class="piezo__txt mono">piezo · tap, scratch</span>
+              </div>
+              <div class="bay">
+                <GSeg id="q.src" />
+                <GK id="q.wood" />
+              </div>
+              <div class="jacks mono">
+                <span class="jacks__lbl">in</span>
+                {JACKS.quincIn.map((j) => <button type="button" class="jack" data-jack-in={j.d} title={CV_DST[j.d]}><i aria-hidden="true"></i>{j.label}</button>)}
+                <span class="jacks__lbl">out</span>
+                {JACKS.quincOut.map((j) => <button type="button" class="jack jack--out" data-jack-out={j.s} title={CV_SRC_HINT[CV_SRC[j.s]] ?? `petal ${j.label}: high or low`}><i aria-hidden="true"></i>{j.label}</button>)}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ operatori ═══ -->
+        <section class="mod mod--oper" id="operatori" aria-labelledby="h-oper" style="--hue:var(--violet)">
+          <header class="mod__head">
+            <h2 id="h-oper" class="mod__title">Operatori</h2>
+            <span class="mod__sub mono">after the Elektron Digitone II: 16 tracks, 16 voices, four machines, 128 steps, 128 patterns</span>
+          </header>
+          <div class="oper">
+            <!-- transport and patterns -->
+            <div class="oper__bar">
+              <div class="oper__transport">
+                <button type="button" class="tbtn" data-op-rec aria-pressed="false" title="Live recording: play the keys while it runs (with play). Knob moves are recorded as locks. Key ."><span class="led" aria-hidden="true"></span><b>REC</b></button>
+                <button type="button" class="tbtn" data-op-fill aria-pressed="false" title="FILL while held; double-click to latch for one pass. Shortcut F (hold)"><span class="led" aria-hidden="true"></span><b>FILL</b></button>
+                <GK id="o.swing" />
+              </div>
+              <div class="oper__pats">
+                <div class="seg seg--banks" role="group" aria-label="Bank">
+                  {'ABCDEFGH'.split('').map((b, i) => <button type="button" data-bank={i} aria-pressed={i === 0 ? 'true' : 'false'}>{b}</button>)}
+                </div>
+                <div class="pats" role="group" aria-label="Patterns: click to cue (it starts when this one ends); shift-click to jump">
+                  {Array.from({ length: 16 }, (_, i) => <button type="button" class="pat" data-pat={i}>{i + 1}</button>)}
+                </div>
+                <span class="oper__patname mono" data-patname>A01</span>
+              </div>
+              <div class="oper__edit mono">
+                <button type="button" class="chip" data-pact="copy" title="Copy the pattern (⌘C)">copia</button>
+                <button type="button" class="chip" data-pact="paste" title="Paste over this pattern (⌘V)">incolla</button>
+                <button type="button" class="chip" data-pact="clear" title="Clear the trigs of this pattern">pulisci</button>
+                <button type="button" class="chip" data-pact="undo" title="Undo (⌘Z)">annulla</button>
+                <button type="button" class="sw" data-op-song aria-pressed="false" title="Song mode: play the rows below in order">song</button>
+              </div>
+            </div>
+
+            <!-- tracks -->
+            <div class="tracks" role="radiogroup" aria-label="Tracks">
+              {Array.from({ length: 16 }, (_, k) => (
+                <div class="track" data-track={k}>
+                  <button type="button" role="radio" class="track__sel" data-trk={k} aria-checked={k === 0 ? 'true' : 'false'}>
+                    <span class="track__n">{k + 1}</span>
+                    <span class="track__m mono" data-trk-m={k}>—</span>
+                    <span class="track__led" data-trk-led={k} aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="track__mute mono" data-mute={k} aria-pressed="false" aria-label={`Mute track ${k + 1}`}>M</button>
+                  <button type="button" class="track__solo mono" data-solo={k} aria-pressed="false" aria-label={`Solo track ${k + 1}`}>S</button>
+                  <button type="button" class="jack jack--out jack--tiny" data-jack-out={12 + k} title={`track ${k + 1}: a gate on every trig`}><i aria-hidden="true"></i></button>
+                </div>
+              ))}
+            </div>
+
+            <!-- the grid -->
+            <div class="grid">
+              <div class="grid__head mono">
+                <span class="lbl">pagina</span>
+                <div class="seg" role="group" aria-label="Page of 16 steps">
+                  {Array.from({ length: 8 }, (_, i) => <button type="button" data-page={i} aria-pressed={i === 0 ? 'true' : 'false'}>{i + 1}</button>)}
+                </div>
+                <label class="field"><span>lunghezza</span><select data-tlen aria-label="Track length in steps">{Array.from({ length: 128 }, (_, i) => <option value={i + 1}>{i + 1}</option>)}</select></label>
+                <label class="field"><span>velocità</span><select data-tscale aria-label="Track speed">{SCALES.map((s, i) => <option value={i}>{s.n}</option>)}</select></label>
+                <label class="field"><span>schema</span><select data-pmode aria-label="Length and speed per pattern or per track"><option value="0">per pattern</option><option value="1">per traccia</option></select></label>
+                <label class="field" data-ml-wrap><span>master</span><select data-pml aria-label="Master length (per-track mode)"><option value="0">∞</option>{[16, 32, 48, 64, 96, 128, 192, 256, 384, 512, 1024].map((n) => <option value={n}>{n}</option>)}</select></label>
+                <button type="button" class="sw" data-eu-on aria-pressed="false" title="Euclidean mode: the trigs come from two generators">euclide</button>
+              </div>
+              <div class="steps" role="group" aria-label="Steps: click to place or remove a trig; shift-click or long press to select for editing; alt-click for a lock trig" data-steps>
+                {Array.from({ length: 16 }, (_, i) => (
+                  <button type="button" class="step" data-sq={i} aria-pressed="false">
+                    <span class="step__n mono">{i + 1}</span>
+                    <span class="step__note mono" data-sq-note></span>
+                    <span class="step__marks" aria-hidden="true"><i class="m-cond"></i><i class="m-lock"></i><i class="m-rt"></i><i class="m-mt"></i></span>
+                  </button>
+                ))}
+              </div>
+              <div class="eu" data-eu hidden>
+                {(['p1', 'p2', 'r1', 'r2', 'tr'] as const).map((f) => (
+                  <label class="field"><span>{{ p1: 'impulsi 1', p2: 'impulsi 2', r1: 'rot. 1', r2: 'rot. 2', tr: 'rot. traccia' }[f]}</span><input type="number" min="0" max="128" data-eu-f={f} /></label>
+                ))}
+                <label class="field"><span>operatore</span><select data-eu-op>{EU_OPS.map((o, i) => <option value={i}>{o}</option>)}</select></label>
+              </div>
+            </div>
+
+            <!-- the trig -->
+            <div class="trig" data-trig hidden>
+              <header class="trig__head">
+                <b class="mono" data-trig-title>passo 1</b>
+                <div class="seg" role="group" aria-label="Trig kind"><button type="button" data-tk="1" aria-pressed="true">nota</button><button type="button" data-tk="2" aria-pressed="false">lock</button></div>
+                <button type="button" class="chip" data-trig-close aria-label="Close the trig editor">✕</button>
+              </header>
+              <div class="trig__fields mono">
+                {[0, 1, 2, 3].map((i) => (
+                  <label class="field"><span>{i ? `nota ${i + 1}` : 'nota'}</span><select data-tn={i}>{i > 0 && <option value="-1">—</option>}{Array.from({ length: 128 }, (_, n) => <option value={n}>{['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'][n % 12]}{Math.floor(n / 12) - 1}</option>)}</select></label>
+                ))}
+                <label class="field"><span>vel</span><input type="range" min="1" max="127" data-tv /><output data-tv-o></output></label>
+                <label class="field"><span>durata</span><select data-tl>{NOTE_LENS.map((l) => <option value={l}>{lenName(l)}</option>)}</select></label>
+                <label class="field"><span>micro</span><input type="range" min="-23" max="23" data-tmt /><output data-tmt-o></output></label>
+                <label class="field"><span>condizione</span><select data-tc>{CONDS.map((c, i) => <option value={i} title={c.hint}>{c.label}</option>)}</select></label>
+                <label class="field"><span>retrig</span><select data-trt><option value="-1">—</option>{RETRIG_RATES.map((r, i) => <option value={i}>{r.n}</option>)}</select></label>
+                <label class="field"><span>per</span><select data-trl>{[0.5, 1, 2, 3, 4, 6, 8, 16].map((l) => <option value={l}>{lenName(l)}</option>)}</select></label>
+                <label class="field"><span>curva</span><input type="range" min="-100" max="100" data-trv /><output data-trv-o></output></label>
+                <label class="field field--check"><input type="checkbox" data-tsl /> <span>slide</span></label>
+              </div>
+              <p class="trig__locks mono"><span data-locks>no locks: turn a knob below while this step is selected</span> <button type="button" class="chip" data-clear-locks>togli i lock</button></p>
+            </div>
+
+            <!-- the sound -->
+            <div class="snd">
+              <div class="snd__head mono">
+                <label class="field"><span>macchina</span><select data-mach>{MACHINES.map((m, i) => <option value={i}>{m}</option>)}</select></label>
+                <label class="field"><span>suono</span><select data-preset><option value="">—</option>{SOUNDS.map((s, i) => <option value={i}>{s.name} · {MACHINES[s.m]}</option>)}</select></label>
+                <span class="snd__lockhint" data-lockhint hidden>editing locks for the selected step</span>
+              </div>
+              <div class="spages" role="tablist" aria-label="Sound pages" data-spages></div>
+              <div class="pknobs" data-pknobs>
+                {Array.from({ length: 8 }, (_, i) => (
+                  <div class="knob knob--md" role="slider" tabindex="0" aria-label="" aria-valuemin="0" aria-valuemax="127" aria-valuenow="0" data-pk={i}>
+                    <svg viewBox="-50 -50 100 100" aria-hidden="true">
+                      {[...Array(11).keys()].map((t) => <line class="knob__tick" x1="0" y1="-44" x2="0" y2="-38" transform={`rotate(${-135 + t * 27})`} />)}
+                      <circle class="knob__skirt" r="34" />
+                      <circle class="knob__cap" r="26" />
+                      <line class="knob__pointer" x1="0" y1="-8" x2="0" y2="-30" />
+                    </svg>
+                    <span class="knob__label mono" data-pk-label></span>
+                    <span class="knob__value mono" data-pk-value></span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <!-- arpeggiator -->
+            <details class="arp" data-arp>
+              <summary class="mono">arpeggiatore <span data-arp-state>off</span></summary>
+              <div class="arp__body mono">
+                <label class="field"><span>modo</span><select data-arp-f="m">{ARP_MODES.map((m, i) => <option value={i}>{m}</option>)}</select></label>
+                <label class="field"><span>velocità</span><select data-arp-f="sp">{ARP_SPEEDS.map((s, i) => <option value={i}>{s.n}</option>)}</select></label>
+                <label class="field"><span>ottave</span><select data-arp-f="r">{[1, 2, 3, 4].map((n) => <option value={n}>{n}</option>)}</select></label>
+                <label class="field"><span>durata</span><select data-arp-f="nl">{NOTE_LENS.filter((l) => l > 0 && l <= 4).map((l) => <option value={l}>{lenName(l)}</option>)}</select></label>
+                <label class="field"><span>passi</span><select data-arp-f="len">{Array.from({ length: 16 }, (_, i) => <option value={i + 1}>{i + 1}</option>)}</select></label>
+                <div class="arp__steps" role="group" aria-label="Arpeggiator steps: on or off, and a transposition each">
+                  {Array.from({ length: 16 }, (_, i) => (
+                    <div class="arp__step">
+                      <button type="button" data-arp-bit={i} aria-pressed="true" aria-label={`arp step ${i + 1}`}>{i + 1}</button>
+                      <input type="number" min="-24" max="24" value="0" data-arp-ofs={i} aria-label={`arp step ${i + 1} transposition`} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </details>
+
+            <!-- keyboard -->
+            <div class="keys">
+              <div class="keys__ctl mono">
+                <button type="button" class="chip" data-oct="-1" aria-label="Octave down (Z)">oct −</button>
+                <b data-oct-read>C3</b>
+                <button type="button" class="chip" data-oct="1" aria-label="Octave up (X)">oct +</button>
+                <label class="field"><span>scala</span><select data-kb-scale><option value="0">cromatica</option><option value="1">minore naturale</option><option value="2">maggiore</option><option value="3">dorica</option><option value="4">pentatonica min.</option><option value="5">frigia</option></select></label>
+                <label class="field"><span>tonica</span><select data-kb-root>{['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'].map((n, i) => <option value={i}>{n}</option>)}</select></label>
+                <label class="field field--check"><input type="checkbox" data-kb-quant checked /> <span>quantizza</span></label>
+                <span class="keys__hint">keys A–K play; W E T Y U the sharps</span>
+              </div>
+              <div class="keyboard" data-keyboard role="group" aria-label="Keyboard: plays the selected track">
+                {KEYS.map((k) => <button type="button" class={`key ${k.black ? 'key--b' : 'key--w'}`} data-key={k.i} aria-label={`key ${k.i + 1}`}></button>)}
+              </div>
+            </div>
+
+            <!-- effects -->
+            <div class="ofx">
+              <div class="ofx__unit">
+                <p class="lbl">chorus</p>
+                <div class="bay"><GK id="o.cho.depth" /><GK id="o.cho.speed" /><GK id="o.cho.width" /><GK id="o.cho.hp" /><GK id="o.cho.rev" /></div>
+              </div>
+              <div class="ofx__unit">
+                <p class="lbl">delay</p>
+                <div class="bay"><GK id="o.del.time" /><GK id="o.del.fb" /><GK id="o.del.width" /><GK id="o.del.hp" /><GK id="o.del.lp" /><GK id="o.del.rev" /><div class="bay__switches"><button type="button" class="sw" data-switch="o.del.pp">ping-pong</button></div></div>
+              </div>
+              <div class="ofx__unit">
+                <p class="lbl">riverbero</p>
+                <div class="bay"><GK id="o.rev.pre" /><GK id="o.rev.decay" /><GK id="o.rev.size" /><GK id="o.rev.dark" /><GK id="o.rev.hp" /><GK id="o.rev.mix" /></div>
+              </div>
+              <div class="ofx__unit">
+                <p class="lbl">compressore</p>
+                <div class="bay"><GK id="o.cmp.thr" /><GK id="o.cmp.ratio" /><GK id="o.cmp.atk" /><GK id="o.cmp.rel" /><GK id="o.cmp.make" /><GK id="o.cmp.mix" /></div>
+              </div>
+            </div>
+
+            <!-- song -->
+            <details class="song" data-song>
+              <summary class="mono">song · <span data-song-state>off</span></summary>
+              <ol class="song__rows mono" data-song-rows></ol>
+              <button type="button" class="chip" data-song-add>+ riga (pattern corrente)</button>
+            </details>
+            <div class="jacks mono">
+              <span class="jacks__lbl">out</span>
+              {JACKS.operOut.map((j) => <button type="button" class="jack jack--out" data-jack-out={j.s} title={CV_SRC_HINT[CV_SRC[j.s]]}><i aria-hidden="true"></i>{j.label}</button>)}
+              <span class="jacks__hint">and a gate from every track, on the track buttons</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ cavi ═══ -->
+        <section class="mod mod--cavi" id="cavi" aria-labelledby="h-cavi">
+          <header class="mod__head">
+            <h2 id="h-cavi" class="mod__title">Cavi</h2>
+            <span class="mod__sub mono">eight patch cables: from a gate or a voltage to an input. Or click an out jack, then an in jack.</span>
+          </header>
+          <ol class="cables">
+            {Array.from({ length: CABLES }, (_, c) => (
+              <li class="cable" data-cable={c} style={`--ink-c:${CABLE_INK[c]}`}>
+                <span class="cable__plug" aria-hidden="true"></span>
+                <label class="field"><span>da</span><select data-csrc={c} aria-label={`cable ${c + 1} source`}>{CV_SRC.map((s, i) => <option value={i} title={CV_SRC_HINT[s]}>{s}</option>)}</select></label>
+                <span class="cable__wire" aria-hidden="true"></span>
+                <label class="field"><span>a</span><select data-cdst={c} aria-label={`cable ${c + 1} destination`}>{CV_DST.map((s, i) => <option value={i}>{s}</option>)}</select></label>
+                <GK id={`c${c + 1}.amt`} />
+                <button type="button" class="chip" data-cclear={c} aria-label={`unplug cable ${c + 1}`}>✕</button>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <!-- ═══ registratore ═══ -->
+        <section class="mod mod--rec" id="registratore" aria-labelledby="h-rec">
+          <header class="mod__head">
+            <h2 id="h-rec" class="mod__title">Il registratore</h2>
+            <span class="mod__sub mono">record everything you hear; send any take (or a file) to the reel as a new splice</span>
+          </header>
+          <div class="rec mono">
+            <button type="button" class="rec__btn" data-rec aria-pressed="false"><span aria-hidden="true"></span><b data-rec-label>registra</b></button>
+            <b class="rec__time" data-rec-time>0:00.0</b>
+            <label class="chip">carica un file audio<input type="file" accept="audio/*" data-upload hidden /></label>
+          </div>
+          <ol class="takes" data-takes></ol>
+        </section>
+      </div>
+      <div class="gen__cheek" aria-hidden="true"></div>
+    </div>
+
+    <article class="unveiled__chapter gen-page__notes">
+      <p class="unveiled__num mono">how to use it</p>
+      <div class="unveiled__text">
+        <p>
+          Press <b>accendi</b> and <b>▶</b>: Operatori plays its first pattern. Press <b>REC</b> on the reel and let it run for a bar
+          or two, then press it again. That is a splice. Turn <b>gene size</b> clockwise and the splice becomes a small loop;
+          <b>slide</b> moves it; <b>morph</b> spaces the repeats out, joins them, then piles them up until they turn into a cloud
+          that drifts a fifth or an octave up and across the stereo field. <b>vari-speed</b> is a tape transport: noon stops it,
+          clockwise plays forward, counter-clockwise plays backwards, and the pitch goes with the speed.
+        </p>
+        <p>
+          <b>The buttons</b> are the Morphagene's. REC records into the splice that is playing, mixed with what is there by
+          <b>S.O.S.</b> (at noon the new sound is laid over the old; clockwise the old fades out; counter-clockwise nothing new is
+          written). Hold REC and press SPLICE for a new splice at the end of the reel. SPLICE drops a marker where the gene is;
+          SHIFT goes to the next splice. Held down, SHIFT turns SPLICE into “join with the next” (hold it three seconds to remove
+          every marker) and REC into “cut this splice out” (three seconds: empty the reel). The same actions sit in plain words
+          under the buttons. On a keyboard: I, O and P are REC, SPLICE and SHIFT; space plays; A to K play the keys, Z and X move the octave, Q is FILL.
+        </p>
+        <p>
+          <b>The clock.</b> Patch <i>orologio</i> or <i>battuta</i> into <b>CLK</b>. With Morph below nine o'clock each pulse
+          shifts to the next gene; between there and 2/1 each pulse restarts the gene; above 2/1 the clock sets how fast the genes
+          travel through the splice, a time stretch that leaves the pitch to vari-speed. <b>EOSG</b> sends a pulse at the end of
+          every gene, and <b>CV</b> an envelope of what the reel is playing.
+        </p>
+        <p>
+          <b>Posto giusto.</b> The pad works on one bus (the reel, by default) only while your finger is on it, or with
+          <b>hold</b>. <i>taglia</i> catches the last slice and repeats it; <i>rovescio</i> is a reverse delay; <i>whammy</i>
+          shifts the pitch up to two octaves either way; <i>440</i> is an envelope filter that opens as you get louder. The scrub
+          strip plays the current splice at the speed of your hand. The three set-ups rearrange the instrument after three songs.
+        </p>
+        <p>
+          <b>Quinconce.</b> Each Coco has 65,536 bytes of memory and a clock: at 70 kHz the loop lasts under a second, at
+          1 kHz over a minute, and the pitch and grit move with it. With <b>rec</b> on, <b>feedback</b> decides whether new sound
+          layers on the old or wipes it. The five petals of the Quantussy each sample a neighbour's voltage when they rise, which
+          is where the chaos comes from; they can flip, skip or push the speed of either Coco. <b>Piezo</b> is a wooden plate with a
+          contact microphone: tap it, drag across it.
+        </p>
+        <p>
+          <b>Operatori.</b> Click a step to place a trig; shift-click (or long-press) selects it, and then every knob you turn
+          becomes a lock on that step alone. Alt-click places a lock trig, which changes sounds without playing a note. The trig
+          editor holds up to four notes, velocity, length, micro timing, a condition (a chance, FILL, PRE, NEI, 1ST, A:B), a
+          retrig and a slide. Each track has its own length and speed in <i>per traccia</i> mode, an arpeggiator and a Euclidean
+          generator; patterns are cued, chained and put in a song. With <b>REC</b> on and the pattern playing, the keys record
+          into the track, and knob moves record as locks.
+        </p>
+        <p>
+          <b>Cables</b> carry gates (a rising edge triggers) and voltages (added to the knob). <b>Everything is kept</b> in this
+          browser: the knobs, all 128 patterns, and eight reels. <b>scarica la bobina</b> writes the reel as a 48 kHz, 32-bit float
+          WAV with its splice markers as cue points, the format of the Morphagene's SD card; a WAV with cue points loads back
+          with its splices.
+        </p>
+      </div>
+    </article>
+
+    <article class="unveiled__chapter gen-page__notes">
+      <p class="unveiled__num mono">sources</p>
+      <div class="unveiled__text">
+        <ol class="gen-page__refs">
+          <li>Make Noise, <i>Morphagene</i> manual (2017): Vari-Speed, Gene Size, Slide, Morph, Organize, S.O.S., CLK, EOSG and the button combinations.</li>
+          <li>Ciat-Lonbarde (Peter Blasser), <i>Cocoquantus</i>: the Coco looping delays, the Quantussy, Dolby and the piezo input.</li>
+          <li>Elektron, <i>Digitone II</i> user manual (2024), and reviews in <i>Sound On Sound</i> and <i>Perfect Circuit</i>: machines, filters, LFOs, trig conditions, retrigs, arpeggiator, Euclidean mode.</li>
+          <li>J. M. Chowning, “The Synthesis of Complex Audio Spectra by Means of Frequency Modulation”, <i>Journal of the Audio Engineering Society</i> 21(7), 1973, 526–534.</li>
+          <li>G. T. Toussaint, “The Euclidean Algorithm Generates Traditional Musical Rhythms”, <i>Proceedings of BRIDGES</i>, 2005, 47–56.</li>
+          <li>E. Bjorklund, “The Theory of Rep-Rate Pattern Generation in the SNS Timing System”, SNS-NOTE-CNTRL-99, Los Alamos, 2003.</li>
+          <li>C. Roads, <i>Microsound</i> (MIT Press, 2001): grains, overlap and time stretching.</li>
+          <li>“Kid A”, Wikipedia: Yorke's voice on “Everything in Its Right Place” cut up by scrubbing in Pro Tools.</li>
+          <li>The King of Gear (thekingofgear.com): Greenwood's Kaoss Pad KP1 on the live vocal loop, with a Whammy and a DOD 440; the Max looper that samples the band on “The Gloaming”.</li>
+          <li>“Idioteque”, Wikipedia: the sample from Paul Lansky's <i>mild und leise</i> (1973).</li>
+        </ol>
+      </div>
+    </article>
+  </section>
+  <script>
+    import { mountGenoma } from '../lib/genoma/ui';
+    document.addEventListener('astro:page-load', mountGenoma);
+  </script>
+</Base>
