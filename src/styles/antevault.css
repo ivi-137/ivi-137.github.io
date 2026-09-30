@@ -1,0 +1,64 @@
+/* ── "ANTEVAULT: add, then multiply": live figure ──────────────────────── */
+
+.av__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.av__item {
+  display: flex;
+  flex: 1 1 118px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(236, 229, 211, 0.2);
+  border-top-width: 3px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+}
+.av__item--start {
+  border-top-color: var(--paper);
+}
+.av__item--add {
+  border-top-color: var(--acid);
+}
+.av__item--mul {
+  border-top-color: var(--verm);
+}
+.av__name {
+  opacity: 0.7;
+}
+.av__op {
+  font-size: 1.6em;
+  font-weight: 500;
+  line-height: 1.1;
+}
+.av__item--add .av__op {
+  color: var(--acid);
+}
+.av__item--mul .av__op {
+  color: var(--verm);
+}
+.av__run {
+  opacity: 0.85;
+}
+.av__move {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+.av__move .chip:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.av__read {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.av__read b {
+  color: var(--acid);
+  font-size: 1.3em;
+  font-weight: 500;
+}
