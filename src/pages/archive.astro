@@ -61,7 +61,7 @@ const posts = await getPosts();
           <li class="ledger__row ledger__row--tool" data-class={t.class}>
             <span class="ledger__num mono">instrument</span>
             <span class="ledger__date mono ledger__glyph">{t.glyph}</span>
-            <a class="ledger__title" href={t.url}>
+            <a class="ledger__title" href={t.url} data-astro-reload={t.standalone}>
               {t.title}
               <small class="ledger__why">{t.why}</small>
             </a>

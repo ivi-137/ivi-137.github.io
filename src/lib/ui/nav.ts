@@ -2,7 +2,7 @@ import { navigate } from 'astro:transitions/client';
 import type { Life } from '../life/engine';
 
 /** Plain HTML pages outside Astro: the client router can't swap them in, so load them whole. */
-const STANDALONE = ['/surprise/'];
+const STANDALONE = ['/surprise/', '/antevault/'];
 
 export const go = (url: string) => {
   if (/^https?:\/\//.test(url) && !url.startsWith(location.origin)) window.open(url, '_blank', 'noopener');

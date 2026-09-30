@@ -21,6 +21,7 @@ const PAGES: Item[] = [
   { label: 'Attrattore: chaotic chord progression machine', hint: '/chords/', kind: 'page', run: () => go('/chords/') },
   { label: 'Orfeo 32: underworld synthesizer', hint: '/synth/', kind: 'page', run: () => go('/synth/') },
   { label: 'Melencolia I: vocoder for sad songs', hint: '/vocoder/', kind: 'page', run: () => go('/vocoder/') },
+  { label: 'ANTEVAULT: a poker roguelite', hint: '/antevault/', kind: 'page', run: () => go('/antevault/') },
   { label: 'Glifi: an endless world made of letters', hint: '/surprise/', kind: 'page', run: () => go('/surprise/') },
   { label: 'Glifi: New York at 1:1, in letters', hint: '/surprise/#nyc', kind: 'page', run: () => go('/surprise/#nyc') },
   { label: 'Toggle the homeostat (Ashby loop)', hint: 'terminal: homeostat', kind: 'action', run: () => window.dispatchEvent(new Event('homeostat:toggle')) },

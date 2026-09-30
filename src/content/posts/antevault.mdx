@@ -1,0 +1,99 @@
+---
+title: "ANTEVAULT: add, then multiply"
+description: A poker roguelite that runs in this tab. The best order for its scoring can be proved, its map can never trap you, and winning is a game against nature.
+date: 2026-09-30
+concepts: [ANTEVAULT, poker roguelite, exchange argument, reachability, metroidvania, games against nature, PSPACE, complexity classes]
+class: PSPACE
+---
+import '../../styles/antevault.css';
+
+You are dealt eight cards. You pick up to five and play them, and the game multiplies two numbers: chips and mult. Play two kings and you get 30 chips (10 for the pair, 10 for each king) and 2 mult, so 60 points. The first door you meet wants 300.
+
+That gap is the whole game. <a href="/antevault/" data-astro-reload>ANTEVAULT</a> is a poker roguelite I built for this site. You play hands to break seals, and between seals you pick up items that bend the arithmetic: one adds mult, one multiplies it, one adds chips when you play exactly five cards. It borrows its scoring from Balatro and its climb from Slay the Spire, and it runs in the browser. Click cards to select them, press `Enter` to play, press `I` to see everything you carry.
+
+<a href="/antevault/" data-astro-reload>Play it →</a>
+
+I file everything on this site by complexity class, and this one took some thought. It belongs in PSPACE, and getting there takes three small results, one for each part of the game: the scoring, the map and the run.
+
+## Two numbers
+
+A hand scores chips times mult. Everything else in the game either adds to chips, adds to mult, or multiplies mult. A hand is scored in a fixed order:
+
+1. The hand sets the starting values. A Pair is 10 chips × 2 mult at level 1.
+2. Each scoring card fires, left to right: its chips, its enhancement, its edition, then any item that watches scored cards.
+3. Cards still in your hand can fire too. A Steel card multiplies mult by 1.5.
+4. The remaining items fire in the order you picked them up.
+5. The Prism sigil, if you spent it, multiplies last.
+
+Every step is one of three moves on a pair $$(c, m)$$: add to $$c$$, add to $$m$$, or multiply $$m$$ by some $$k$$. The score is $$c \times m$$ at the end.
+
+Look at what is missing. Nothing multiplies chips, and nothing adds to mult by looking at chips. So the two numbers are separate lanes that only meet in that last multiplication. The order of chip bonuses doesn't matter at all. The order of mult bonuses matters a lot.
+
+## Add, then multiply
+
+Take two neighbouring moves on mult: add $$b$$, and multiply by $$k$$. If mult is $$m$$ right now, then adding first gives $$(m + b)\,k$$ and multiplying first gives $$mk + b$$. The gap between them is
+
+$$
+(m + b)\,k \;-\; (mk + b) \;=\; b\,(k - 1) \;\ge\; 0 .
+$$
+
+Adding first is never worse, whatever $$m$$ is, as long as $$b \ge 0$$ and $$k \ge 1$$. Every later move only makes a bigger mult bigger, so the gain survives to the end. That gives a recipe: find a multiply sitting in front of an add, swap them, repeat. When no such pair is left, all the adds come first and all the multiplies after. Mathematicians call this an exchange argument. It is also how bubble sort works. Writing $$m_0$$ for the starting mult, $$b_i$$ for the adds and $$k_j$$ for the multipliers, the best and worst results are
+
+$$
+m_{\max} = \Big(m_0 + \sum_i b_i\Big)\prod_j k_j
+\qquad\text{and}\qquad
+m_{\min} = m_0 \prod_j k_j + \sum_i b_i .
+$$
+
+Here are four real items from the game acting on a pair of kings. You found the two multipliers first, which is the unlucky way round. Move them:
+
+<div data-score-order data-caption="Two kings played as a Pair: 30 chips, 2 mult. Sliver of Ruin and Twinlock add to mult; Sorcerer's Cap and Empty Vessel multiply it. Four items can be lined up in 24 ways, and they give 14 different scores."></div>
+
+Same hand, same four items, and the score goes from 552 to 1,215. Nothing in that gap is luck. It can never be wider than the product of the multipliers, which is 2.7 here. In this case it is 2.2.
+
+The game doesn't let you rearrange items yet. They fire in the order you picked them up, so the sorting problem turns into a shopping problem. An adder is worth its size times every multiplier that arrives after it, and new items join the end of the line, so the math quietly tells you to buy adders first and multipliers last. The Prism sigil stands outside the line: it fires after everything, which is the best place a multiplier can be.
+
+## The doors
+
+The map is the second puzzle. It has 35 sites in five regions, and you can walk it in both directions. Five of its 50 paths are doors, and a door opens only if you hold the right sigil. There are four sigils, and each comes from the Warden at the end of a region. The Key sigil, for example, is won at the end of the first region and opens a door you walked past on the way in. That is the metroidvania part: you finish a place, and the places you already finished get bigger.
+
+Can you always finish? Yes, and you can check without playing. Start with no sigils. Walk everywhere you can reach. Add the sigil of every Warden you reached. Repeat until nothing new appears. On the real map, which I read straight out of the game's source, it goes like this:
+
+| pass | you hold | sites you can reach | sigils you earn |
+|---|---|---|---|
+| 1 | none | 26 of 35 | Key, Tide, Echo |
+| 2 | Key, Tide, Echo | 35 of 35 | Prism |
+| 3 | all four | 35 of 35 | nothing: stop |
+
+Only one of the five doors is on the way to the end. The Echo door sits behind the second region's Warden, and you only find its key at the far end of the third, so you have to turn round and walk back. The other four lead to side rooms and shortcuts. This map takes three passes, and no map with four sigils could take more than five. Each pass is a plain graph search over 35 sites. The map can't trap you behind a door.
+
+What makes this easy is a decision, not luck: sigils are never used up. You only ever gain them, so the set of places you can reach only ever grows, and something that only grows has to stop. Let a key be spent when it opens a door and the question changes character. Now it matters which doors you spend your keys on, and that kind of choice is where NP-hardness lives. Zelda has been proved NP-hard (see the reading below).
+
+## Why the class is PSPACE
+
+So far a sort and a loop, both in P. The hard question is the one every player asks first: can I win?
+
+A run has 20 seals to break. Each one gives you four hands and three discards to begin with, and the last gives six and four. Every time you play, you choose from 218 ways to lay down one to five of your eight cards, and then a shuffled deck picks the next ones for you. There are 752,538,150 different first deals from a plain 52-card deck.
+
+To find the best strategy you would consider every choice you could make and every card the deck could answer with: a tree. The tree is wide, but it is not deep. Almost every move spends something that doesn't come back, a hand, a discard or a first visit to a site, so a run is a few hundred moves at most. A tree that wide and that shallow can be searched depth first, forgetting each branch as soon as you finish it, in memory proportional to the depth. That takes exponential time but only polynomial space, and polynomial space is what the name PSPACE means.
+
+Christos Papadimitriou called this shape a *game against nature* in 1985: one player who chooses, and a shuffled deck that doesn't care. The stochastic version of SAT, where you set some variables and dice set the others, is complete for that class. The [Lab](/lab/) is filed in PSPACE too, for the opposite reason: Life on a bounded board is hard for it.
+
+I haven't shown that ANTEVAULT is *hard* for PSPACE. That would mean building a formula out of a deck and some items so that winning the run answers it, the same trick that turns glider collisions into [logic gates](/logic/). What I can prove is the upper bound, so that is where it is filed.
+
+| Question | How it is answered | Class |
+|---|---|---|
+| Which cards of these eight score most? | Try all 218 ways to play | P |
+| In what order are my items best? | Sort: adds first, then multiplies | P |
+| Which places can I ever reach? | Loop: walk, collect sigils, repeat | P |
+| Can I win the run with probability at least $$p$$? | Search the tree of choices and cards | PSPACE |
+
+The first three are the parts of the game a machine could do for you in a blink. The last one is the part it can't, and it's the reason to keep playing.
+
+## Under the hood
+
+The game is about 2 MB. It is written in Java with libGDX, and the same code builds the desktop and Android versions. For the browser it is compiled to JavaScript. The cards, panels and backdrops have no image files: they are drawn by code, and the only assets are the fonts. The source is at [github.com/ivi-137/antevault](https://github.com/ivi-137/antevault).
+
+---
+
+*Further reading:* Christos Papadimitriou, "Games against nature," *Journal of Computer and System Sciences* 31 (1985). Greg Aloupis, Erik Demaine, Alan Guo and Giovanni Viglietta, "Classic Nintendo Games are (Computationally) Hard," *Theoretical Computer Science* 586 (2015).
