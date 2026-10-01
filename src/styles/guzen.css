@@ -1,0 +1,30 @@
+/* ── "GUZEN: the dice are a 48-bit number": live figures ───────────────── */
+
+.gz__stage canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: default;
+  image-rendering: auto;
+}
+.gz__slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.gz__slider input[type='range'] {
+  width: 110px;
+  padding: 0;
+  border: 0;
+  accent-color: var(--acid);
+}
+.gz__slider output {
+  min-width: 4.4em;
+  color: var(--acid);
+}
+.gz__read {
+  flex-basis: 100%;
+  opacity: 0.85;
+  line-height: 1.5;
+}

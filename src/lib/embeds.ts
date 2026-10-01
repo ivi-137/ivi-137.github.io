@@ -6,6 +6,7 @@
  *   <div data-attention data-caption="…"></div>   (and the other figures in ./coherence)
  *   <div data-leak-shape data-caption="…"></div>  (and data-gate, in ./gate)
  *   <div data-score-order data-caption="…"></div> (in ./antevault)
+ *   <div data-vactrol data-caption="…"></div>     (and data-fold, in ./guzen)
  *
  * Each becomes a figure with its own controls. Nothing runs until it scrolls
  * into view.
@@ -141,6 +142,7 @@ function lifeBoard(host: HTMLElement) {
 const COHERENCE = '[data-attention], [data-posenc], [data-dilution], [data-survival], [data-ledger-demo], [data-audit]';
 const GATE = '[data-leak-shape], [data-gate]';
 const ANTEVAULT = '[data-score-order]';
+const GUZEN = '[data-vactrol], [data-fold]';
 
 export function mountEmbeds(root: ParentNode = document) {
   root.querySelectorAll<HTMLElement>('[data-automaton]').forEach(automaton);
@@ -150,4 +152,5 @@ export function mountEmbeds(root: ParentNode = document) {
   // the deploy-gate figures ship only with the post that uses them
   if (root.querySelector(GATE)) void import('./gate/figures').then((m) => m.mountGate(root));
   if (root.querySelector(ANTEVAULT)) void import('./antevault/figure').then((m) => m.mountScoreOrder(root));
+  if (root.querySelector(GUZEN)) void import('./guzen/figures').then((m) => m.mountGuzen(root));
 }
