@@ -1,0 +1,15 @@
+---
+/** A GUZEN switch for a boolean parameter. */
+import { spec } from '../../lib/guzen/params';
+
+interface Props {
+  id: string;
+  label?: string;
+  title?: string;
+}
+const { id, label, title } = Astro.props;
+const s = spec(id);
+if (!s) throw new Error(`unknown parameter ${id}`);
+---
+
+<button type="button" class="gzb-flag mono" data-flag={id} aria-pressed={s.def ? 'true' : 'false'} title={title}>{label ?? s.label}</button>

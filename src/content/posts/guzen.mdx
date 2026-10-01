@@ -9,7 +9,9 @@ import '../../styles/guzen.css';
 
 Set a clock to two ticks a second. On each tick, flip a coin that lands heads seven times in ten. On heads a voice plays one note, and you don't choose it: dice can pick its pitch, how hard it is struck, and where it sits between the speakers. Run six voices off three such clocks and you have most of what GUZEN does.
 
-GUZEN is a synthesizer I built as a plugin: a VST3 and a standalone program, written in C++ with JUCE. It follows [Ongaku](https://synthanatomy.com/2022/05/giorgio-sancristoforo-ongaku-a-west-coast-synthesizer-with-probability-randomizers.html) by Giorgio Sancristoforo, a west-coast synth whose voices are called agents, whose envelopes are low-pass gates, and whose knobs are probabilities. I kept Ongaku's best idea, that an envelope control sets the highest an envelope may reach rather than where it goes, and rebuilt the rest. The signal path is the one [Orfeo 32](/synth/) runs in your browser: a complex oscillator, a wavefolder and a vactrol gate. Where Orfeo has a sequencer, GUZEN has dice.
+GUZEN is a synthesizer I built twice: first as a plugin, a VST3 written in C++ with JUCE, and then again for this site, where it [runs in your browser](/guzen/). It follows [Ongaku](https://synthanatomy.com/2022/05/giorgio-sancristoforo-ongaku-a-west-coast-synthesizer-with-probability-randomizers.html) by Giorgio Sancristoforo, a west-coast synth whose voices are called agents, whose envelopes are low-pass gates, and whose knobs are probabilities. I kept Ongaku's best idea, that an envelope control sets the highest an envelope may reach rather than where it goes, and rebuilt the rest. The signal path is the one [Orfeo 32](/synth/) runs in your browser: a complex oscillator, a wavefolder and a vactrol gate. Where Orfeo has a sequencer, GUZEN has dice.
+
+[Play it →](/guzen/)
 
 I file everything on this site by complexity class, and a machine made of dice looks like it should live somewhere exotic. It doesn't. It belongs in P, and the reason is the most interesting thing about it. Getting there takes four small pieces: the harmonics, the gate, the dice and the seed.
 
@@ -108,7 +110,7 @@ $$
 s_{n+1} \;=\; (a\,s_n + 11) \bmod 2^{48}, \qquad a = 25\,214\,903\,917.
 $$
 
-JUCE seeds it from the system clocks when the plugin loads, and from then on it is a fixed rule. Every coin, pitch, accent and pan position in GUZEN is read off that one 48-bit state. Given the seed and the knob positions, the whole piece is determined.
+JUCE seeds it from the system clocks when the plugin loads, and from then on it is a fixed rule. Every coin, pitch, accent and pan position in GUZEN is read off that one 48-bit state. Given the seed and the knob positions, the whole piece is determined. You can watch it happen on the [instrument page](/guzen/): the state of the generator is drawn there as 48 cells, one per bit, and if you type a seed and press restart the same piece plays again.
 
 What does that machine cost? Six voices do a fixed amount of arithmetic per sample, oversampling included, so $$n$$ samples of audio take time proportional to $$n$$. The score, meaning which voice plays which pitch and when, depends only on the clock and the dice and not on the audio, so you can compute it by running the event logic alone. Both are polynomial. That is P.
 
@@ -129,7 +131,9 @@ The chance is the only mystery in it, and the mystery is 48 bits.
 
 ## Under the hood
 
-GUZEN is about 2,500 lines of C++ with JUCE, of which the sound engine is about 800. I have only built it on Windows. It ships with 24 presets in six families (Koan, Rain, Bells, Drone, Dense and Low), every control is automatable from the host, and a MIDI note sets the root of the scale instead of playing a note directly.
+The plugin is about 2,500 lines of C++ with JUCE, of which the sound engine is about 800, and I have only built it on Windows. The version on this site is the same engine rewritten in TypeScript: one file of about 700 lines that runs in an AudioWorklet, with the same generator, the same oscillator, the same gate and the same 24 presets in six families (Koan, Rain, Bells, Drone, Dense and Low). In both, a MIDI note sets the root of the scale instead of playing a note directly.
+
+Three things differ, and they are all fixes. The browser version removes the constant offset an asymmetric fold leaves in the wave, which the plugin hands to the host; it limits its output so a dense passage can't pass full scale; and it lets the RISE knob go to four seconds, because three of the presets ask for rises the plugin's two-second knob quietly cuts short. A script, `scripts/check-guzen.mts`, runs about fifty checks on it under Node: the generator against exact 48-bit arithmetic, the folder and the gate against the formulas in this post, the clock's rates, and that the same seed plays the same piece sample for sample.
 
 ---
 

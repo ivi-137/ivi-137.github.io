@@ -133,7 +133,7 @@ export const INSTRUMENTS: Array<{ id: string; title: string; url: string; class:
   {
     id: 'guzen',
     title: 'GUZEN: a synthesizer ruled by chance',
-    url: '/posts/guzen/',
+    url: '/guzen/',
     class: 'P',
     glyph: '2^48',
     why: 'All of its chance is one 48-bit random number generator, so a piece is a fixed function of its seed: constant work per sample, and the score can be found without rendering any audio.',

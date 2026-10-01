@@ -1,0 +1,222 @@
+---
+import Base from '../layouts/Base.astro';
+import Stamp from '../components/Stamp.astro';
+import GK from '../components/guzen/GK.astro';
+import GS from '../components/guzen/GS.astro';
+import GF from '../components/guzen/GF.astro';
+import { NUM_AGENTS, NUM_GENS } from '../lib/guzen/params';
+import { PRESETS, CATEGORIES } from '../lib/guzen/presets';
+import { fnv1a } from '../lib/sigil';
+import '../styles/takes.css';
+import '../styles/guzen-box.css';
+
+/** A touch plate: an irregular closed blob, smoothed with quadratic curves. */
+function plate(seed: string) {
+  let h = fnv1a(seed) || 1;
+  const rnd = () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909)) >>> 0) / 4294967296;
+  const n = 9;
+  const pts = [...Array(n).keys()].map((i) => {
+    const a = (i / n) * Math.PI * 2 + rnd() * 0.3;
+    const r = 34 + rnd() * 12;
+    return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r * 0.92];
+  });
+  const mid = (p: number[], q: number[]) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+  let d = `M${mid(pts[n - 1], pts[0]).map((v) => v.toFixed(1)).join(' ')}`;
+  for (let i = 0; i < n; i++) {
+    const p = pts[i], m = mid(p, pts[(i + 1) % n]);
+    d += ` Q${p[0].toFixed(1)} ${p[1].toFixed(1)} ${m[0].toFixed(1)} ${m[1].toFixed(1)}`;
+  }
+  return d + 'Z';
+}
+
+/** One ink per agent, dark enough to read on paper. */
+const HUES = ['#a97712', '#17776e', '#a23a50', '#4f7a22', '#614aa6', '#b4531f'];
+const agents = [...Array(NUM_AGENTS).keys()];
+const gens = [...Array(NUM_GENS).keys()];
+---
+
+<Base title="Guzen" description="A west-coast generative synthesizer in the browser: six agents, a vactrol low-pass gate, three kinds of chance, and dice that are one 48-bit number.">
+  <section class="guzen-page" data-guzen-page>
+    <header class="section-head section-head--page guzen-page__head">
+      <p class="kicker mono" data-decode>instrument · generative synthesizer</p>
+      <h1 class="section-head__title">Guzen <em>chance</em></h1>
+      <p class="section-head__lede">
+        Six voices, three clocks and a handful of dice. Nothing here is told when to play. Each agent waits for a tick, flips a
+        coin, rolls a pitch from a scale and strikes a gate that remembers how bright it was. The dice are one 48-bit number, so the
+        same seed always plays the same piece.
+      </p>
+      <Stamp id="P" />
+    </header>
+
+    <div class="gzb" data-guzen>
+      <div class="gzb__cheek" aria-hidden="true"></div>
+      <div class="gzb__face">
+        <!-- ═══════════════ brand, transport, scope ═══════════════ -->
+        <div class="gzb__top">
+          <div class="gzb__brand">
+            <span class="gzb__logo">Guzen</span>
+            <span class="mono">west-coast chance synthesizer · gpojani</span>
+            <span class="gzb__status mono" data-status aria-live="polite">press the plate or space to start the dice</span>
+          </div>
+          <button type="button" class="gzb__play" data-play aria-pressed="false" aria-label="Play (space)">
+            <svg viewBox="0 0 100 100" aria-hidden="true"><path d={plate('guzen-play')} /></svg>
+            <span class="mono" data-play-label>play</span>
+          </button>
+          <GK id="master" size="lg" />
+          <canvas class="gzb__scope" data-scope aria-label="Oscilloscope"></canvas>
+        </div>
+
+        <!-- ═══════════════ the dice ═══════════════ -->
+        <div class="gzb__dice">
+          <span class="gzb__section mono">the dice</span>
+          <canvas class="gzb__bits" data-bits aria-label="The 48 bits of the random number generator's state"></canvas>
+          <label class="gzb-field gzb-field--seed">
+            <span class="mono">seed · 48 bits, hex</span>
+            <input type="text" data-gz-seed maxlength="12" spellcheck="false" autocomplete="off" aria-label="Seed, 12 hexadecimal digits" />
+          </label>
+          <button type="button" class="chip" data-restart title="Start the piece again from this seed. Same seed and knobs, same piece.">restart</button>
+          <button type="button" class="chip" data-reroll title="Draw a new seed and start again">new seed</button>
+        </div>
+
+        <div class="gzb__bar mono">
+          <label class="gzb-field">
+            <span>preset</span>
+            <select data-preset aria-label="Preset">
+              {CATEGORIES.map((cat) => (
+                <optgroup label={cat}>
+                  {PRESETS.map((p, i) => p.c === cat && <option value={i}>{p.n}</option>)}
+                </optgroup>
+              ))}
+              <option value="-1" hidden>(edited)</option>
+            </select>
+          </label>
+          <button type="button" class="chip" data-share title="Copy a link that holds every knob and the seed">copy share link</button>
+          <button type="button" class="chip" data-midi title="A MIDI keyboard sets the root of the scale; the chance plays in that key">midi → root</button>
+          <button type="button" class="chip chip--rec" data-rec aria-pressed="false" title="Record the master output; stop to keep the take">● record <span data-rec-time></span></button>
+        </div>
+
+        <!-- ═══════════════ the six agents ═══════════════ -->
+        <div class="gzb__agents">
+          {
+            agents.map((i) => (
+              <section class="gza" data-agent={i} style={`--hue:${HUES[i]}`} aria-label={`Agent ${i + 1}`}>
+                <header class="gza__head">
+                  <h3 class="gza__title">Agent <b>{i + 1}</b></h3>
+                  <span class="gza__lamp" data-lamp={i} aria-hidden="true"></span>
+                  <div class="gza__flags">
+                    <GF id={`a${i}.cycle`} title="The function generator retriggers itself, so the agent never stops" />
+                    <GF id={`a${i}.on`} />
+                  </div>
+                </header>
+                <div class="gza__sel">
+                  <GS id={`a${i}.pitchSource`} label="pitch from" />
+                  <GS id={`a${i}.trigSource`} />
+                  <GS id={`a${i}.lpgMode`} label="gate" />
+                </div>
+                <div class="gza__row">
+                  <span class="gza__cap mono">voice</span>
+                  <GK id={`a${i}.octave`} hue={HUES[i]} />
+                  <GK id={`a${i}.fine`} hue={HUES[i]} />
+                  <GK id={`a${i}.ratio`} hue={HUES[i]} />
+                  <GK id={`a${i}.fm`} hue={HUES[i]} />
+                  <GK id={`a${i}.fold`} hue={HUES[i]} />
+                  <GK id={`a${i}.symmetry`} label="sym" hue={HUES[i]} />
+                </div>
+                <div class="gza__row">
+                  <span class="gza__cap mono">gate</span>
+                  <GK id={`a${i}.lpgFall`} hue={HUES[i]} />
+                  <GK id={`a${i}.lpgColour`} hue={HUES[i]} />
+                  <GK id={`a${i}.rise`} hue={HUES[i]} />
+                  <GK id={`a${i}.fall`} hue={HUES[i]} />
+                  <GK id={`a${i}.trigProb`} hue={HUES[i]} />
+                  <GK id={`a${i}.envProb`} hue={HUES[i]} />
+                </div>
+                <div class="gza__row">
+                  <span class="gza__cap mono">place</span>
+                  <GK id={`a${i}.pitchSpread`} hue={HUES[i]} />
+                  <GK id={`a${i}.pitchBias`} hue={HUES[i]} />
+                  <GK id={`a${i}.pan`} hue={HUES[i]} />
+                  <GK id={`a${i}.panChance`} hue={HUES[i]} />
+                  <GK id={`a${i}.level`} hue={HUES[i]} />
+                </div>
+              </section>
+            ))
+          }
+        </div>
+
+        <!-- ═══════════════ chance and output ═══════════════ -->
+        <div class="gzb__lower">
+          <section class="gzp" aria-label="Clock and generators">
+            <h3 class="gzp__title mono">chance</h3>
+            <div class="gzp__row">
+              <GK id="clockRate" size="md" />
+              <GS id="clockDiv" />
+              <GF id="clockSync" title="Follow the tempo knob, in the chosen division, instead of the free clock" />
+              <GK id="tempo" />
+              <GK id="swing" />
+              <GK id="drift" />
+            </div>
+            <div class="gzp__row">
+              {
+                gens.map((g) => (
+                  <div class="gzp__gen">
+                    <GS id={`g${g}.mult`} />
+                    <GK id={`g${g}.prob`} />
+                  </div>
+                ))
+              }
+              <GS id="scale" />
+              <GS id="root" />
+            </div>
+          </section>
+          <section class="gzp" aria-label="Filter and reverb">
+            <h3 class="gzp__title mono">output</h3>
+            <div class="gzp__row">
+              <GK id="cutoff" size="md" />
+              <GK id="reso" />
+              <GK id="revMix" />
+              <GK id="revSize" />
+              <GK id="revDamp" />
+            </div>
+          </section>
+        </div>
+      </div>
+      <div class="gzb__cheek" aria-hidden="true"></div>
+    </div>
+    <ol class="takes gzb__takes" data-gz-takes aria-label="Recorded takes"></ol>
+
+    <article class="unveiled__chapter">
+      <p class="unveiled__num mono">how to play</p>
+      <div class="unveiled__text">
+        <p>
+          Press <kbd>space</kbd> or the plate to start. There is no keyboard to play: the box plays itself, and you shape the odds.
+          A master clock feeds three generators, each running at its own multiple of it. Every tick of a generator is a coin flip,
+          and an agent listens to one generator and flips a second coin of its own before it plays. <b>chance</b> is that second
+          coin. <b>accent</b> sets how much the height of each note can fall below full. <b>bias</b> doesn't change how often an
+          agent plays but which pitches it picks, pushing the dice towards the top or the bottom of the range.
+        </p>
+        <p>
+          Each agent is a complex oscillator (<b>ratio</b> and <b>FM</b>) folded by a wavefolder (<b>fold</b>, <b>sym</b>) and
+          then struck through a low-pass gate that behaves like a vactrol: it opens in a couple of milliseconds and closes
+          slowly, the slower the darker it gets (<b>vactrol</b>). Pitch is snapped to a scale, and the root follows a MIDI
+          keyboard if you have one (press <b>midi → root</b>). The lamp beside each agent's name is its gate.
+        </p>
+        <p>
+          The strip of 48 cells is the state of the dice, and it is the only source of chance in the instrument. Type the same
+          seed and press <b>restart</b> and the same piece plays again, note for note. That is why the stamp says
+          <a href="/archive/#P">P</a>: <a href="/posts/guzen/">the post</a> argues it from the generator up. <b>record</b> keeps
+          what comes out, sample for sample, as a take you can play back or download as a WAV file.
+        </p>
+        <p class="mono logic__provenance">
+          After Giorgio Sancristoforo's Ongaku, a west-coast synthesizer whose voices are called agents and whose controls are
+          probabilities, and after the Buchla 266 Source of Uncertainty. This is the same instrument as the GUZEN plugin, rewritten
+          to run in the page. Nothing here is affiliated with either.
+        </p>
+      </div>
+    </article>
+  </section>
+  <script>
+    import { mountGuzen } from '../lib/guzen/ui';
+    document.addEventListener('astro:page-load', mountGuzen);
+  </script>
+</Base>

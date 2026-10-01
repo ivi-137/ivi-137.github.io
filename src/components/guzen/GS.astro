@@ -1,0 +1,19 @@
+---
+/** A GUZEN selector for a choice parameter. */
+import { spec } from '../../lib/guzen/params';
+
+interface Props {
+  id: string;
+  label?: string;
+}
+const { id, label } = Astro.props;
+const s = spec(id);
+if (!s?.options) throw new Error(`${id} is not a choice parameter`);
+---
+
+<label class="gzb-field">
+  <span class="mono">{label ?? s.label}</span>
+  <select data-sel={id} aria-label={label ?? s.label}>
+    {s.options.map((o, i) => <option value={i} selected={i === s.def}>{o}</option>)}
+  </select>
+</label>

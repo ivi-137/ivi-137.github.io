@@ -1,0 +1,325 @@
+/* ── Guzen: the instrument page ─────────────────────────────────────────────
+   Paper face between two wooden cheeks, like its neighbours. One ink per agent. */
+
+.guzen-page__head {
+  position: relative;
+}
+.guzen-page__head > .stamp {
+  position: absolute;
+  right: 0;
+  top: 22vh;
+  rotate: 8deg;
+}
+
+.gzb {
+  --brass: #c9a24a;
+  --brass-lo: #7a5c1c;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 26px;
+  filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.75));
+  user-select: none;
+}
+.gzb__cheek {
+  border-radius: 10px;
+  background:
+    repeating-linear-gradient(92deg, rgba(0, 0, 0, 0.18) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(88deg, rgba(255, 220, 170, 0.08) 0 1px, transparent 1px 13px),
+    linear-gradient(180deg, #7d4a22, #62381a 40%, #4e2c12);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4), inset 3px 0 6px rgba(255, 210, 160, 0.15);
+}
+.gzb__face {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  padding: 18px clamp(12px, 2.4vw, 30px) 24px;
+  color: var(--ink);
+  background: var(--paper);
+  background-image: var(--fibres);
+  overflow-x: auto;
+}
+
+/* ── brand, transport, scope ── */
+.gzb__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 26px;
+  padding-bottom: 14px;
+  border-bottom: 1.5px solid var(--ink);
+}
+.gzb__brand {
+  display: grid;
+  gap: 2px;
+  margin-right: auto;
+}
+.gzb__logo {
+  font: italic 400 2.4rem/1 var(--f-display);
+  letter-spacing: -0.01em;
+}
+.gzb__brand .mono {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.gzb__brand .gzb__status {
+  min-height: 1.2em;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+.gzb__play {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.gzb__play svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.gzb__play path {
+  fill: var(--brass);
+  stroke: var(--ink);
+  stroke-width: 2;
+  filter: drop-shadow(0 3px 0 var(--brass-lo));
+}
+.gzb__play span {
+  position: relative;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.gzb__play[aria-pressed='true'] path {
+  fill: var(--acid);
+}
+.gzb__scope {
+  width: min(260px, 100%);
+  height: 70px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  background:
+    linear-gradient(rgba(22, 20, 15, 0.08) 1px, transparent 1px) 0 0 / 100% 17.5px,
+    linear-gradient(90deg, rgba(22, 20, 15, 0.08) 1px, transparent 1px) 0 0 / 26px 100%,
+    var(--paper-2);
+}
+
+/* ── the dice ── */
+.gzb__dice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+}
+.gzb__section {
+  align-self: center;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.gzb__bits {
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 560px;
+  height: 22px;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  background: var(--paper-2);
+}
+.gzb-field {
+  display: grid;
+  gap: 2px;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.gzb-field > span {
+  color: var(--ink-2);
+}
+.gzb-field select,
+.gzb-field input {
+  font: 500 11px/1.2 var(--f-mono);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  padding: 5px 6px;
+  color: var(--ink);
+  background: var(--paper-2);
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+}
+.gzb-field input {
+  width: 9.5em;
+  user-select: text;
+}
+.gzb-field select:focus-visible,
+.gzb-field input:focus-visible,
+.gzb-flag:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 1px;
+}
+
+.gzb__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+  padding: 10px 0;
+  border-top: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--ink);
+}
+.gzb .chip {
+  color: var(--ink);
+}
+.gzb .chip[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--acid);
+}
+.gzb .chip--rec[aria-pressed='true'] {
+  color: var(--verm);
+}
+
+.gzb-flag {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 5px 9px;
+  color: var(--ink);
+  background: transparent;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.gzb-flag[aria-pressed='true'] {
+  color: var(--acid);
+  background: var(--ink);
+}
+
+/* ── the six agents ── */
+.gzb__agents {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(372px, 1fr));
+  gap: 14px;
+}
+.gza {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border: 1.5px solid var(--ink);
+  border-top: 5px solid var(--hue);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.28);
+}
+.gza__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gza__title {
+  margin: 0;
+  font: italic 400 1.5rem/1 var(--f-display);
+}
+.gza__title b {
+  font-weight: 400;
+  color: var(--hue);
+}
+.gza__lamp {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+  --on: 0;
+  background: color-mix(in srgb, var(--hue) calc(var(--on) * 100%), transparent);
+  box-shadow: 0 0 calc(var(--on) * 12px) var(--hue);
+}
+.gza__flags {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.gza__sel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.gza__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 2px;
+}
+.gza__cap {
+  width: 3.4em;
+  padding-top: 14px;
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.gza .knob__pointer {
+  stroke: var(--hue);
+}
+
+/* ── chance and output ── */
+.gzb__lower {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 14px;
+}
+.gzp {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border: 1.5px solid var(--ink);
+  border-top: 5px solid var(--ink);
+  border-radius: 4px;
+}
+.gzp__title {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.gzp__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+.gzp__gen {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.gzb__takes {
+  margin-top: 18px;
+}
+.gzb__takes:empty,
+.gzb__takes .takes__empty {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .guzen-page__head > .stamp {
+    position: static;
+    display: inline-flex;
+    margin-top: 1rem;
+  }
+  .gzb {
+    grid-template-columns: 10px minmax(0, 1fr) 10px;
+  }
+  .gzb__agents {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

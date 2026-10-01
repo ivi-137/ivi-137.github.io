@@ -1,0 +1,17 @@
+---
+/** A GUZEN knob: label, range and default all come from the parameter table. The panel script turns it in 0–1 space. */
+import Knob from '../Knob.astro';
+import { spec, toNorm } from '../../lib/guzen/params';
+
+interface Props {
+  id: string;
+  size?: 'sm' | 'md' | 'lg';
+  label?: string;
+  hue?: string;
+}
+const { id, size = 'sm', label, hue } = Astro.props;
+const s = spec(id);
+if (!s) throw new Error(`unknown parameter ${id}`);
+---
+
+<Knob bind={id} label={label ?? s.label} min={0} max={1} step={0.001} value={toNorm(s, s.def)} size={size} format="gz" hue={hue} />
