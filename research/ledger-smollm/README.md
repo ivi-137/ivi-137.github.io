@@ -282,6 +282,7 @@ and push, or paste `summary.md`.
 | `patterns.py` | the house-pattern study: authors, rendering, monitors for all five shapes, slots and per-token labels, hazards |
 | `pattern_data.py`, `pattern_eval.py`, `pattern_analyze.py` | its data (the model's own answers in a house pattern), evaluation at several contexts, statistics (κ and its paired difference, hazards by item position, McNemar, bootstrap) |
 | `run_patterns.sh`, `run_patterns.ps1` | the house-pattern study, with the same presets |
+| `book_fixtures.py` | parity fixtures for the clerk's book in the blog post (a TypeScript port of the monitors and the clerk), checked by `scripts/check-book.mts` |
 | `shapes.py`, `specs.py`, `stats.py` | the shapes and number reading shared by both studies; which obligation set a Ledger keeps; Wilson and McNemar |
 | `colab.ipynb` | both studies on a Colab GPU, with results kept on Google Drive and downloaded as a zip |
 | `kaggle.ipynb` | either study on Kaggle's two T4 GPUs in parallel, with a time budget and resuming from a previous version's output |

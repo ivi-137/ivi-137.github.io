@@ -324,6 +324,237 @@
   color: var(--ghost);
 }
 
+/* ── the clerk's book ── */
+.cb {
+  --row: 22px;
+  font-size: 11px;
+}
+.cb__clerk {
+  margin: 0 0 10px;
+  line-height: 1.7;
+}
+.cb__clerk b {
+  color: var(--acid);
+  font-weight: 500;
+}
+.cb__who {
+  padding: 1px 6px;
+  margin-right: 4px;
+  color: var(--void);
+  background: var(--acid);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+.cb__src {
+  opacity: 0.6;
+}
+.cb__clerk .cb__differ {
+  color: var(--verm);
+}
+.cb__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 13em) minmax(0, 1fr) minmax(0, 10.5em);
+  gap: 0 8px;
+  align-items: start;
+}
+.cb .cb__labels,
+.cb .cb__state {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* rows must line up with the canvas: no list spacing from the prose around it */
+.cb .cb__labels li,
+.cb .cb__state li {
+  margin: 0;
+  padding: 0;
+  height: var(--row);
+  line-height: var(--row);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.cb__labels small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.55;
+  font-size: 10px;
+}
+.cb__name {
+  flex: none;
+}
+.cb__shape {
+  flex: none;
+  width: 1.5em;
+  text-align: center;
+  font-weight: 700;
+  color: var(--void);
+  background: var(--paper);
+}
+.cb__shape.is-F,
+.cb__shape.is-L,
+.cb__shape.is-O {
+  background: var(--ghost);
+}
+.cb__shape.is-N {
+  background: var(--acid);
+}
+.cb__scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.cb__scroll canvas {
+  display: block;
+  cursor: crosshair;
+  image-rendering: auto;
+}
+.cb__scroll canvas:focus-visible {
+  outline: 1px solid var(--acid);
+  outline-offset: 1px;
+}
+.cb__state li.is-quiet,
+.cb__state li.is-owed {
+  color: var(--ghost);
+}
+.cb__state li.is-kept {
+  color: var(--acid);
+}
+.cb__state li.is-broken {
+  color: var(--verm);
+  font-weight: 700;
+}
+.cb__axis {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: 6px 0 8px;
+  opacity: 0.8;
+}
+.cb__key i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin: 0 4px 0 10px;
+  vertical-align: -1px;
+}
+.k-owed {
+  background: color-mix(in srgb, var(--ghost) 55%, transparent);
+}
+.k-kept {
+  background: var(--acid);
+}
+.k-broken {
+  background: var(--verm);
+}
+.cb__text {
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--paper);
+}
+.cb__text span {
+  cursor: pointer;
+}
+.cb__text span:hover {
+  box-shadow: inset 0 -2px 0 var(--ink-2);
+}
+.cb__text .is-later {
+  opacity: 0.28;
+}
+.cb__text .is-here {
+  outline: 1.5px solid var(--ink);
+}
+.cb__text .is-paid {
+  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--c-p) 70%, transparent);
+}
+.cb__text .is-wrong {
+  background: color-mix(in srgb, var(--verm) 16%, transparent);
+}
+.cb__text .is-break {
+  background: color-mix(in srgb, var(--verm) 34%, transparent);
+  box-shadow: inset 0 -3px 0 var(--verm);
+}
+.cb__verdict {
+  margin: 8px 0 4px;
+  color: var(--acid);
+  line-height: 1.5;
+}
+.cb__verdict.is-bad {
+  color: var(--verm);
+}
+.cb__edit summary {
+  cursor: pointer;
+  padding: 4px 0;
+  opacity: 0.8;
+}
+.cb__fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.cb__fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  opacity: 0.9;
+}
+.cb__fields textarea {
+  min-height: 220px;
+  resize: vertical;
+  padding: 8px;
+  font: 11px/1.5 var(--f-mono);
+  color: var(--ink);
+  background: var(--paper);
+  border: 0;
+}
+.cb__fields textarea:disabled {
+  opacity: 0.6;
+}
+.cb__note {
+  margin: 8px 0 0;
+  font-size: 10px;
+  line-height: 1.5;
+  opacity: 0.65;
+}
+.cb__pick {
+  max-width: 22em;
+  padding: 4px;
+  font-size: 11px;
+  color: var(--paper);
+  background: var(--void-2);
+  border: 1px solid rgba(236, 229, 211, 0.3);
+}
+.embed--book.is-drop {
+  outline: 2px dashed var(--acid);
+  outline-offset: -6px;
+}
+@media (max-width: 640px) {
+  .cb__grid {
+    grid-template-columns: minmax(0, 7.5em) minmax(0, 1fr) minmax(0, 7em);
+    gap: 0 4px;
+  }
+  .cb__labels small {
+    display: none;
+  }
+  .cb__state li {
+    font-size: 10px;
+  }
+  .cb__fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── results (server-rendered) ── */
 .cx-results {
   margin: 2.4em calc(-1 * min(var(--pad), 2rem));

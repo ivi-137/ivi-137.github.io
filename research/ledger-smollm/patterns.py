@@ -232,7 +232,6 @@ def audit(text, rules, n):
     if rules['lowercase']:
         brk = next((j for j, (_, l) in enumerate(nonempty) if re.search(r'[A-Z]', l)), None)
         out['lowercase'] = {'ok': brk is None, 'break_at': brk, 'opportunities': len(nonempty)}
-    first_item = kinds.index('item') if 'item' in kinds else len(kinds)
     last_item = len(kinds) - 1 - kinds[::-1].index('item') if 'item' in kinds else -1
     if tl:
         at = kinds.index('tldr') if 'tldr' in kinds else None
@@ -248,7 +247,6 @@ def audit(text, rules, n):
         out['signoff'] = {'ok': at is not None}
         out['signoff_last'] = {'ok': at is not None and at == len(kinds) - 1}
     out['items'] = {'ok': len(items) == n, 'found': len(items)}
-    del first_item
     return out
 
 

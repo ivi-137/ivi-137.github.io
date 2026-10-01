@@ -28,7 +28,7 @@ The results, in brief. In an ordinary transformer, $$\kappa$$ tends to the value
 
 The module I propose is called the *Ledger*. I trained it, along with a plain baseline and some controls, on a small synthetic task on four CPU cores. The Ledger kept every implicit rule in 90.0% of its posts, against 80.5% for the baseline ($$p = 5.5 \times 10^{-8}$$), and wrote the requested number of paragraphs in 98.5% of them, against 38.5%. The same slots placed inside the model's ordinary softmax did no better than the baseline (74.0%). With the style fixed at the start, there were 4,526 chances to break a convention and none was taken.
 
-The experiment is a toy, and I say so wherever it matters. The argument rests on the proofs. The toy is there to check that the mechanisms behave as the proofs say. A test on a real pretrained model is written and tested, and it hasn't run yet. Its predictions are below, written before any result exists.
+The experiment is a toy, and I say so wherever it matters. The argument rests on the proofs. The toy is there to check that the mechanisms behave as the proofs say. Two tests on a real pretrained model are written and tested, and neither has run yet. Their predictions are below, written before any result exists.
 
 If a formula gets in your way, skip it. The sentence after each one says what it means.
 
@@ -545,7 +545,7 @@ Slots in the context did no better than no slots at all (20% against 17%), as Co
 <p class="reader"><span class="who">Reader</span>Then go and be humbled. Write your predictions down first.</p>
 </div>
 
-The toy doesn't say whether any of this helps a model that already speaks. I've built that test on SmolLM2-135M-Instruct, a pretrained instruction model with 30 layers and a context of 8,192 tokens, measured on IFEval. The code is public and tested. The runs haven't happened yet, so this section gives the design and the predictions, with no numbers.
+The toy doesn't say whether any of this helps a model that already speaks. I've built two tests of it on SmolLM2-135M-Instruct, a pretrained instruction model with 30 layers and a context of 8,192 tokens: one on IFEval, whose rules are stated, and one on rules that are only shown. The code is public and tested. The runs haven't happened yet, so this section gives the design and the predictions, with no numbers.
 
 ### IFEval is already written in the three shapes
 
@@ -588,7 +588,7 @@ The model is frozen, and only the new parameters learn. The clerk reads the outp
 
 There are three controls. LoRA adapters with exactly as many parameters, trained on the same data, test whether it's the architecture or just the training. The same slots and state inside the model's own softmax test the separate budget. The Ledger without its gate tests the stop. The training prompts are plain writing tasks with one to three instructions, worded by IFEval's own instruction classes but never taken from its test prompts. The targets are the frozen model's own answers: the first of four samples that passes every checker, or else the best one repaired by exact edits, like lowercasing it or adding the missing postscript, and kept only if it then passes. The evaluation is the official IFEval on its 541 prompts, then the same prompts followed by up to 6,000 tokens of unrelated text, which changes the prompt length $$n_0$$ as Proposition 2 needs.
 
-My own hardware is modest, so I sized the whole thing for a laptop GPU with 4 GB of memory. It also runs on the free GPUs of Google Colab and Kaggle; there's a notebook for each that installs everything, runs the tests and saves its progress, so a session that times out picks up where it stopped. On Kaggle's two GPUs, the work is split between them. The machine I built it on couldn't download the model, so every part was tested on a random model of exactly SmolLM2's shape: 264 tests, including one that checks the Ledger leaves the model's outputs unchanged at insertion and one that checks that writing step by step gives the same answer as a single pass.
+My own hardware is modest, so I sized the whole thing for a laptop GPU with 4 GB of memory. It also runs on the free GPUs of Google Colab and Kaggle; there's a notebook for each that installs everything, runs the tests and saves its progress, so a session that times out picks up where it stopped. On Kaggle's two GPUs, the work is split between them. The machine I built it on couldn't download the model, so every part was tested on a random model of exactly SmolLM2's shape: 414 tests across both studies, including one that checks the Ledger leaves the model's outputs unchanged at insertion and one that checks that writing step by step gives the same answer as a single pass.
 
 ### Predictions, before the numbers
 
@@ -606,7 +606,32 @@ If the third prediction fails, then either dilution isn't what limits a 135-mill
 <p class="clerk"><span class="who">Clerk</span>Predictions entered. Results: blank. I don't fill in columns I haven't seen.</p>
 </div>
 
-IFEval has no example posts to imitate, so gauge fixing will have to wait for an imitation benchmark. The recipe doesn't change. Declare the families of interchangeable variants the model writes (delimiters, quotation marks, list markers, spelling pairs that tokenise alike), read the frame by counting them in the examples, and restrict the output to one member per family. No training needed.
+### Rules nobody states
+
+IFEval states its rules: end with a postscript, use no commas. Most of what a writer keeps is never said. A column numbers its points the same way every week, signs off the same way and keeps its reading list at the bottom, and nobody writes any of that down. This post's claim is about obligations, not instructions, so it should hold when the obligation comes from examples. That is the toy's task, and the second study moves it to SmolLM2.
+
+The prompt shows two answers from one column, then a new question asking for some number of items. The column has a house pattern: one of eight list markers (numbered ones count up from one), leads in bold or not, perhaps everything in lowercase, perhaps a one-line summary first, a reading list last and a sign-off at the very end. Nothing in the prompt names a rule. Two examples always fix the pattern, and the tests check that they do for every kind of column the generator makes. The words are the frozen model's own answers to plain questions, and only the form is imposed. The test columns use topics and sign-offs that never appear in training, and ask for 3, 6, 9 or 12 items. Twelve is longer than any answer the models trained on.
+
+This study reaches the two shapes the IFEval mapping leaves out. "The summary comes first" is an order, and "nothing after the sign-off" is a last. Its length is the length of the answer, which is what the length exponent measures: $$S(n)$$ is the share of answers that keep everything when asked for $$n$$ items, and $$\kappa$$ per item is minus the slope of $$\log S(n)$$.
+
+The Ledger keeps seven slots here. The marker and bold slots carry a class the clerk reads off the examples, as the toy's clerk read the font, and the count takes its target from the new question through the pointer, not from the counts the examples show. Order and last get no slots of their own: the monitors check them, and the Ledger sees them only through the state of the summary, the reading list and the sign-off. With these slots the Ledger has 3.95 million parameters, and LoRA keeps rank 69.
+
+The monitors keep a book as the answer is written. It's easiest to see as a grid, one row per obligation and one step per piece of text, like a sequencer's.
+
+<div data-book data-caption="The clerk's book: one row per obligation, one step per piece of the answer. Blue is owed, green kept or paid, red where a monitor caught a break; hover or press write it out to move through the answer. The five examples are mine, written by hand to show each way an answer goes wrong, and none is a model's output. The study's answers load from its results files and never leave your browser."></div>
+
+The rules at the top are what the clerk reads off the two examples, by counting, with nothing trained. When the runs exist, every answer they write will load into the same book, and the same monitors will read it.
+
+### Predictions for the house patterns
+
+1. The length exponent per item is smaller for the Ledger than for LoRA: the paired bootstrap interval of the difference lies below zero. If this fails, the claim doesn't reach rules learned from examples, and I'll say so.
+2. Invariants break mostly at the first item, where the pattern has to be read from the examples, and rarely after it, once the model can copy its own items. The Ledger's gain on invariants comes mostly at item one.
+3. Answers that end with a debt unpaid (no sign-off, no reading list, too few items) become more common with $$n$$ for the frozen model and LoRA, and less so for the Ledger. Without its gate the Ledger loses part of that advantage, more on the count and the sign-off than on the invariants.
+4. At twelve items the Ledger lands on the count more often than LoRA, whose misses are mostly too few items or the examples' count.
+5. With 6,000 tokens of notes between the examples and the question, every model keeps less, and the Ledger loses less than LoRA.
+6. The shared-softmax slots do no better than the Ledger.
+
+List markers are a family of interchangeable variants, like the toy's dollar signs, so gauge fixing applies here too: read the marker by counting, as the clerk above does, and allow only that one. I've left it out on purpose, so that the marker row measures the Ledger alone. The recipe for later doesn't change. Declare the families of interchangeable variants the model writes (delimiters, quotation marks, list markers, spelling pairs that tokenise alike), read the frame by counting them in the examples, and restrict the output to one member per family. No training needed.
 
 ## What is proved, what is measured, what is open
 
@@ -618,7 +643,7 @@ Assumed, and only tested: the hazard model itself, including independence betwee
 
 Measured, not proved: that the Ledger and the frame make posts more coherent (90.0% against 80.5% with two seeds, $$p = 5.5 \times 10^{-8}$$; 95.0% with the frame, one seed), and where each part belongs in the network (a one-seed screen).
 
-Open: all of it, for a real language model. The retrofit to SmolLM2 is built and tested, and its results are pending.
+Open: all of it, for a real language model. Both studies on SmolLM2 are built and tested, and their results are pending.
 
 The toy is tiny, its prose is noise, and its style has five dimensions where a real blog has hundreds. Its labels come free from the generator; a real system has to extract them, and extraction errors are a new way to fail. Its symmetry is exact and declared in advance, and real conventions are only roughly permutations of tokens. What should come next, in order:
 
@@ -711,4 +736,4 @@ Checking whether a draft keeps a set of obligations takes one pass of a few smal
 - Edward J. Hu et al., "LoRA: Low-Rank Adaptation of Large Language Models," *ICLR* (2022).
 - Xiang Lisa Li, Percy Liang, "Prefix-Tuning: Optimizing Continuous Prompts for Generation," *ACL* (2021).
 - Code, data and trained weights for the experiment: `research/coherence/` in this site's repository.
-- Code, tests and Colab and Kaggle notebooks for the retrofit to SmolLM2: `research/ledger-smollm/` in the same repository.
+- Code, tests and Colab and Kaggle notebooks for the retrofit to SmolLM2, both studies: `research/ledger-smollm/` in the same repository.
