@@ -6,7 +6,7 @@ import math
 import numpy as np
 import torch
 
-import obligations as ob
+from shapes import numbers
 
 DISTRACTOR_HEAD = '\n\nBackground notes (not part of the request):\n'
 DISTRACTOR_TAIL = '\n\nNow respond to the request above.'
@@ -36,13 +36,26 @@ def with_distractor(prompt, distractor_text):
     return prompt + DISTRACTOR_HEAD + distractor_text + DISTRACTOR_TAIL if distractor_text else prompt
 
 
+def backgrounds(tok, passages, n, length, seed=0):
+    """n background texts of `length` tokens, cut from the passage corpus at fixed, prompt-specific offsets."""
+    if length <= 0:
+        return [''] * n
+    ids = tok('\n\n'.join(passages), add_special_tokens=False)['input_ids']
+    if not ids:
+        raise SystemExit('no background passages: run data.py first')
+    if len(ids) < length:
+        ids = ids * (length // max(1, len(ids)) + 1)
+    step = max(1, (len(ids) - length) // max(1, n))
+    return [tok.decode(ids[(i * step + seed) % max(1, len(ids) - length) :][:length]) for i in range(n)]
+
+
 def encode_prompt(tok, user_text):
     """Token ids of the chat-formatted prompt (ending with the assistant header) and per-token number features."""
     text = tok.apply_chat_template([{'role': 'user', 'content': user_text}], add_generation_prompt=True, tokenize=False)
     enc = tok(text, add_special_tokens=False, return_offsets_mapping=True)
     ids, spans = enc['input_ids'], enc['offset_mapping']
     feat = np.zeros((len(ids), 2), np.float32)
-    marks = ob.numbers(text)
+    marks = numbers(text)
     for t, (a, b) in enumerate(spans):
         for s, e, v in marks:
             if a < e and s < b:

@@ -16,22 +16,9 @@ import time
 
 import torch
 
-from chat import device_auto, generate, with_distractor
+from chat import backgrounds, device_auto, generate, with_distractor
 from ifeval_bridge import load_ifeval, score
 from load import DEFAULT_MODEL, build, load_run
-
-
-def backgrounds(tok, passages, n, length, seed=0):
-    """n background texts of `length` tokens, cut from the passage corpus at fixed, prompt-specific offsets."""
-    if length <= 0:
-        return [''] * n
-    ids = tok('\n\n'.join(passages), add_special_tokens=False)['input_ids']
-    if not ids:
-        raise SystemExit('no background passages: run data.py first')
-    if len(ids) < length:
-        ids = ids * (length // max(1, len(ids)) + 1)
-    step = max(1, (len(ids) - length) // max(1, n))
-    return [tok.decode(ids[(i * step + seed) % max(1, len(ids) - length) :][:length]) for i in range(n)]
 
 
 def main():

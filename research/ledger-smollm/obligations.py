@@ -17,9 +17,7 @@ from functools import lru_cache
 import numpy as np
 
 from ifeval_bridge import instructions_util
-
-G, F, N = 0, 1, 2
-LESS, AT_LEAST, EXACTLY = 0, 1, 2
+from shapes import AT_LEAST, EXACTLY, LESS, F, G, N, numbers  # noqa: F401  (re-exported for older imports)
 
 SLOTS = [
     ('punctuation:no_comma', G),
@@ -181,13 +179,3 @@ def token_targets(iid, kw, text, ends, prompt=None):
         counts = np.searchsorted(marks, ends, side='right')
         return (np.diff(np.concatenate([[0], counts])) > 0).astype(np.float32)
     return np.zeros(len(ends), np.float32)
-
-
-_WORDS = {w: i for i, w in enumerate('zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty'.split())}
-
-
-def numbers(text):
-    """(start, end, value) for every number written in the text, in digits or as a word up to twenty."""
-    out = [(m.start(), m.end(), int(m.group())) for m in re.finditer(r'\d+', text)]
-    out += [(m.start(), m.end(), _WORDS[m.group().lower()]) for m in re.finditer(r'\b(' + '|'.join(_WORDS) + r')\b', text, flags=re.IGNORECASE)]
-    return sorted(out)

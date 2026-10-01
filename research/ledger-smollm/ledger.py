@@ -31,7 +31,8 @@ from transformers import AttentionInterface, DynamicCache
 from transformers.masking_utils import ALL_MASK_ATTENTION_FUNCTIONS
 from transformers.models.llama.modeling_llama import repeat_kv
 
-import obligations as ob
+import shapes as sh
+import specs
 
 VARIANTS = ('base', 'lora', 'ledger', 'ledger_joint', 'ledger_nogate')
 FEATS = 4  # per slot and position: u, pi, relevance, progress towards a count
@@ -46,6 +47,7 @@ class LedgerConfig:
     eps: float = 1e-3
     joint: bool = False
     gate: bool = True
+    spec: str = 'ifeval'  # which obligations the slots keep: 'ifeval' (stated instructions) or 'patterns' (read from examples)
 
 
 @dataclass
@@ -125,11 +127,20 @@ class JointKV(nn.Module):
 class Ledger(nn.Module):
     def __init__(self, lcfg: LedgerConfig, mcfg):
         super().__init__()
-        d, w, K = mcfg.hidden_size, lcfg.width, ob.K
-        self.cfg, self.w = lcfg, w
-        self.register_buffer('isF', torch.tensor(ob.SHAPE == ob.F), persistent=False)
-        self.register_buffer('isN', torch.tensor(ob.SHAPE == ob.N), persistent=False)
-        self.register_buffer('pointer', torch.tensor(ob.POINTER), persistent=False)
+        spec = specs.get(lcfg.spec)
+        d, w, K = mcfg.hidden_size, lcfg.width, spec.K
+        self.cfg, self.w, self.K = lcfg, w, K
+        self.register_buffer('isF', torch.tensor(spec.SHAPE == sh.F), persistent=False)
+        self.register_buffer('isN', torch.tensor(spec.SHAPE == sh.N), persistent=False)
+        self.register_buffer('pointer', torch.tensor(spec.POINTER), persistent=False)
+        # implicit rules come with a class to read (which list marker, bold or plain): one head per slot, as the toy's
+        # clerk read the font; obligation sets without styles (IFEval) get no such parameters
+        styles = specs.styles(spec)
+        self.S = int(styles.max()) if len(styles) else 0
+        if self.S:
+            self.style_w = nn.Parameter(torch.zeros(K, w, self.S))
+            self.style_b = nn.Parameter(torch.zeros(K, self.S))
+            self.register_buffer('style_ok', torch.arange(self.S)[None, :] < torch.tensor(styles)[:, None], persistent=False)
         self.norm = nn.RMSNorm(d, eps=mcfg.rms_norm_eps)
         # clerk
         self.clerk_q = nn.Parameter(torch.randn(K, w) * w**-0.5)
@@ -169,12 +180,16 @@ class Ledger(nn.Module):
         an = sn.softmax(-1) * is_num[:, None, :] * is_num.any(-1)[:, None, None]
         pointed = torch.einsum('bkt,bt->bk', an, numfeat[..., 1].to(h.dtype))
         regressed = (o * self.count_w).sum(-1) + self.count_b
-        return {
+        out = {
             'o': o,
             'rel_logit': (o * self.rel_w).sum(-1) + self.rel_b,
             'relation_logit': torch.einsum('bkw,kwc->bkc', o, self.relation_w) + self.relation_b,
             'nhat_log': torch.where(self.pointer, pointed, regressed),
         }
+        if self.S:
+            logit = torch.einsum('bkw,kws->bks', o, self.style_w) + self.style_b
+            out['style_logit'] = logit.masked_fill(~self.style_ok, -1e9)
+        return out
 
     # ── state: events accumulate per slot type ──
     def events(self, h, o):
@@ -189,7 +204,7 @@ class Ledger(nn.Module):
         u = torch.where(self.isF, 1 - torch.exp(logq), torch.where(self.isN, torch.sigmoid(4 * (cnt - nhat + 0.5)), 0.0))
         rel = torch.sigmoid(c['rel_logit'])
         relp = c['relation_logit'].softmax(-1)
-        holds = torch.where(self.isN, relp[..., ob.AT_LEAST] + relp[..., ob.EXACTLY], self.isF.to(rel.dtype))
+        holds = torch.where(self.isN, relp[..., sh.AT_LEAST] + relp[..., sh.EXACTLY], self.isF.to(rel.dtype))
         pi = (rel * holds)[:, None] * (1 - u)
         prog = torch.where(self.isN, (cnt / nhat.clamp(min=1)).clamp(0, 2), 0.0)
         feats = torch.stack([u, pi, rel[:, None].expand_as(u), prog], -1)
@@ -203,7 +218,7 @@ class Ledger(nn.Module):
         if ctx.mode == 'full':
             ctx.clerk = self.clerk(h, ctx.prompt_mask, ctx.numfeat)
             ctx.slot_kv = {i: r.slots(ctx.clerk['o']) for i, r in self.reads.items()}
-            ctx.carry = (h.new_zeros(B, ob.K), h.new_zeros(B, ob.K))
+            ctx.carry = (h.new_zeros(B, self.K), h.new_zeros(B, self.K))
         e = self.events(h, ctx.clerk['o']) * ctx.resp_mask[..., None]
         u, pi, feats, carry = self.state(e, ctx.clerk, ctx.carry)
         ctx.e, ctx.u, ctx.pi, ctx.feats, ctx.carry = e, u, pi, feats, carry
@@ -361,7 +376,8 @@ class LedgerLM(nn.Module):
         out = {'lm': fn.cross_entropy(logits.float(), target)}
         if ctx is not None:
             out.update(self._aux(ctx, batch))
-            out['total'] = out['lm'] + lam_ext * (out['rel'] + out['relation'] + out['number']) + lam_ev * out['state']
+            ext = out['rel'] + out['relation'] + out['number'] + out.get('style', 0)
+            out['total'] = out['lm'] + lam_ext * ext + lam_ev * out['state']
         else:
             out['total'] = out['lm']
         return out
@@ -382,6 +398,9 @@ class LedgerLM(nn.Module):
         if n_mask.any():
             terms.append(fn.binary_cross_entropy(ctx.e.float().clamp(1e-6, 1 - 1e-6)[n_mask], batch['event'][n_mask]))
         out['state'] = sum(terms) / len(terms) if terms else c['rel_logit'].sum() * 0
+        if 'style_logit' in c and 'style' in batch:
+            st = batch['style']
+            out['style'] = fn.cross_entropy(c['style_logit'].float().reshape(-1, self.ledger.S), st.reshape(-1), ignore_index=-100) if (st >= 0).any() else c['rel_logit'].sum() * 0
         return out
 
     # ── generation ──

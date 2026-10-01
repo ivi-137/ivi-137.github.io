@@ -12,11 +12,14 @@ import math
 import numpy as np
 import torch
 
-import obligations as ob
+import specs
 from chat import encode_prompt, encode_response
+from shapes import F, N
 
 
-def make_example(tok, rec, eos_id, max_len=1024):
+def make_example(tok, rec, eos_id, max_len=1024, spec=None):
+    """`spec`: the obligation set (a module from specs.get); IFEval's by default."""
+    ob = spec or specs.get('ifeval')
     p_ids, numfeat = encode_prompt(tok, rec.get('input', rec['prompt']))
     r_ids, ends = encode_response(tok, rec['response'])
     r_ids, ends = r_ids + [eos_id], ends + [len(rec['response'])]
@@ -28,23 +31,28 @@ def make_example(tok, rec, eos_id, max_len=1024):
     nlog = np.zeros(K, np.float32)
     paid = np.zeros((len(r_ids), K), np.float32)
     event = np.zeros((len(r_ids), K), np.float32)
+    style = np.full(K, -100, np.int64)
     for iid, kw in zip(rec['instruction_id_list'], rec['kwargs']):
         if iid not in ob.SLOT:
             continue
         k = ob.SLOT[iid]
         applies[k] = 1
-        if ob.SHAPE[k] == ob.N:
+        if ob.SHAPE[k] == N:
             rel, n = ob.target(iid, kw)
             relation[k], nlog[k] = rel, math.log1p(n)
         lab = ob.token_targets(iid, kw, rec['response'], ends, prompt=rec['prompt'])
-        (paid if ob.SHAPE[k] == ob.F else event)[:, k] = lab
-    return {'p_ids': p_ids, 'numfeat': numfeat, 'r_ids': r_ids, 'applies': applies, 'relation': relation, 'nlog': nlog, 'paid': paid, 'event': event}
+        (paid if ob.SHAPE[k] == F else event)[:, k] = lab
+        style[k] = specs.style_label(ob, iid, kw)
+    ex = {'p_ids': p_ids, 'numfeat': numfeat, 'r_ids': r_ids, 'applies': applies, 'relation': relation, 'nlog': nlog, 'paid': paid, 'event': event}
+    if specs.styles(ob).any():
+        ex['style'] = style
+    return ex
 
 
 def collate(examples, pad_id):
     B = len(examples)
     T = max(len(e['p_ids']) + len(e['r_ids']) for e in examples)
-    K = ob.K
+    K = examples[0]['applies'].shape[0]
     out = {
         'input_ids': torch.full((B, T), pad_id, dtype=torch.long),
         'attention_mask': torch.zeros((B, T), dtype=torch.long),
@@ -59,6 +67,8 @@ def collate(examples, pad_id):
         'relation': torch.from_numpy(np.stack([e['relation'] for e in examples])),
         'nlog': torch.from_numpy(np.stack([e['nlog'] for e in examples])),
     }
+    if all('style' in e for e in examples):
+        out['style'] = torch.from_numpy(np.stack([e['style'] for e in examples]))
     for b, e in enumerate(examples):
         P, R = len(e['p_ids']), len(e['r_ids'])
         out['input_ids'][b, : P + R] = torch.tensor(e['p_ids'] + e['r_ids'])

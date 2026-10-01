@@ -6,9 +6,12 @@ This directory takes the next step: it retrofits the Ledger to a **pretrained, f
 context) and measures it on the standard instruction benchmark **IFEval** (541 prompts, official checkers), at
 growing context lengths.
 
-**Status.** The code is complete and tested on a random-weight model of the same architecture: 264 tests (below),
-plus the whole pipeline end to end (`./run_all.sh smoke`). **No results on the real SmolLM2 exist yet.** The
-predictions below were written before any run.
+A second study (`patterns.py`, [below](#the-second-study-house-patterns-rules-nobody-states)) asks the same question
+of rules that are never stated: two example answers show a house pattern, and the model must keep it in a third.
+
+**Status.** The code for both studies is complete and tested on a random-weight model of the same architecture: 414
+tests (below), plus each pipeline end to end (`./run_all.sh smoke`, `./run_patterns.sh smoke`). **No results on the
+real SmolLM2 exist yet.** The predictions below were written before any run.
 
 ## What is tested
 
@@ -69,6 +72,108 @@ Every variant trains on the same records.
 If prediction 3 fails, the paper will say so: either dilution is not what limits a 135M model on IFEval, or the
 retrofit does not transmit the state.
 
+## The second study: house patterns (rules nobody states)
+
+IFEval states its instructions. Most of what a writer keeps is never stated: a column numbers its points the same way
+every week, signs off the same way, puts its sources last. The paper's claim is about obligations, not about
+instructions, so it should hold when the obligation comes from examples. This study tests that. It also reaches the
+two shapes the IFEval mapping leaves out, order and last (IFEval's end phrase is the nearest, and is kept there as an
+eventuality), and its length axis grows the *output*: the number of items.
+
+**The task.** The prompt shows two answers from one "column", each to a question asking for a few items, then a new
+question for n items:
+
+```
+Below are two answers from the same column, then a new question. Answer the new question the way the column always answers.
+
+Question: Name four ways to enjoy tea.
+Answer:
+TL;DR: Warm the pot, weigh the leaves and time it.
+
+(1) **Warm the pot**: rinse it with hot water first, so the tea stays hot.
+(2) **Weigh the leaves**: two grams a cup is a good start.
+(3) **Time it**: three minutes for black tea, two for green.
+(4) **Share it**: tea tastes better in company.
+
+Sources:
+[1] The Little Book of Tea
+[2] Tea for Everyone
+
+— Ada
+
+Question: Give me 3 tips for gardening.
+Answer:
+...
+
+Question: What are nine things to know about glaciers?
+Answer:
+```
+
+An author (a house pattern) is drawn at random for each prompt: one of 8 list markers (`1.`, `1)`, `(1)`, `#1`, `-`,
+`*`, `•`, `→`), bold or plain leads, all lowercase or not, and, independently, a TL;DR line first, a sources block
+last, and a sign-off line at the very end. Two examples always determine the pattern (`tests/test_patterns.py` checks
+it on every kind of author). Nothing in the prompt names a rule.
+
+**The obligations,** with the paper's five shapes. Each rule is checked on every prefix by a monitor (`patterns.audit`),
+which also says where a rule first broke; the Ledger keeps 7 typed slots (`patterns.SLOTS`):
+
+| Shape | Monitors | Ledger slot |
+|---|---|---|
+| invariant | the marker (numbered markers count 1, 2, 3, ... with no gap), bold or plain leads, lowercase | `marker` and `bold` with a class read by the clerk (8 and 2 classes); `lowercase` |
+| eventuality | the TL;DR line, the sources block, the sign-off line | one slot each, paid when the line is complete |
+| order | the TL;DR comes before the first item; no item after the sources header | none of their own: they read the eventualities' state |
+| last | nothing after the sign-off; only source lines after the sources header | as above |
+| count | exactly n items, n read from the new question (written as a digit or a word) | `items`, with the pointer reading n from the question, not from the examples' counts |
+
+An answer is *coherent* when every monitor passes. Training labels are the monitors' own verdicts on every prefix, as
+in the IFEval study (`test_state_labels_agree_with_the_monitors_on_every_prefix`).
+
+**Data** (`pattern_data.py`). The frozen model answers plain questions ("What are 9 things to know about owls?") on 86
+training topics; each answer is parsed into an intro and a list. A record takes an author, two example answers on other
+topics (2 to 6 items), and a new question; its target is the model's own answer to that question, cut to n items
+(2 to 10) and rendered in the house pattern: the words are the model's, only the form is imposed. 30% of training
+inputs have up to 1,000 tokens of background notes between the examples and the question. Test prompts use 20
+held-out topics and held-out sign-offs, n in {3, 6, 9, 12} (12 is longer than any training answer), 75 per n. Every
+variant trains on the same records; the Ledger has 3.95M trainable parameters with these slots and LoRA has rank 69,
+as in the IFEval study.
+
+**Two lengths.** The output grows with n: the length exponent per item, κ, is minus the slope of log S(n), where S(n)
+is the share of coherent answers at n items. The context grows with background notes between the examples and the
+question (0, 2,000 and 6,000 tokens), so the evidence for the pattern recedes while the question stays close.
+
+### Predictions, written before any run
+
+1. **The length exponent (the key test).** At context 0, κ is smaller for the Ledger than for `lora`: the paired
+   bootstrap interval of κ(ledger) − κ(lora) lies below 0. The same holds against `base`.
+2. **Where the invariants break.** For every variant, invariant breaks concentrate on the first item: the hazard per
+   opportunity is highest at item 1, where the pattern must be read from the examples, and low afterwards, when the
+   model can copy its own items. The Ledger's gain on invariants is mostly at item 1.
+3. **Debts and stopping.** The share of answers that end with a debt unpaid (no sign-off, no sources, too few items)
+   grows with n for `base` and `lora`, and less for the Ledger. In `full`, removing the gate (`ledger_nogate`) loses
+   part of that advantage, and more on the count and the sign-off than on the invariants.
+4. **The count beyond training.** At n = 12 the Ledger gives exactly n items more often than `lora`, whose errors are
+   mostly too few items (stopping early) or the examples' count.
+5. **Context.** With 6,000 tokens between the examples and the question every variant keeps less; the Ledger loses
+   less than `lora` (the paired bootstrap interval of the difference in change lies above 0).
+6. **Fact 1.** `ledger_joint` does no better than `ledger`, at any n or context.
+
+If prediction 1 fails, the paper will say so: the architecture's claim would then not reach rules learned from examples.
+
+### Running it
+
+```bash
+./run_patterns.sh smoke                                  # plumbing (with tests/tiny.py: see the script's header)
+./run_patterns.sh pilot                                  # one seed, 80 test prompts, contexts 0 and 2000
+BATCH=64 ./run_patterns.sh full                          # the study: three seeds, every variant, 300 test prompts
+DISTRACTORS=work/full/data/distractors.jsonl BATCH=64 ./run_patterns.sh full   # reuse the IFEval study's background text
+```
+
+On Windows, `run_patterns.ps1` (`pilot`, `full`, `smoke`) does the same. In Colab, cell 4 of `colab.ipynb` runs it
+(`pilot`, then `colab`: two seeds, `base`, `lora`, `ledger` and `ledger_joint`, contexts 0 and 6,000); on Kaggle, set
+`TASK = 'patterns'`. Outputs go to `work/patterns-<preset>/`; `results/summary.md` holds the tables: coherent share by
+variant and shape, by n with κ, κ(ledger) − κ(control), hazards by item position, the count and unpaid debts, exact
+McNemar tests, and the change with context.
+
 ## Running it (NVIDIA GPU, Mac, or CPU)
 
 ```bash
@@ -77,7 +182,7 @@ cd ivi-137.github.io/research/ledger-smollm
 python -m venv .venv && source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python setup_ifeval.py                                    # official IFEval checkers and prompts
-python -m pytest -q tests                                 # 264 tests, about 10 s
+python -m pytest -q tests                                 # 414 tests, about 15 s
 ./run_all.sh pilot                                        # one seed, 100 prompts, contexts 0 and 1000
 BATCH=64 ./run_all.sh full                                # the study
 ```
@@ -98,9 +203,10 @@ BATCH=64 ./run_all.sh full                                # the study
 ### Google Colab
 
 Open [`colab.ipynb` in Colab](https://colab.research.google.com/github/ivi-137/ivi-137.github.io/blob/main/research/ledger-smollm/colab.ipynb),
-choose *Runtime → Change runtime type → T4 GPU*, and run its four cells in order. It installs everything, runs the
+choose *Runtime → Change runtime type → T4 GPU*, and run its cells in order. It installs everything, runs the
 tests, saves every result to Google Drive (so a disconnected session resumes where it stopped: run cell 1, then the
-cell you were on), runs the pilot, then the `colab` preset, and downloads a zip of the results.
+cell you were on), runs the pilot, then the `colab` preset, and downloads a zip of the results (cell 5). Cell 4 runs
+the house-pattern study.
 
 The notebook's `colab` run uses 2,000 training prompts × 4 samples (8,000 generations; `TRAIN_PROMPTS` in cell 3, or
 `PROMPTS` for `run_all.sh`), where the preset itself uses 3,000 × 4, and keeps two epochs and the comparisons that
@@ -173,6 +279,10 @@ and push, or paste `summary.md`.
 | `data.py` | prompts, targets (samples and exact repairs), background passages |
 | `train.py`, `evaluate.py`, `analyze.py` | training, official IFEval at several lengths, statistics (Wilson, exact McNemar, paired bootstrap) |
 | `run_all.sh`, `run_all.ps1` | the whole study (`smoke`, `pilot`, `full`; `colab` and `kaggle` in bash), for bash and for Windows PowerShell |
-| `colab.ipynb` | the study on a Colab GPU, with results kept on Google Drive and downloaded as a zip |
-| `kaggle.ipynb` | the study on Kaggle's two T4 GPUs in parallel, with a time budget and resuming from a previous version's output |
-| `tests/` | label agreement with the checkers; identity at insertion (float32 and bfloat16); open gates change the function; decoding equals a full pass; batched equals single generation; gradients reach only the Ledger; monotone state; blocked and recomputed attention equal whole, gradients included |
+| `patterns.py` | the house-pattern study: authors, rendering, monitors for all five shapes, slots and per-token labels, hazards |
+| `pattern_data.py`, `pattern_eval.py`, `pattern_analyze.py` | its data (the model's own answers in a house pattern), evaluation at several contexts, statistics (κ and its paired difference, hazards by item position, McNemar, bootstrap) |
+| `run_patterns.sh`, `run_patterns.ps1` | the house-pattern study, with the same presets |
+| `shapes.py`, `specs.py`, `stats.py` | the shapes and number reading shared by both studies; which obligation set a Ledger keeps; Wilson and McNemar |
+| `colab.ipynb` | both studies on a Colab GPU, with results kept on Google Drive and downloaded as a zip |
+| `kaggle.ipynb` | either study on Kaggle's two T4 GPUs in parallel, with a time budget and resuming from a previous version's output |
+| `tests/` | label agreement with the checkers and with the pattern monitors; every pattern break caught by its monitor; two examples determine the rules; the analysis recovers known exponents; identity at insertion (float32 and bfloat16); open gates change the function; decoding equals a full pass; batched equals single generation; gradients reach only the Ledger; monotone state; blocked and recomputed attention equal whole, gradients included |

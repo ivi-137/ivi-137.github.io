@@ -16,6 +16,7 @@ import torch
 
 from batching import collate, make_example, to
 from chat import device_auto
+import specs
 from ledger import LedgerConfig
 from load import DEFAULT_MODEL, build, save_run
 
@@ -40,6 +41,7 @@ def main():
     ap.add_argument('--model', default=DEFAULT_MODEL)
     ap.add_argument('--variant', required=True, choices=['lora', 'ledger', 'ledger_joint', 'ledger_nogate'])
     ap.add_argument('--data', default='data/train.jsonl')
+    ap.add_argument('--spec', default='ifeval', choices=sorted(specs.NAMES), help="the obligations: 'ifeval' or 'patterns'")
     ap.add_argument('--out', default='runs')
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--epochs', type=float, default=2)
@@ -70,7 +72,7 @@ def main():
         print(f'[{line["t"]:7.0f}s] {msg} ' + ' '.join(f'{k}={v}' for k, v in kv.items()), flush=True)
 
     dev = device_auto(a.device)
-    lcfg = LedgerConfig(clerk_layer=a.clerk_layer, width=a.width, heads=a.heads)
+    lcfg = LedgerConfig(clerk_layer=a.clerk_layer, width=a.width, heads=a.heads, spec=a.spec)
     lm, tok, rank = build(a.model, a.variant, dev, lcfg, a.lora_rank, a.dtype)
     lm.backbone.eval()
     params = sum(p.numel() for p in lm.trainable())
@@ -79,7 +81,8 @@ def main():
 
     recs = [json.loads(line) for line in pathlib.Path(a.data).read_text(encoding='utf-8').splitlines() if line.strip()]
     recs = recs[: a.limit] if a.limit else recs
-    examples = [e for e in (make_example(tok, r, tok.eos_token_id, a.max_len) for r in recs) if e is not None]
+    spec = specs.get(a.spec)
+    examples = [e for e in (make_example(tok, r, tok.eos_token_id, a.max_len, spec) for r in recs) if e is not None]
     log('examples', kept=len(examples), dropped_too_long=len(recs) - len(examples))
     rng = random.Random(a.seed)
     steps_per_epoch = len(batches(examples, a.batch_size, random.Random(0), a.max_batch_tokens))
@@ -113,7 +116,7 @@ def main():
             if step >= total or (a.max_minutes and time.time() - t0 > 60 * a.max_minutes):
                 stopped = step < total
                 break
-    info = {'variant': a.variant, 'model': a.model, 'seed': a.seed, 'trainable_params': params, 'steps': step, 'planned_steps': total,
+    info = {'variant': a.variant, 'model': a.model, 'seed': a.seed, 'spec': a.spec, 'trainable_params': params, 'steps': step, 'planned_steps': total,
             'stopped_early': stopped, 'minutes': round((time.time() - t0) / 60, 2), 'final': {k: round(v, 5) for k, v in run.items()},
             'ledger': dataclasses.asdict(lcfg) if a.variant.startswith('ledger') else None,
             'lora_rank': rank if a.variant == 'lora' else None, 'args': vars(a)}
