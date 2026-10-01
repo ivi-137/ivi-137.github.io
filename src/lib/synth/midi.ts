@@ -8,6 +8,8 @@ export interface MidiHandlers {
   clock(): void;
   start(): void;
   stop(): void;
+  /** pitch bend, -1 to 1 (optional) */
+  bend?(v: number, ch: number): void;
 }
 
 export class Midi {
@@ -61,6 +63,7 @@ export class Midi {
     if (type === 0x90 && d[2] > 0) this.h.note(true, d[1], d[2] / 127, ch);
     else if (type === 0x80 || (type === 0x90 && d[2] === 0)) this.h.note(false, d[1], 0, ch);
     else if (type === 0xb0) this.h.cc(d[1], d[2] / 127, ch);
+    else if (type === 0xe0) this.h.bend?.((((d[2] << 7) | d[1]) - 8192) / 8192, ch);
   }
 
   /** Send a note with sample-accurate-ish timing: `at` and `off` are performance.now() times. */

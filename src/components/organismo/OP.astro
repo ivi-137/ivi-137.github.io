@@ -1,0 +1,20 @@
+---
+/** One pin of the patch bay: click it, then another, or drag from one to the other, to clip them together. */
+import { PINS, PIN_INDEX } from '../../lib/organismo/params';
+
+interface Props {
+  id: string;
+  label?: string;
+}
+const { id, label } = Astro.props;
+const p = PINS[PIN_INDEX[id]];
+if (!p) throw new Error(`unknown pin ${id}`);
+const MODULE: Record<string, string> = { clock: 'clock', looper: 'looper', bd: 'bass drum', bs: 'bass', sd: 'snare', hh: 'hi-hat', shaos: 'shaos', fx: 'effects', lfo: 'LFO', att: 'attenuator', vca: 'amplifier', inv: 'inverter', sw: 'switch', pc: 'pulse maker', parts: 'part', sens: 'touch sensor', midi: 'MIDI', util: 'utility', jacks: 'adapter' };
+const name = label ?? p.label;
+const tip = p.tip ? `${name}: ${p.tip}` : name;
+---
+
+<button type="button" class={`pin pin--${p.dir} pin--${p.sig}`} data-pin={id} title={tip} aria-label={`${MODULE[p.mod] ?? p.mod} ${name}, pin ${p.id}`}>
+  <span class="pin__dot" aria-hidden="true"></span>
+  <span class="pin__lab mono">{name}</span>
+</button>

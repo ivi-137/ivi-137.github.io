@@ -22,6 +22,7 @@ const PAGES: Item[] = [
   { label: 'Orfeo 32: underworld synthesizer', hint: '/synth/', kind: 'page', run: () => go('/synth/') },
   { label: 'Melencolia I: vocoder for sad songs', hint: '/vocoder/', kind: 'page', run: () => go('/vocoder/') },
   { label: 'Guzen: a west-coast chance synthesizer', hint: '/guzen/', kind: 'page', run: () => go('/guzen/') },
+  { label: 'Organismo 23: a drum machine you patch with clips', hint: '/organismo/', kind: 'page', run: () => go('/organismo/') },
   { label: 'ANTEVAULT: a poker roguelite', hint: '/antevault/', kind: 'page', run: () => go('/antevault/') },
   { label: 'Glifi: an endless world made of letters', hint: '/surprise/', kind: 'page', run: () => go('/surprise/') },
   { label: 'Glifi: New York at 1:1, in letters', hint: '/surprise/#nyc', kind: 'page', run: () => go('/surprise/#nyc') },

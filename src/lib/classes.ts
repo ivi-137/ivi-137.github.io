@@ -139,6 +139,14 @@ export const INSTRUMENTS: Array<{ id: string; title: string; url: string; class:
     why: 'All of its chance is one 48-bit random number generator, so a piece is a fixed function of its seed: constant work per sample, and the score can be found without rendering any audio.',
   },
   {
+    id: 'organismo',
+    title: 'Organismo 23: a drum machine you patch with clips',
+    url: '/organismo/',
+    class: 'EXP',
+    glyph: 'B(122)',
+    why: 'There are 122 pins, and a patch is a way of putting them into groups. That is the Bell number B(122), about 6 × 10^148 patches, and some of them are feedback loops that can only be heard by running them.',
+  },
+  {
     id: 'unveiled',
     title: 'Complexity unveiled: seed, thread, fold, measure',
     url: '/unveiled/',

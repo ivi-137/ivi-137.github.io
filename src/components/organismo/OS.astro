@@ -1,0 +1,20 @@
+---
+/** An Organismo switch: a short row of positions for a choice control. */
+import { spec } from '../../lib/organismo/params';
+
+interface Props {
+  id: string;
+  label?: string;
+  title?: string;
+}
+const { id, label, title } = Astro.props;
+const s = spec(id);
+if (!s?.options) throw new Error(`${id} is not a choice control`);
+---
+
+<div class="osw" role="radiogroup" aria-label={label ?? s.label} data-seg={id} title={title}>
+  <span class="osw__cap mono">{label ?? s.label}</span>
+  <span class="osw__row">
+    {s.options.map((o, i) => <button type="button" role="radio" class="osw__pos mono" data-v={i} aria-checked={i === s.def ? 'true' : 'false'}>{o}</button>)}
+  </span>
+</div>

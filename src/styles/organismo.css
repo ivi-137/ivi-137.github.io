@@ -1,0 +1,779 @@
+/* ── Organismo 23: the instrument page ──────────────────────────────────────
+   A dark board with white silkscreen between two wooden cheeks. Three inks for three kinds of signal:
+   orange for audio, blue for control voltage, green for gates and clocks. */
+
+.organismo-page__head {
+  position: relative;
+}
+.organismo-page__head > .stamp {
+  position: absolute;
+  right: 0;
+  top: 22vh;
+  rotate: 8deg;
+}
+
+.org {
+  --o-bg: #111915;
+  --o-bg-2: #172119;
+  --o-silk: #e8e3cf;
+  --o-dim: rgba(232, 227, 207, 0.5);
+  --o-line: rgba(232, 227, 207, 0.28);
+  --o-audio: #ff8a3d;
+  --o-cv: #7d8cff;
+  --o-gate: #c6ff3d;
+  --o-hot: #ff4b1f;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 26px;
+  filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.75));
+  user-select: none;
+  color: var(--o-silk);
+}
+.org__cheek {
+  border-radius: 10px;
+  background:
+    repeating-linear-gradient(92deg, rgba(0, 0, 0, 0.18) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(88deg, rgba(255, 220, 170, 0.08) 0 1px, transparent 1px 13px),
+    linear-gradient(180deg, #7d4a22, #62381a 40%, #4e2c12);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4), inset 3px 0 6px rgba(255, 210, 160, 0.15);
+}
+.org__face {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px clamp(12px, 2.4vw, 30px) 24px;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(120, 180, 140, 0.07), transparent 55%),
+    var(--o-bg);
+}
+
+/* ── brand, power, scope ── */
+.org__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 26px;
+  padding-bottom: 14px;
+  border-bottom: 1.5px solid var(--o-line);
+}
+.org__brand {
+  display: grid;
+  gap: 2px;
+  margin-right: auto;
+}
+.org__logo {
+  font: italic 400 2.4rem/1 var(--f-display);
+  letter-spacing: -0.01em;
+}
+.org__logo b {
+  font-weight: 400;
+  color: var(--o-gate);
+}
+.org__brand .mono {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--o-dim);
+}
+.org__brand .org__status {
+  min-height: 1.2em;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+.org__power {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  font: 600 12px/1 var(--f-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--o-silk);
+  background: #1d2a22;
+  border: 1.5px solid var(--o-silk);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.org__power:hover {
+  background: #26372c;
+}
+.org__power-led {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--o-silk);
+}
+.org__power[aria-pressed='true'] .org__power-led {
+  background: var(--o-gate);
+  border-color: var(--o-gate);
+  box-shadow: 0 0 10px var(--o-gate);
+}
+.org__scope {
+  width: min(260px, 100%);
+  height: 70px;
+  border: 1.5px solid var(--o-line);
+  border-radius: 4px;
+  background:
+    linear-gradient(rgba(232, 227, 207, 0.07) 1px, transparent 1px) 0 0 / 100% 17.5px,
+    linear-gradient(90deg, rgba(232, 227, 207, 0.07) 1px, transparent 1px) 0 0 / 26px 100%,
+    #0a0f0c;
+}
+
+/* ── the bar: presets and actions ── */
+.org__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+  padding: 0 0 12px;
+  border-bottom: 1.5px solid var(--o-line);
+}
+.org-field {
+  display: grid;
+  gap: 2px;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.org-field > span {
+  color: var(--o-dim);
+}
+.org-field select {
+  font: 500 11px/1.2 var(--f-mono);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  padding: 6px 8px;
+  color: var(--o-silk);
+  background: var(--o-bg-2);
+  border: 1.5px solid var(--o-silk);
+  border-radius: 3px;
+}
+.org-field select:focus-visible,
+.org .osw__pos:focus-visible,
+.org .opad:focus-visible,
+.org .pin:focus-visible,
+.org .sens__plate:focus-visible,
+.org .mlrn__b:focus-visible {
+  outline: 2px solid var(--o-gate);
+  outline-offset: 1px;
+}
+.org .chip {
+  color: var(--o-silk);
+}
+.org .chip:hover {
+  color: var(--ink);
+  border-color: var(--o-silk);
+}
+.org .chip[aria-pressed='true'] {
+  background: var(--o-silk);
+  color: var(--ink);
+}
+.org .chip--rec[aria-pressed='true'] {
+  color: var(--o-hot);
+}
+.org__blurb {
+  flex: 1 1 100%;
+  margin: 4px 0 0;
+  max-width: 78ch;
+  font: 400 12.5px/1.5 var(--f-text);
+  color: var(--o-dim);
+  text-transform: none;
+  letter-spacing: 0;
+  user-select: text;
+}
+
+.org__swipe {
+  display: none;
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--o-dim);
+}
+@media (max-width: 1280px) {
+  .org__swipe {
+    display: block;
+  }
+}
+
+/* ── the board ── */
+.org__scroll {
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.org__board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 14px;
+  min-width: 1240px;
+}
+.om--clock {
+  grid-column: span 4;
+}
+.om--lr {
+  grid-column: span 8;
+}
+.om--voice {
+  grid-column: span 3;
+}
+.om--shaos,
+.om--lfo {
+  grid-column: span 3;
+}
+.om--fx {
+  grid-column: span 4;
+}
+.om--out {
+  grid-column: span 2;
+}
+.om--parts {
+  grid-column: span 12;
+}
+.om--sens {
+  grid-column: span 3;
+}
+.om--midi {
+  grid-column: span 6;
+}
+.om--jacks {
+  grid-column: span 3;
+}
+
+.om {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 10px 12px 12px;
+  border: 1.5px solid var(--o-line);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.om__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.om__title {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.om__hint,
+.om__cap {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--o-dim);
+  text-transform: none;
+}
+.om__head .om__led,
+.om__head .om__hint {
+  margin-left: auto;
+}
+.om__head .om__hint + .om__led {
+  margin-left: 0;
+}
+.om__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px 4px;
+}
+.om__row--chips {
+  align-items: center;
+  gap: 8px;
+}
+.om__pins {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 2px 2px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--o-line);
+}
+.om__pins--out {
+  padding-top: 4px;
+  border-top: 0;
+}
+.om__pins--div {
+  padding-top: 4px;
+  border-top: 0;
+}
+.om__pins--jacks {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* ── LEDs ── */
+.om__led {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--o-dim);
+  --on: 0;
+}
+.om__led[data-led='clock'][data-on='1'] {
+  background: var(--o-gate);
+  border-color: var(--o-gate);
+  box-shadow: 0 0 6px var(--o-gate);
+}
+.om__led[data-led='clock'][data-on='2'] {
+  background: #fff;
+  border-color: #fff;
+  box-shadow: 0 0 12px var(--o-gate);
+}
+.om__led--v {
+  background: color-mix(in srgb, var(--o-audio) calc(var(--on) * 100%), transparent);
+  border-color: color-mix(in srgb, var(--o-audio) calc(30% + var(--on) * 70%), var(--o-dim));
+  box-shadow: 0 0 calc(var(--on) * 10px) var(--o-audio);
+}
+.om__led--clip.is-on {
+  background: var(--o-hot);
+  border-color: var(--o-hot);
+  box-shadow: 0 0 10px var(--o-hot);
+}
+
+/* ── knobs on the board: the same knob, in its night colours ── */
+.org .knob__tick {
+  stroke: var(--o-dim);
+}
+.org .knob__skirt {
+  fill: #070b09;
+}
+.org .knob__cap {
+  fill: #2b3a31;
+  stroke: var(--o-line);
+}
+.org .knob__pointer {
+  stroke: var(--o-gate);
+}
+.org .knob:focus-visible .knob__skirt,
+.org .knob.is-turning .knob__skirt {
+  fill: #1a2c4a;
+}
+.org .knob__label {
+  color: var(--o-silk);
+}
+.org .knob__value {
+  color: var(--o-dim);
+}
+
+/* ── switches ── */
+.osw {
+  display: grid;
+  gap: 3px;
+  justify-items: start;
+}
+.osw__cap {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--o-dim);
+}
+.osw__row {
+  display: inline-flex;
+  border: 1.5px solid var(--o-silk);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.osw__pos {
+  padding: 6px 7px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--o-silk);
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--o-line);
+  cursor: pointer;
+}
+.osw__pos:last-child {
+  border-right: 0;
+}
+.osw__pos[aria-checked='true'] {
+  color: var(--ink);
+  background: var(--o-gate);
+}
+
+/* ── pads: the touch sensors that play and edit the loops ── */
+.opad {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 38px;
+  padding: 8px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--o-silk);
+  background: #1d2a22;
+  border: 1.5px solid var(--o-silk);
+  border-radius: 7px 7px 3px 3px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+.opad kbd {
+  font: inherit;
+  font-weight: 400;
+  opacity: 0.45;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.opad:hover {
+  background: #26372c;
+}
+.opad.is-down {
+  color: var(--ink);
+  background: var(--o-gate);
+  border-color: var(--o-gate);
+}
+.opad--rst {
+  align-self: center;
+  margin-left: 4px;
+}
+
+/* ── looper ── */
+.lr {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+.lrc {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 8px 6px;
+  border: 1px solid var(--o-line);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.18);
+}
+.lrc__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 32px;
+}
+.lrc__head b {
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.lrc__head .osw__cap {
+  display: none;
+}
+.lrc__pads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.lrc__pads--ctl {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+.lrc__bank {
+  display: flex;
+  gap: 6px;
+}
+.lrc__bank-led {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  height: 24px;
+  font: 600 10px/1 var(--f-mono);
+  color: var(--o-dim);
+  border: 1.5px solid var(--o-dim);
+  border-radius: 12px;
+}
+.lrc__bank-led.is-on {
+  color: var(--ink);
+  background: #ffd23d;
+  border-color: #ffd23d;
+  box-shadow: 0 0 10px #ffd23d;
+}
+.lrc__keys {
+  margin: 0;
+  font-size: 8.5px;
+  line-height: 1.55;
+  letter-spacing: 0.02em;
+  color: var(--o-dim);
+  text-transform: none;
+}
+.lrc__keys b {
+  color: var(--o-silk);
+  font-weight: 500;
+}
+.org.is-stopped .lr .tape {
+  opacity: 0.55;
+}
+
+.tape {
+  position: relative;
+  height: 52px;
+  border: 1px solid var(--o-line);
+  border-radius: 3px;
+  background: #0a0f0c;
+  overflow: hidden;
+}
+.tape canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.tape__head {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--at, 0) * 100%);
+  width: 2px;
+  background: var(--o-hot);
+  box-shadow: 0 0 6px var(--o-hot);
+  transition: left 70ms linear;
+}
+
+/* ── pins ── */
+.pin {
+  --pc: var(--o-audio);
+  --v: 0;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 36px;
+  padding: 4px 3px;
+  color: var(--o-silk);
+  background: none;
+  border: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+.pin--audio {
+  --pc: var(--o-audio);
+}
+.pin--cv {
+  --pc: var(--o-cv);
+}
+.pin--gate {
+  --pc: var(--o-gate);
+}
+.pin__dot {
+  position: relative;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 2.5px solid var(--pc);
+  background: color-mix(in srgb, var(--pc) calc(var(--v) * 100%), #0a0f0c);
+  box-shadow: 0 0 calc(var(--v) * 14px) var(--pc);
+}
+/* a pin that sends is filled in; one that receives is a ring; one that does both is half and half */
+.pin--out .pin__dot {
+  background: color-mix(in srgb, var(--pc) calc(45% + var(--v) * 55%), #0a0f0c);
+}
+.pin--io .pin__dot {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--pc) calc(45% + var(--v) * 55%), #0a0f0c) 50%, color-mix(in srgb, var(--pc) calc(var(--v) * 100%), #0a0f0c) 50%);
+}
+.pin__lab {
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--o-dim);
+  white-space: nowrap;
+}
+.pin:hover .pin__dot {
+  outline: 2px solid var(--o-silk);
+  outline-offset: 2px;
+}
+.pin.is-armed .pin__dot {
+  outline: 2px solid var(--o-silk);
+  outline-offset: 3px;
+  animation: org-armed 0.9s ease-in-out infinite;
+}
+@keyframes org-armed {
+  50% {
+    outline-offset: 5px;
+    outline-color: var(--o-gate);
+  }
+}
+
+/* ── cables ── */
+.org__wires {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  overflow: visible;
+  pointer-events: none;
+}
+.cable {
+  fill: none;
+  stroke: var(--ink-c, #e0452b);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  opacity: calc(0.62 + var(--v, 0) * 0.38);
+}
+.cable--shadow {
+  stroke: rgba(0, 0, 0, 0.5);
+  stroke-width: 6;
+  opacity: 1;
+  transform: translate(0, 2px);
+}
+.cable--hit {
+  stroke: transparent;
+  stroke-width: 18;
+  opacity: 1;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+.cable--temp {
+  stroke: var(--o-silk);
+  stroke-width: 2.5;
+  stroke-dasharray: 5 5;
+  opacity: 0.9;
+}
+.cable-clip {
+  fill: var(--ink-c, #e0452b);
+  stroke: rgba(0, 0, 0, 0.6);
+  stroke-width: 1;
+  pointer-events: none;
+}
+.cable-group.is-hover .cable:not(.cable--hit):not(.cable--shadow) {
+  stroke-width: 5.2;
+  stroke-dasharray: 2 7;
+}
+
+/* ── parts ── */
+.parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+.part {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 6px 10px 4px;
+  border: 1px dashed var(--o-line);
+  border-radius: 4px;
+}
+.part__name {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--o-dim);
+}
+.part .om__pins {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* ── touch sensors ── */
+.sens {
+  display: flex;
+  gap: 20px;
+}
+.sens__one {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+.sens__plate {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  width: 78px;
+  height: 104px;
+  padding-bottom: 6px;
+  overflow: hidden;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: linear-gradient(180deg, #d9b96a, #b08a30);
+  border: 2px solid #7a5c1c;
+  border-radius: 40px 40px 10px 10px;
+  cursor: pointer;
+  touch-action: none;
+}
+.sens__plate span {
+  position: relative;
+}
+.sens__fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  background: rgba(198, 255, 61, 0.7);
+}
+.sens__plate.is-down {
+  border-color: var(--o-gate);
+}
+
+/* ── midi ── */
+.mlrn {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.mlrn__b {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  padding: 6px 8px;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--o-silk);
+  background: transparent;
+  border: 1px solid var(--o-line);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.mlrn__b span {
+  color: var(--o-dim);
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+.mlrn__b.is-learning {
+  color: var(--ink);
+  background: var(--o-gate);
+  border-color: var(--o-gate);
+}
+.mlrn__b.is-learning span {
+  color: var(--ink);
+}
+.mlrn__keys {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--o-dim);
+  text-transform: none;
+}
+
+.org__takes {
+  margin-top: 18px;
+}
+.org__takes:empty,
+.org__takes .takes__empty {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .organismo-page__head > .stamp {
+    position: static;
+    display: inline-flex;
+    margin-top: 1rem;
+  }
+  .org {
+    grid-template-columns: 10px minmax(0, 1fr) 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pin.is-armed .pin__dot {
+    animation: none;
+  }
+  .tape__head {
+    transition: none;
+  }
+}

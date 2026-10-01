@@ -1,0 +1,385 @@
+---
+import Base from '../layouts/Base.astro';
+import Stamp from '../components/Stamp.astro';
+import OK from '../components/organismo/OK.astro';
+import OS from '../components/organismo/OS.astro';
+import OP from '../components/organismo/OP.astro';
+import { DIV_PINS, VOICE_NAMES } from '../lib/organismo/params';
+import { PRESETS, GROUPS } from '../lib/organismo/presets';
+import { FNS, FN_LABEL } from '../lib/organismo/midi';
+import '../styles/takes.css';
+import '../styles/organismo.css';
+
+const ch = [0, 1, 2, 3];
+const KEYS = ['1', '2', '3', '4'];
+const DKEYS = ['5', '6', '7', '8'];
+---
+
+<Base title="Organismo 23" description="A semi-modular drum machine and looper that you patch with alligator clips, in the browser: four voices, four loopers with four banks each, a shift register, an effects processor, and 122 pins to join.">
+  <section class="organismo-page" data-organismo-page>
+    <header class="section-head section-head--page organismo-page__head">
+      <p class="kicker mono" data-decode>instrument · semi-modular drum machine</p>
+      <h1 class="section-head__title">Organismo <em>23</em></h1>
+      <p class="section-head__lede">
+        A drum machine with no hidden wiring. Four voices, four loopers, a clock, a shift register and an effects processor all sit on one
+        board, and the only things that join them are cables you clip on. Leave it unpatched and it makes nothing; clip a divider to a
+        voice and it plays. Every signal is a voltage, so every output can drive every input, and there are far more ways to wire it than
+        anyone will ever try.
+      </p>
+      <Stamp id="EXP" />
+    </header>
+
+    <div class="org" data-organismo>
+      <div class="org__cheek" aria-hidden="true"></div>
+      <div class="org__face">
+        <!-- ═══════════════ brand, power, scope ═══════════════ -->
+        <div class="org__top">
+          <div class="org__brand">
+            <span class="org__logo">Organismo <b>23</b></span>
+            <span class="mono">semi-modular drum machine and looper · gpojani</span>
+            <span class="org__status mono" data-status aria-live="polite">press power or space, then clip two pins together</span>
+          </div>
+          <button type="button" class="org__power" data-power aria-pressed="false" aria-label="Power (space)">
+            <span class="org__power-led" aria-hidden="true"></span>
+            <span class="mono" data-power-label>power</span>
+          </button>
+          <canvas class="org__scope" data-scope aria-label="Oscilloscope"></canvas>
+        </div>
+
+        <div class="org__bar mono">
+          <label class="org-field">
+            <span>starting point</span>
+            <select data-preset aria-label="Preset">
+              {
+                GROUPS.map((g) => (
+                  <optgroup label={g}>
+                    {PRESETS.map((p, i) => p.group === g && <option value={i}>{p.name}</option>)}
+                  </optgroup>
+                ))
+              }
+              <option value="-1" hidden>(edited)</option>
+            </select>
+          </label>
+          <button type="button" class="chip" data-unpatch title="Take every cable off">unpatch all</button>
+          <button type="button" class="chip" data-wipe title="Erase every loop in every bank">clear loops</button>
+          <button type="button" class="chip" data-share title="Copy a link that holds the knobs, the cables and the loops">copy share link</button>
+          <button type="button" class="chip" data-mic title="Use the microphone as the first adapter pin (M1)">mic → M1</button>
+          <button type="button" class="chip chip--rec" data-rec aria-pressed="false" title="Record the master output; stop to keep the take">● record <span data-rec-time></span></button>
+          <p class="org__blurb" data-blurb></p>
+        </div>
+
+        <p class="org__swipe mono">the board is wide: swipe it sideways. Pins still clip together when you drag from one to another.</p>
+        <div class="org__scroll" tabindex="0" role="region" aria-label="The board. It scrolls sideways on a narrow screen.">
+          <div class="org__board" data-board>
+            <!-- ═══════════════ clock ═══════════════ -->
+            <section class="om om--clock" aria-label="Clock">
+              <header class="om__head"><h3 class="om__title mono">clock</h3><span class="om__led" data-led="clock" aria-hidden="true"></span></header>
+              <div class="om__row">
+                <OK id="clk.temp" size="md" />
+                <OK id="clk.amt" />
+                <OS id="clk.src" />
+                <button type="button" class="opad opad--rst mono" data-rst title="Start the dividers and the loopers from zero together (=)">rst <kbd>=</kbd></button>
+              </div>
+              <div class="om__pins">
+                <OP id="clk" />
+                <OP id="clk.mod" />
+              </div>
+              <div class="om__cap mono">divider: every output is a square wave of its own length</div>
+              <div class="om__pins om__pins--div">
+                {DIV_PINS.map((id) => <OP id={id} />)}
+              </div>
+            </section>
+
+            <!-- ═══════════════ looper/recorder ═══════════════ -->
+            <section class="om om--lr" aria-label="Looper recorder">
+              <header class="om__head"><h3 class="om__title mono">looper · recorder</h3><span class="om__hint mono">hold ADD to play a note into the loop · hold DEL to cut</span></header>
+              <div class="lr">
+                {
+                  ch.map((i) => (
+                    <div class="lrc" data-ch={i}>
+                      <div class="lrc__head">
+                        <b class="mono">{VOICE_NAMES[i]}</b>
+                        <OS id={`lr${i}.mode`} label="mode" />
+                      </div>
+                      <div class="tape" data-tape={i} aria-label={`${VOICE_NAMES[i]} loop`}>
+                        <canvas></canvas>
+                        <i class="tape__head" aria-hidden="true"></i>
+                      </div>
+                      <div class="lrc__pads">
+                        <button type="button" class="opad mono" data-pad="add" data-ch={i} title={`Touch to play ${VOICE_NAMES[i]} (key ${KEYS[i]})`}>add <kbd>{KEYS[i]}</kbd></button>
+                        <button type="button" class="opad mono" data-pad="del" data-ch={i} title={`Touch to delete (key ${DKEYS[i]})`}>del <kbd>{DKEYS[i]}</kbd></button>
+                      </div>
+                      <div class="om__pins">
+                        <OP id={`lr${i}.clk`} />
+                        <OP id={`trig${i}`} />
+                        <OP id={`env${i}`} />
+                      </div>
+                    </div>
+                  ))
+                }
+                <div class="lrc lrc--ctl" aria-label="Recorder control">
+                  <div class="lrc__head"><b class="mono">rec · cont</b></div>
+                  <div class="lrc__bank" aria-hidden="true">
+                    {ch.map((i) => <span class="lrc__bank-led" data-bank-led={i} title={`bank ${i + 1}`}>{i + 1}</span>)}
+                  </div>
+                  <div class="lrc__pads lrc__pads--ctl">
+                    <button type="button" class="opad mono" data-rc="L" title="Low velocity (key 9)">l <kbd>9</kbd></button>
+                    <button type="button" class="opad mono" data-rc="M" title="Medium velocity; L and M together is full (key 0)">m <kbd>0</kbd></button>
+                    <button type="button" class="opad mono" data-rc="BANK" title="Hold with ADD or DEL of a channel to switch bank (key -)">bank <kbd>-</kbd></button>
+                  </div>
+                  <p class="lrc__keys mono">
+                    <b>bank</b> + add/del: switch bank · <b>bank</b> + add + del: copy into it<br />
+                    <b>bank</b> + l: stop · <b>bank</b> + m + any pad: start from that eighth<br />
+                    <b>bank</b> + l + m + pad: quantise that channel
+                  </p>
+                  <div class="om__pins">
+                    <OP id="lr.rst" />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- ═══════════════ voices ═══════════════ -->
+            <section class="om om--voice" aria-label="Bass drum">
+              <header class="om__head"><h3 class="om__title mono">bd · bass drum</h3><span class="om__led om__led--v" data-env="0" aria-hidden="true"></span></header>
+              <div class="om__row">
+                <OK id="bd.tune" /><OK id="bd.pitch" /><OK id="bd.drive" /><OK id="bd.amt" />
+              </div>
+              <div class="om__row">
+                <OK id="bd.att" /><OK id="bd.rel" /><OK id="bd.fx" /><OK id="bd.vol" />
+              </div>
+              <div class="om__pins"><OP id="bd.mod" /><OP id="bd.wtf" /><OP id="bd.omg" /><OP id="bd.ext" /><OP id="bd.out" /></div>
+            </section>
+
+            <section class="om om--voice" aria-label="Bass">
+              <header class="om__head"><h3 class="om__title mono">bass</h3><span class="om__led om__led--v" data-env="1" aria-hidden="true"></span></header>
+              <div class="om__row">
+                <OS id="bs.mode" label="dco" title="CV: the bass follows its CV in pin. MIDI: a keyboard plays it. PRC: it becomes a percussive drum" />
+              </div>
+              <div class="om__row">
+                <OK id="bs.shape" /><OK id="bs.warp" /><OK id="bs.tune" /><OK id="bs.amt" />
+              </div>
+              <div class="om__row">
+                <OK id="bs.lpf" /><OK id="bs.q" /><OK id="bs.att" /><OK id="bs.rel" /><OK id="bs.fx" /><OK id="bs.vol" />
+              </div>
+              <div class="om__pins"><OP id="bs.cv" /><OP id="bs.shape" /><OP id="bs.warp" /><OP id="bs.amt" /><OP id="bs.lpf" /><OP id="bs.ext" /><OP id="bs.out" /></div>
+            </section>
+
+            <section class="om om--voice" aria-label="Snare">
+              <header class="om__head"><h3 class="om__title mono">sd · snare</h3><span class="om__led om__led--v" data-env="2" aria-hidden="true"></span></header>
+              <div class="om__row">
+                <OK id="sd.tune" /><OK id="sd.mix" /><OK id="sd.clap" /><OK id="sd.amt" />
+              </div>
+              <div class="om__row">
+                <OK id="sd.bpf" /><OK id="sd.q" /><OK id="sd.att" /><OK id="sd.rel" /><OK id="sd.fx" /><OK id="sd.vol" />
+              </div>
+              <div class="om__pins"><OP id="sd.mod" /><OP id="sd.bpf" /><OP id="sd.ext" /><OP id="sd.out" /></div>
+            </section>
+
+            <section class="om om--voice" aria-label="Hi-hat">
+              <header class="om__head"><h3 class="om__title mono">hht · hi-hat</h3><span class="om__led om__led--v" data-env="3" aria-hidden="true"></span></header>
+              <div class="om__row">
+                <OK id="hh.tune" /><OK id="hh.warp" /><OK id="hh.hpf" /><OK id="hh.q" />
+              </div>
+              <div class="om__row">
+                <OK id="hh.att" /><OK id="hh.rel" /><OK id="hh.fx" /><OK id="hh.vol" />
+              </div>
+              <div class="om__pins"><OP id="hh.mod" /><OP id="hh.hpf" /><OP id="hh.ext" /><OP id="hh.out" /></div>
+            </section>
+
+            <!-- ═══════════════ shaos, lfo, fx, output ═══════════════ -->
+            <section class="om om--shaos" aria-label="Shaos shift register">
+              <header class="om__head"><h3 class="om__title mono">shaos · shift register</h3></header>
+              <div class="om__row">
+                <OK id="sh.freq" size="md" />
+                <OS id="sh.len" label="steps" title="63 and 217 steps are noise that repeats; 16 steps is a loop you can write to with DATA" />
+              </div>
+              <div class="om__pins"><OP id="sh.mod" /><OP id="sh.clk" /><OP id="sh.sh" /><OP id="sh.data" /></div>
+              <div class="om__pins om__pins--out"><OP id="sh.1d" /><OP id="sh.2d" /><OP id="sh.1s" /><OP id="sh.3s" /></div>
+            </section>
+
+            <section class="om om--lfo" aria-label="Low-frequency oscillator">
+              <header class="om__head"><h3 class="om__title mono">lfo</h3></header>
+              <div class="om__row">
+                <OK id="lfo.freq" size="md" /><OK id="lfo.amt" /><OK id="lfo.wave" />
+                <OS id="lfo.range" label="range" title="0.1 to 5 Hz, then up to audio rate" />
+              </div>
+              <div class="om__pins"><OP id="lfo.mod" /><OP id="lfo.sync" /><OP id="lfo.sq" /><OP id="lfo.tri" /></div>
+            </section>
+
+            <section class="om om--fx" aria-label="Effects processor">
+              <header class="om__head"><h3 class="om__title mono">fx · dsp</h3></header>
+              <div class="om__row">
+                <OS id="fx.route" label="send" title="Where the FX knobs of the voices send their signal" />
+                <OS id="fx.mode" label="mode" title="BPF: filtered delay. DBL: two delays in stereo. PCH: pitch shifters in the feedback" />
+              </div>
+              <div class="om__row">
+                <OK id="fx.time" /><OK id="fx.tune" /><OK id="fx.fb" /><OK id="fx.clkmod" /><OK id="fx.dlyout" /><OK id="fx.revout" />
+              </div>
+              <div class="om__pins"><OP id="fx.mad" /><OP id="fx.time" /><OP id="fx.tune" /><OP id="fx.fb" /><OP id="fx.clkmod" /><OP id="fx.dly.in" /><OP id="fx.rev.in" /><OP id="fx.dly.out" /><OP id="fx.rev.out" /></div>
+            </section>
+
+            <section class="om om--out" aria-label="Output">
+              <header class="om__head"><h3 class="om__title mono">output</h3><span class="om__led om__led--clip" data-led="clip" title="the limiter is working" aria-hidden="true"></span></header>
+              <div class="om__row">
+                <OK id="dist.drive" /><OK id="dist.mix" /><OK id="vol" size="md" />
+              </div>
+              <div class="om__pins"><OP id="mixin" /><OP id="noise" /><OP id="v10" /><OP id="gnd" /></div>
+            </section>
+
+            <!-- ═══════════════ parts ═══════════════ -->
+            <section class="om om--parts" aria-label="Utility parts">
+              <header class="om__head"><h3 class="om__title mono">parts</h3><span class="om__hint mono">attenuators, amplifiers, an inverter, switches, pulse makers, a diode and two capacitors</span></header>
+              <div class="parts">
+                {
+                  ch.map((i) => (
+                    <div class="part">
+                      <span class="part__name mono">att {i + 1}</span>
+                      <OK id={`at${i}`} label="level" />
+                      <div class="om__pins"><OP id={`at${i}.in`} /><OP id={`at${i}.out`} /></div>
+                    </div>
+                  ))
+                }
+                {
+                  [0, 1].map((i) => (
+                    <div class="part">
+                      <span class="part__name mono">vca {i + 1}</span>
+                      <div class="om__pins"><OP id={`vca${i}.in`} /><OP id={`vca${i}.cv`} /><OP id={`vca${i}.out`} /></div>
+                    </div>
+                  ))
+                }
+                <div class="part">
+                  <span class="part__name mono">inverter</span>
+                  <div class="om__pins"><OP id="inv.in" /><OP id="inv.out" /></div>
+                </div>
+                <div class="part">
+                  <span class="part__name mono">controlled inverter</span>
+                  <div class="om__pins"><OP id="cinv.in" /><OP id="cinv.cv" /><OP id="cinv.out" /></div>
+                </div>
+                {
+                  [0, 1].map((i) => (
+                    <div class="part">
+                      <span class="part__name mono">switch {i + 1}</span>
+                      <div class="om__pins"><OP id={`sw${i}.in`} /><OP id={`sw${i}.cv`} /><OP id={`sw${i}.out`} /></div>
+                    </div>
+                  ))
+                }
+                {
+                  [0, 1].map((i) => (
+                    <div class="part">
+                      <span class="part__name mono">pulse {i + 1}</span>
+                      <div class="om__pins"><OP id={`pc${i}.in`} /><OP id={`pc${i}.out`} /></div>
+                    </div>
+                  ))
+                }
+                <div class="part">
+                  <span class="part__name mono">diode</span>
+                  <div class="om__pins"><OP id="dio.a" /><OP id="dio.k" /></div>
+                </div>
+                <div class="part">
+                  <span class="part__name mono">capacitors</span>
+                  <div class="om__pins"><OP id="cap1.a" /><OP id="cap1.b" /><OP id="cap2.a" /><OP id="cap2.b" /></div>
+                </div>
+              </div>
+            </section>
+
+            <!-- ═══════════════ sensors, midi, adapters ═══════════════ -->
+            <section class="om om--sens" aria-label="Touch sensors">
+              <header class="om__head"><h3 class="om__title mono">touch sensors</h3></header>
+              <div class="sens">
+                {
+                  [0, 1].map((i) => (
+                    <div class="sens__one">
+                      <div class="sens__plate" data-sens={i} role="button" tabindex="0" aria-label={`Touch sensor ${i + 1}: hold to raise its voltage`}>
+                        <i class="sens__fill" aria-hidden="true"></i>
+                        <span class="mono">hold</span>
+                      </div>
+                      <OP id={`sens${i}.cv`} />
+                    </div>
+                  ))
+                }
+              </div>
+            </section>
+
+            <section class="om om--midi" aria-label="MIDI">
+              <header class="om__head"><h3 class="om__title mono">midi</h3><span class="om__hint mono" data-midi-hint>lrn, then a key or a controller; the keyboard works too</span></header>
+              <div class="mlrn">
+                {
+                  FNS.map((f) => (
+                    <button type="button" class="mlrn__b mono" data-lrn={f} title={`Learn ${FN_LABEL[f]}: press this, then a key or controller`}>
+                      <b>{FN_LABEL[f]}</b>
+                      <span data-lrn-val>—</span>
+                    </button>
+                  ))
+                }
+              </div>
+              <div class="om__row om__row--chips">
+                <button type="button" class="chip" data-midi title="Listen to Web MIDI inputs">midi on</button>
+                <button type="button" class="chip" data-midi-clear title="Forget every learned key and controller">forget all</button>
+                <span class="mlrn__keys mono">keys: a w s e d f t g y h u j k o l p · z/x octave</span>
+              </div>
+              <div class="om__pins"><OP id="midi0" /><OP id="midi1" /><OP id="midi2" /><OP id="midi3" /></div>
+            </section>
+
+            <section class="om om--jacks" aria-label="Adapters">
+              <header class="om__head"><h3 class="om__title mono">adapters</h3><span class="om__hint mono">free junctions: join pins by joining them here</span></header>
+              <div class="om__pins om__pins--jacks"><OP id="j1" label="1·L" /><OP id="j2" label="2·R" /><OP id="j3" /><OP id="j4" /><OP id="j5" /><OP id="j6" /></div>
+              <div class="om__pins om__pins--jacks"><OP id="m1" label="1·mic" /><OP id="m2" /><OP id="m3" /><OP id="m4" /><OP id="m5" /><OP id="m6" /><OP id="m7" /><OP id="m8" /></div>
+            </section>
+
+            <svg class="org__wires" data-wires aria-hidden="false"></svg>
+          </div>
+        </div>
+      </div>
+      <div class="org__cheek" aria-hidden="true"></div>
+    </div>
+    <ol class="takes org__takes" data-org-takes aria-label="Recorded takes"></ol>
+
+    <article class="unveiled__chapter">
+      <p class="unveiled__num mono">how to play</p>
+      <div class="unveiled__text">
+        <p>
+          Press <kbd>space</kbd> or <b>power</b>. Nothing will sound, and that is how the machine is meant to be. Pick a <b>starting
+          point</b> (<i>Basic techno</i> is the one from the manual) and look at the cables: each one is a pair of pins joined, and a pin
+          with several clips on it adds them. To patch your own, drag from one pin to another, or click one pin and then the other.
+          Click the middle of a cable to take it off, double-click a pin to clear it. Pins glow with the voltage on them; cables
+          brighten with what they carry.
+        </p>
+        <p>
+          The <b>clock</b> is the heart: <b>temp</b> sets how many pulses a second, from 1 to 200, and the seven dividers each give a
+          square wave twice as slow as the one before. A voice listens on its <b>trig</b> pin, where a divider, a pulse maker or a
+          looper can drive it. A <b>looper</b> remembers 128 pulses, which is four bars; hold <b>add</b> under a voice to play it, with
+          the switch on <b>rec</b> to put what you play into the loop, and on <b>play</b> to hear the loop with your hands added on
+          top. The loop stores how long each note lasted and how hard it was played (<b>l</b>, <b>m</b>, both), so an envelope
+          can hold as long as you did. Four banks give every voice four loops. The keys <kbd>1</kbd> to <kbd>4</kbd> are the four
+          <b>add</b> pads and <kbd>5</kbd> to <kbd>8</kbd> the four <b>del</b> pads; <kbd>9</kbd>, <kbd>0</kbd> and <kbd>-</kbd> are
+          <b>l</b>, <b>m</b> and <b>bank</b>.
+        </p>
+        <p>
+          Everything is a voltage between 0 and 10, with audio swinging around 5. That is why a kick's envelope can drive the
+          effects clock, noise can bend a pitch, and a hi-hat can be the clock for the snare's loop. The <b>shaos</b> is a shift
+          register, a handful of bits that walk along a line and give back noise that repeats; with 16 steps it is a loop you can
+          write to. Your body is part of the circuit too: the two <b>touch sensors</b> give a voltage that rises while you hold them.
+          <b>midi</b> works as on the hardware: press <b>lrn</b> next to a function, then play a key or turn a controller. Pitch bend
+          and controller 5 (portamento) go to the bass. <b>record</b> keeps what comes out, sample for sample, as a take.
+        </p>
+        <p>
+          The stamp says <a href="/archive/#EXP">EXP</a> for a reason that is part of the instrument. There are 122 pins, and a
+          patch is a way of putting pins into groups: the number of ways to do that is the Bell number B(122), which is about
+          6 × 10<sup>148</sup>. That is far more than the atoms in the universe, so no one will ever hear every patch, and every
+          cable you add changes the machine.
+        </p>
+        <p class="mono logic__provenance">
+          After the Pulsar-23, a semi-modular drum machine and looper made by Soma Laboratory, from its published manual and
+          quick-start guide. The manufacturer publishes no schematic, so the voices are my reading of the manual and of what the
+          machine is said to sound like; they will not match it sample for sample. I have not heard the original beside this one.
+          Nothing here is affiliated with Soma Laboratory. The name is mine.
+        </p>
+      </div>
+    </article>
+  </section>
+  <script>
+    import { mountOrganismo } from '../lib/organismo/ui';
+    document.addEventListener('astro:page-load', mountOrganismo);
+  </script>
+</Base>

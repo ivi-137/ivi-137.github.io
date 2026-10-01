@@ -1,0 +1,16 @@
+---
+/** An Organismo knob: label, range and default come from the control table. The panel script turns it in 0–1 space. */
+import Knob from '../Knob.astro';
+import { spec, toNorm } from '../../lib/organismo/params';
+
+interface Props {
+  id: string;
+  size?: 'sm' | 'md' | 'lg';
+  label?: string;
+}
+const { id, size = 'sm', label } = Astro.props;
+const s = spec(id);
+if (!s) throw new Error(`unknown control ${id}`);
+---
+
+<Knob bind={id} label={label ?? s.label} min={0} max={1} step={0.001} value={toNorm(s, s.def)} size={size} format="org" />
