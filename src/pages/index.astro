@@ -72,7 +72,7 @@ const TILTS = [-1.4, 1.1, -0.6, 1.7, -1.2, 0.7, -1.9, 1.3, -0.4];
     <div class="instruments__grid">
       {
         INSTRUMENTS.map((t, i) => (
-          <a class="instrument torn" href={t.url} data-astro-reload={t.standalone} style={`--tilt:${[-1.2, 0.9, -0.5, 1.4, -0.8][i % 5]}deg`}>
+          <a class="instrument torn" href={t.url} style={`--tilt:${[-1.2, 0.9, -0.5, 1.4, -0.8][i % 5]}deg`}>
             <span class="instrument__glyph mono" aria-hidden="true">{t.glyph}</span>
             <b>{t.title.split(':')[0]}</b>
             <span>{t.why}</span>

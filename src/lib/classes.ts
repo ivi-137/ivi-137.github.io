@@ -41,7 +41,7 @@ export const classById = (id: ClassId) => CLASSES.find((c) => c.id === id)!;
  * Interactive instruments, filed in the same hierarchy as the essays. `why`
  * states the complexity fact that puts each one in its class.
  */
-export const INSTRUMENTS: Array<{ id: string; title: string; url: string; class: ClassId; why: string; glyph: string; standalone?: boolean }> = [
+export const INSTRUMENTS: Array<{ id: string; title: string; url: string; class: ClassId; why: string; glyph: string }> = [
   {
     id: 'atlas',
     title: 'Atlas of the 256 elementary automata',
@@ -125,10 +125,9 @@ export const INSTRUMENTS: Array<{ id: string; title: string; url: string; class:
   {
     id: 'antevault',
     title: 'ANTEVAULT: a poker roguelite',
-    url: '/antevault/',
+    url: '/posts/antevault/',
     class: 'PSPACE',
     glyph: 'C×M',
-    standalone: true,
     why: 'A run is a few hundred moves long, so its best strategy is found by walking the game tree depth first: exponential time, polynomial space. Against a shuffled deck, that is a game against nature.',
   },
   {
