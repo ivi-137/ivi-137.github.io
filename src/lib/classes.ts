@@ -131,6 +131,14 @@ export const INSTRUMENTS: Array<{ id: string; title: string; url: string; class:
     why: 'A run is a few hundred moves long, so its best strategy is found by walking the game tree depth first: exponential time, polynomial space. Against a shuffled deck, that is a game against nature.',
   },
   {
+    id: 'guzen',
+    title: 'GUZEN: a synthesizer ruled by chance',
+    url: '/posts/guzen/',
+    class: 'P',
+    glyph: '2^48',
+    why: 'All of its chance is one 48-bit random number generator, so a piece is a fixed function of its seed: constant work per sample, and the score can be found without rendering any audio.',
+  },
+  {
     id: 'unveiled',
     title: 'Complexity unveiled: seed, thread, fold, measure',
     url: '/unveiled/',
